@@ -1,0 +1,21 @@
+#div_bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    background-color: black;
+    color: white;
+    text-align: left;
+    line-height: 20px;
+}
+
+#mynetwork {
+    position: fixed;
+    top: 50;
+    bottom: 50;
+    left: 20;
+    right: 20;
+    margin: 20px;
+    border: 1px dashed red;
+}

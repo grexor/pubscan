@@ -1,0 +1,109 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link rel="stylesheet" href="pubscan.css">
+</head>
+
+<body>
+
+    <button id="fetchData" onclick="pmids_download();">Fetch JSON</button>
+    <div id="output"></div>
+    <div id="mynetwork"></div>
+    <div id="div_bottom">@grexor</div>
+
+    <script type="text/javascript">
+      
+    var my_network;
+  
+    var nodes_all = [
+    { id: 'Julia Puchan', label: 'Julia Puchan', group: 'g5', size: 20 },
+    { id: 'Johannes Hartl', label: 'Johannes Hartl', group: 'g2', size: 20 },
+    { id: 'Florian Hubrich', label: 'Florian Hubrich', group: 'g4', size: 20 },
+    ];
+
+    var edges_all = [
+    { from: 'Annette Oxenius', to: 'Alexander Dimitri Yermanos', width: 0.5, length: 100, label: '1', color: {color: '#CB80AB', highlight: '#CB80AB'} },
+    { from: 'Tamas Dolowschiak', to: 'Federica Sallusto', width: 0.5, length: 1000, label: '1', color: {color: '#789DBC', highlight: '#789DBC'} },
+    { from: 'Julia Vorholt', to: 'Timothy Bradley', width: 0.5, length: 100, label: '1', color: {color: '#CEDF9F', highlight: '#CEDF9F'} },
+    { from: 'Wolf-Dietrich Hardt', to: 'Alexander Oliver Brachmann', width: 0.5, length: 1000, label: '1', color: {color: '#789DBC', highlight: '#789DBC'} },
+    ];
+
+    function draw() {
+        var container = document.getElementById("mynetwork");
+        var data = {
+          nodes: nodes_all,
+          edges: edges_all,
+        };
+        var options = {
+          groups : {
+        'g0': { color: {background:'#FFB26F', highlight: { background: '#FFB26F'} } },
+        'g1': { color: {background:'#789DBC', highlight: { background: '#789DBC'} } },
+        'g2': { color: {background:'#CEDF9F', highlight: { background: '#CEDF9F'} } },
+        'g3': { color: {background:'#CB80AB', highlight: { background: '#CB80AB'} } },
+        'g4': { color: {background:'#D37676', highlight: { background: '#D37676'} } },
+        'g5': { color: {background:'#A37676', highlight: { background: '#A37676'} } },
+        'g6': { color: {background:'#B37676', highlight: { background: '#B37676'} } },
+        'g7': { color: {background:'#C37676', highlight: { background: '#C37676'} } },
+        'g8': { color: {background:'#D37676', highlight: { background: '#D37676'} } },
+        },
+          nodes: {
+            shape: "dot",
+            size: 18,
+                font: {
+                    size: 20, // Adjust the font size here
+                    color: '#343434',
+                    face: 'arial',
+                },            
+          },
+          edges: {
+            font: {
+              size: 20,
+              face: 'arial',
+              color: '#a1a1a1',
+            },
+          },          
+          physics: {
+            forceAtlas2Based: {
+              gravitationalConstant: -50,
+              centralGravity: 0.01,
+              springLength: 200,
+              springConstant: 0.03,
+              damping: 0.7,
+            },
+            maxVelocity: 70,
+            solver: "forceAtlas2Based",
+            timestep: 0.5,
+            stabilization: { iterations: 150 },
+          },
+        };
+
+        let my_network = new vis.Network(container, data, options);
+        globalThis.my_network = my_network;
+      }
+    </script>
+
+    </script>
+
+    <script>
+        function pmids_download() {
+            $.ajax({
+                url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?term=Gregor Rot[Author]&retmax=200&retmode=json",
+                type: "GET",
+                dataType: "json",
+                success: function(data) {
+                    $("#output").text(JSON.stringify(data, null, 2));
+                    draw();
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error:", error);
+                }
+            });
+        };
+    </script>
+
+    </body>
+</html>

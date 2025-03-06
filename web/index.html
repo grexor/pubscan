@@ -10,7 +10,7 @@
 
 <body>
 
-    <button id="fetchData" onclick="pmids_download();">Fetch JSON</button>
+    <button id="fetchData" onclick="get_author_network();">Fetch JSON</button>
     <div id="output"></div>
     <div id="mynetwork"></div>
     <div id="div_bottom">@grexor</div>
@@ -95,6 +95,47 @@
                 type: "GET",
                 dataType: "json",
                 success: function(data) {
+                    pmids = data["esearchresult"]["idlist"];
+                    for (let i = 0; i < pmids.length; i++) {
+                        console.log(pmids[i]);
+                    }
+                    $("#output").text(JSON.stringify(data, null, 2));
+                    nodes_all = [
+                        { id: 'Gregor Rot', label: 'Gregor Rot', group: 'g1', size: 20 },
+                        { id: 'Johannes Hartl', label: 'Johannes Hartl', group: 'g2', size: 20 },
+                        { id: 'Florian Hubrich', label: 'Florian Hubrich', group: 'g4', size: 20 },
+                    ];
+                    draw();
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error:", error);
+                }
+            });
+        };
+
+        function get_authors() {
+            $.ajax({
+                url: "https://pubscan.expressrna.org/gw/index.py?action=get_pmid&pmid=39313562&response_type=json",
+                type: "GET",
+                dataType: "json",
+                success: function(data) {
+                    console.log(data);
+                    mydata = data;
+
+                    // example
+                    nodes_all = [
+                        { id: 'Gregor Rot', label: 'Gregor Rot', group: 'g1', size: 20 },
+                        { id: 'Johannes Hartl', label: 'Johannes Hartl', group: 'g2', size: 20 },
+                        { id: 'Florian Hubrich', label: 'Florian Hubrich', group: 'g4', size: 20 },
+                    ];
+
+                    nodes_all = [];
+                    for (let i = 0; i < mydata.length; i++) {
+                        console.log(mydata[i]);
+                        author_fullname = mydata[i];
+                        author = { id: author_fullname, label: author_fullname, group: "g1", size: 10};
+                        nodes_all.push(author);
+                    }
                     $("#output").text(JSON.stringify(data, null, 2));
                     draw();
                 },
@@ -103,6 +144,28 @@
                 }
             });
         };
+
+        function get_author_network() {
+            $.ajax({
+                url: "https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=Elisabetta%20Cacace&response_type=json",
+                type: "GET",
+                dataType: "json",
+                success: function(data) {
+                    console.log(data);
+                    mydata = data;
+                    console.log(mydata["nodes_all"]);
+                    nodes_all = mydata["nodes_all"];
+                    edges_all = mydata["edges_all"];
+                    //$("#output").text(JSON.stringify(data, null, 2));
+                    draw();
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error:", error);
+                }
+            });
+        };
+
+
     </script>
 
     </body>

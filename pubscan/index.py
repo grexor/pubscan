@@ -132,7 +132,6 @@ def data_pmid(pmid, nocache=None):
     authors = myxml["PubmedArticleSet"]["PubmedArticle"]["MedlineCitation"]["Article"]["AuthorList"]["Author"]
     authors_t = []
     for rec in authors:
-        #t = f'{unidecode(rec["ForeName"])} {unidecode(rec["LastName"])}'
         t = get_full_name(rec)
         authors_t.append(t)
     return authors_t

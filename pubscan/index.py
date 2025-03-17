@@ -87,6 +87,8 @@ def remove_special_characters(text):
     #return re.sub(r'[^a-zA-Z0-9\s]', '', text)
 
 def get_full_name(author):
+    if isinstance(author, str):
+        return author
     fore_name = unidecode(author.get("ForeName", ""))
     last_name = unidecode(author.get("LastName", ""))
     suffix = unidecode(author.get("Suffix", ""))
@@ -206,15 +208,24 @@ Users: {user_count}
 
         for pmid in result["idlist"]:
             pmid_authors = data_pmid(pmid)
-            for author_name in pmid_authors:
-                authors.add(author_name)
-                author_rec = { "id": author_name, "label": author_name, "group": "g1", "size": "15"};
-                if author_rec not in nodes_all:
-                    nodes_all.append(author_rec)
 
             for author_name in pmid_authors:
                 author_pmids[author_name] = data_author_to_pmids(author_name)["idlist"]
 
+            for author_name in pmid_authors:
+                node_size = min(30, len(author_pmids[author_name]))
+                node_size = max(15, node_size)
+                author_rec = { "id": author_name, "label": author_name, "group": "g1", "size": node_size};
+                if author_rec not in nodes_all:
+                    nodes_all.append(author_rec)
+
+        nodes_all_filtered = []
+        for node in nodes_all:
+            if len(author_pmids[node["id"]])>=10:
+                nodes_all_filtered.append(node)
+                authors.add(node["id"])
+        nodes_all = nodes_all_filtered
+            
         # pairs of authors, number of overlapping pmids
         author_copmids = {}
         author_pairs = list(combinations(authors, 2))
@@ -225,7 +236,10 @@ Users: {user_count}
             if len(common)>0:
                 author_author_pmids[f"{a1}_{a2}"] = common
                 #author_author_pmids[f"{a2}_{a1}"] = common
-                edge_rec = {"from":a1, "to":a2, "width":len(common)/2, "length":100, "label": f"{len(common)}", "color": {"color": '#CB80AB', "highlight": '#CB80AB'} }
+                edge_width = len(common)/2
+                if edge_width>20:
+                    edge_width = 20
+                edge_rec = {"from":a1, "to":a2, "width":edge_width, "length":len(common)/2, "label": f"{len(common)}", "color": {"color": '#CB80AB', "highlight": '#CB80AB'} }
                 edges_all.append(edge_rec)
 
         #result = json.dumps(result)

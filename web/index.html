@@ -1,35 +1,47 @@
 <html>
 
 <head>
+    <title>pubScan, your publication network scanner</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <link rel="stylesheet" href="pubscan.css">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body>
-
-    <button id="fetchData" onclick="get_author_network();">Fetch JSON</button>
+    <div class="relative" style="width: 250px;">
+        <input value="Gregor Rot" type="text" id="query" placeholder="Search..." class="w-full text-sm border rounded-full shadow-md px-3 focus:outline-none focus:border-gray-500" style="height: 30px; padding-top: 0; padding-bottom: 0;">
+        <button id="searchButton" class="absolute right-2 top-0 bottom-0 flex items-center text-gray-500 hover:text-blue-600">            🔍
+        </button>
+    </div>    
     <div id="output"></div>
     <div id="mynetwork"></div>
     <div id="div_bottom">@grexor</div>
+
+    <script>
+        document.getElementById("query").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {  // Detect "Enter" key
+                event.preventDefault();   // Prevent form submission (if inside a form)
+                document.getElementById("searchButton").click(); // Trigger button click
+            }
+        });
+
+        document.getElementById("searchButton").addEventListener("click", function() {
+            query = document.getElementById("query").value;
+            get_author_network(query);
+        });
+    </script>
 
     <script type="text/javascript">
       
     var my_network;
   
-    var nodes_all = [
-    { id: 'Julia Puchan', label: 'Julia Puchan', group: 'g5', size: 20 },
-    { id: 'Johannes Hartl', label: 'Johannes Hartl', group: 'g2', size: 20 },
-    { id: 'Florian Hubrich', label: 'Florian Hubrich', group: 'g4', size: 20 },
+    let nodes_all = [
     ];
 
-    var edges_all = [
-    { from: 'Annette Oxenius', to: 'Alexander Dimitri Yermanos', width: 0.5, length: 100, label: '1', color: {color: '#CB80AB', highlight: '#CB80AB'} },
-    { from: 'Tamas Dolowschiak', to: 'Federica Sallusto', width: 0.5, length: 1000, label: '1', color: {color: '#789DBC', highlight: '#789DBC'} },
-    { from: 'Julia Vorholt', to: 'Timothy Bradley', width: 0.5, length: 100, label: '1', color: {color: '#CEDF9F', highlight: '#CEDF9F'} },
-    { from: 'Wolf-Dietrich Hardt', to: 'Alexander Oliver Brachmann', width: 0.5, length: 1000, label: '1', color: {color: '#789DBC', highlight: '#789DBC'} },
+    let edges_all = [
     ];
 
     function draw() {
@@ -54,7 +66,7 @@
             shape: "dot",
             size: 18,
                 font: {
-                    size: 20, // Adjust the font size here
+                    size: 30, // Adjust the font size here
                     color: '#343434',
                     face: 'arial',
                 },            
@@ -65,24 +77,47 @@
               face: 'arial',
               color: '#a1a1a1',
             },
-          },          
+          },
+          layout: {
+            improvedLayout: false,
+          },
           physics: {
+            barnesHut: {
+                gravitationalConstant: -4000, // Strength of attraction (-ve pulls nodes together)
+                centralGravity: 0.3,         // Pull towards center
+                springLength: 200,            // Edge length
+                springConstant: 0.01,        // Strength of spring force
+                damping: 0.1,               // Slow down movement over time
+                avoidOverlap: 1              // Avoid node overlap (0 = disabled)
+            },
             forceAtlas2Based: {
               gravitationalConstant: -50,
-              centralGravity: 0.01,
-              springLength: 200,
-              springConstant: 0.03,
-              damping: 0.7,
+              centralGravity: 0.001,
+              //springLength: 100,
+              springConstant: 0.08, // really influences jiggling
+              damping: 0.4,
+              avoidOverlap: 1,
             },
-            maxVelocity: 70,
+            maxVelocity: 50,
             solver: "forceAtlas2Based",
             timestep: 0.5,
-            stabilization: { iterations: 150 },
+            adaptiveTimestep: true,
+            stabilization: { iterations: 1000 },
           },
         };
 
         let my_network = new vis.Network(container, data, options);
+
         globalThis.my_network = my_network;
+
+        //setTimeout(function () {
+        //    globalThis.my_network.setOptions({ physics: { solver: "barnesHut", timestep: 0.1 } }); // Slow down physics
+        //}, 2000);
+
+        //setTimeout(function () {
+        //    globalThis.my_network.setOptions({ physics: false }); // Fully disable physics after 4 seconds
+        //}, 4000);
+
       }
     </script>
 
@@ -113,47 +148,15 @@
             });
         };
 
-        function get_authors() {
+        function get_author_network(query) {
+            let encodedQuery = encodeURIComponent(query);
             $.ajax({
-                url: "https://pubscan.expressrna.org/gw/index.py?action=get_pmid&pmid=39313562&response_type=json",
+                url: "https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json",
                 type: "GET",
                 dataType: "json",
                 success: function(data) {
                     console.log(data);
                     mydata = data;
-
-                    // example
-                    nodes_all = [
-                        { id: 'Gregor Rot', label: 'Gregor Rot', group: 'g1', size: 20 },
-                        { id: 'Johannes Hartl', label: 'Johannes Hartl', group: 'g2', size: 20 },
-                        { id: 'Florian Hubrich', label: 'Florian Hubrich', group: 'g4', size: 20 },
-                    ];
-
-                    nodes_all = [];
-                    for (let i = 0; i < mydata.length; i++) {
-                        console.log(mydata[i]);
-                        author_fullname = mydata[i];
-                        author = { id: author_fullname, label: author_fullname, group: "g1", size: 10};
-                        nodes_all.push(author);
-                    }
-                    $("#output").text(JSON.stringify(data, null, 2));
-                    draw();
-                },
-                error: function(xhr, status, error) {
-                    console.error("Error:", error);
-                }
-            });
-        };
-
-        function get_author_network() {
-            $.ajax({
-                url: "https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=Francisco Zorrilla&response_type=json",
-                type: "GET",
-                dataType: "json",
-                success: function(data) {
-                    console.log(data);
-                    mydata = data;
-                    console.log(mydata["nodes_all"]);
                     nodes_all = mydata["nodes_all"];
                     edges_all = mydata["edges_all"];
                     //$("#output").text(JSON.stringify(data, null, 2));

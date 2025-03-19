@@ -27,27 +27,30 @@
 
         function stream_test() {
 
-            $("#output").text("blablabla"); // Update the element with new data
+            fetch("https://pubscan.expressrna.org/gw/index.py?action=stream_test&streaming=1")
+    .then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        const outputElement = document.getElementById("output");
 
-
-            $.ajax({
-                url: "https://pubscan.expressrna.org/gw/index.py?action=stream_test&streaming=true",
-                method: "GET",
-                xhrFields: {
-                    onprogress: function (event) {
-                        var newData = event.currentTarget.responseText;
-                        $("#output").text(newData); // Update the element with new data
-                    }
-                },
-                success: function (data) {
-                    console.log("Streaming complete:", data);
-                },
-                error: function (xhr, status, error) {
-                    console.error("Error:", status, error);
+        function readStream() {
+            return reader.read().then(({ done, value }) => {
+                if (done) {
+                    console.log("Stream finished.");
+                    return;  // ✅ Properly close the stream
                 }
+                outputElement.innerText += decoder.decode(value);  // ✅ Append data
+                return readStream();  // Keep reading next chunks
             });
-            
         }
+
+        return readStream();
+    })
+    .catch(error => console.error("Error:", error));
+
+
+        }
+
         document.getElementById("query").addEventListener("keypress", function(event) {
             if (event.key === "Enter") {  // Detect "Enter" key
                 event.preventDefault();   // Prevent form submission (if inside a form)

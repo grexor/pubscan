@@ -168,16 +168,9 @@ class TableClass():
             response_headers = [('Content-type','text/plain; charset=utf-8')]
         elif response_type in ["json"]:
             response_headers = [('Content-type','application/json; charset=utf-8')]
-        if self.pars.get("streaming", None)!=None:
-            response_headers.append(('Cache-Control', 'no-cache'))
-            response_headers.append(('Transfer-Encoding', 'chunked'))
         self.stream_out = self.start(status, response_headers)
         method = getattr(self, self.pars.get("action", "version"))
-        if self.pars.get("streaming", None)!=None:
-            for chunk in method():
-                yield chunk
-        else:
-            yield method()
+        yield from method()
 
     def parse_fields(self, environ):
         request_method = environ["REQUEST_METHOD"]
@@ -198,12 +191,15 @@ class TableClass():
 Database: {config["mysql"]["database"]}
 Users: {user_count}
 """
-        return self.return_string(status_string)
+        return [self.return_string(status_string)]
 
     def stream_test(self):
         for i in range(3):
             yield self.return_string(f"iter: {i}\n")
+            sys.stdout.flush()
             time.sleep(1)
+        yield b""        
+        sys.stdout.flush()    
 
     def config(self):
         return self.return_string(config["folders"]["library_folder"])
@@ -263,7 +259,7 @@ Users: {user_count}
         results["nodes_all"] = nodes_all
         results["edges_all"] = edges_all
 
-        return self.return_string(json.dumps(results))
+        yield self.return_string(json.dumps(results))
 
     def get_pmid(self):
         pmid = self.pars["pmid"]
@@ -402,7 +398,10 @@ Users: {user_count}
     def close(self):
         Session.remove()
 
-application = TableClass
+def application(environ, start_response):
+    return iter(TableClass(environ, start_response))
+
+#application = TableClass
 
 """
     def get(self):

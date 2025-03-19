@@ -16,11 +16,38 @@
         <button id="searchButton" class="absolute right-2 top-0 bottom-0 flex items-center text-gray-500 hover:text-blue-600">            🔍
         </button>
     </div>    
-    <div id="output"></div>
+
+    <div id="output">Output</div>
+
+    <a href="javascript:stream_test()">stream</a>
     <div id="mynetwork"></div>
     <div id="div_bottom">@grexor</div>
 
     <script>
+
+        function stream_test() {
+
+            $("#output").text("blablabla"); // Update the element with new data
+
+
+            $.ajax({
+                url: "https://pubscan.expressrna.org/gw/index.py?action=stream_test&streaming=true",
+                method: "GET",
+                xhrFields: {
+                    onprogress: function (event) {
+                        var newData = event.currentTarget.responseText;
+                        $("#output").text(newData); // Update the element with new data
+                    }
+                },
+                success: function (data) {
+                    console.log("Streaming complete:", data);
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error:", status, error);
+                }
+            });
+            
+        }
         document.getElementById("query").addEventListener("keypress", function(event) {
             if (event.key === "Enter") {  // Detect "Enter" key
                 event.preventDefault();   // Prevent form submission (if inside a form)

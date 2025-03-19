@@ -13,6 +13,7 @@ import shlex
 import copy
 import re
 import shutil
+import time
 import yaml
 from unidecode import unidecode
 import requests
@@ -167,9 +168,16 @@ class TableClass():
             response_headers = [('Content-type','text/plain; charset=utf-8')]
         elif response_type in ["json"]:
             response_headers = [('Content-type','application/json; charset=utf-8')]
+        if self.pars.get("streaming", None)!=None:
+            response_headers.append(('Cache-Control', 'no-cache'))
+            response_headers.append(('Transfer-Encoding', 'chunked'))
         self.stream_out = self.start(status, response_headers)
         method = getattr(self, self.pars.get("action", "version"))
-        yield method()
+        if self.pars.get("streaming", None)!=None:
+            for chunk in method():
+                yield chunk
+        else:
+            yield method()
 
     def parse_fields(self, environ):
         request_method = environ["REQUEST_METHOD"]
@@ -191,6 +199,11 @@ Database: {config["mysql"]["database"]}
 Users: {user_count}
 """
         return self.return_string(status_string)
+
+    def stream_test(self):
+        for i in range(3):
+            yield self.return_string(f"iter: {i}\n")
+            time.sleep(1)
 
     def config(self):
         return self.return_string(config["folders"]["library_folder"])

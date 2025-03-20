@@ -27,6 +27,8 @@
 
         function stream_test() {
 
+	// fetch instead of ajax
+
             fetch("https://pubscan.expressrna.org/gw/index.py?action=stream_test&streaming=1")
     .then(response => {
         const reader = response.body.getReader();

@@ -7,6 +7,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <link rel="stylesheet" href="pubscan.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
@@ -17,13 +18,51 @@
         </button>
     </div>    
 
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50" onclick="closeModal()">
+        <!-- Modal Content -->
+        <div class="bg-white p-6 rounded-lg shadow-lg w-3/4 h-3/4 relative z-50" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Streaming Data</h2>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <pre id="jsonOutput" class="bg-gray-200 p-3 rounded-md text-sm max-h-[60vh] overflow-auto"></pre>
+            <div class="flex justify-end mt-4">
+                <button onclick="clearJson()" class="px-4 py-2 bg-gray-500 text-white rounded-md mr-2">Clear</button>
+                <button onclick="closeModal()" class="px-4 py-2 bg-red-500 text-white rounded-md">Close</button>
+            </div>
+        </div>
+    </div>
+    
     <div id="output">Output</div>
 
-    <a href="javascript:stream_test()">stream</a>
+    <a href="javascript:openModal()">stream</a>
     <div id="mynetwork"></div>
     <div id="div_bottom">@grexor</div>
 
     <script>
+
+
+        function openModal() {
+            const modal = document.getElementById("modal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex"); // Ensure it's visible
+        }
+
+        function closeModal() {
+            const modal = document.getElementById("modal");
+            modal.classList.add("hidden");
+        }
+
+        function clearJson() {
+            document.getElementById("jsonOutput").textContent = "";
+        }
+
+        function updateModalContent(data) {
+            const jsonOutput = document.getElementById("jsonOutput");
+            jsonOutput.textContent += data + "\n";
+            jsonOutput.scrollTop = jsonOutput.scrollHeight;
+        }
 
         function stream_test() {
 
@@ -182,23 +221,76 @@
 
         function get_author_network(query) {
             let encodedQuery = encodeURIComponent(query);
+
+            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json").then(response =>
+            {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+
+                function readStream() {
+                    return reader.read().then(({ done, value }) => {
+                        if (done) {
+                            console.log("Stream finished.");
+                            return;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+
+                        // Process each complete JSON object (assuming newline-delimited JSON)
+                        let parts = buffer.split("\n");  
+                        buffer = parts.pop();  // Keep the last incomplete part in buffer
+
+                        for (const part of parts) {
+                            try {
+                                const mydata = JSON.parse(part);
+                                console.log("Received JSON data:", mydata);
+                                if (mydata["instruction"]=="data") {
+                                    nodes_all = mydata["nodes_all"];
+                                    edges_all = mydata["edges_all"];
+                                    draw();
+                                }
+                                if (mydata["instruction"]=="show") {
+                                    openModal();
+                                    updateModalContent(mydata["data"]);
+                                }
+
+                            } catch (error) {
+                                console.error("Error parsing JSON:", error);
+                            }
+                        }
+
+                        return readStream(); // Continue reading next chunks
+                    });
+                }
+                
+                return readStream();
+            })
+            .catch(error => console.error("Error:", error));
+
+        }
+
+        function get_author_network_old(query) {
             $.ajax({
-                url: "https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json",
+                url: "https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=not_json",
                 type: "GET",
-                dataType: "json",
+                //dataType: "json",
                 success: function(data) {
                     console.log(data);
                     mydata = data;
-                    nodes_all = mydata["nodes_all"];
-                    edges_all = mydata["edges_all"];
-                    //$("#output").text(JSON.stringify(data, null, 2));
-                    draw();
+                    if (mydata["instruction"]=="data") {
+                        console.log(mydata["instruction"]);
+                        nodes_all = mydata["nodes_all"];
+                        edges_all = mydata["edges_all"];
+                        //$("#output").text(JSON.stringify(data, null, 2));
+                        draw();
+                    }
                 },
                 error: function(xhr, status, error) {
                     console.error("Error:", error);
                 }
             });
-        };
+        }
 
 
     </script>

@@ -168,6 +168,8 @@ class TableClass():
             response_headers = [('Content-type','text/plain; charset=utf-8')]
         elif response_type in ["json"]:
             response_headers = [('Content-type','application/json; charset=utf-8')]
+        else:
+            response_headers = [('Content-type','text/plain; charset=utf-8')]
         self.stream_out = self.start(status, response_headers)
         method = getattr(self, self.pars.get("action", "version"))
         yield from method()
@@ -207,6 +209,11 @@ Users: {user_count}
     def get_author_network(self):
         search = unidecode(self.pars["author"])
         nocache = self.pars.get("nocache", None)
+
+        test = {"instruction": "show", "data": f"download publications PMIDs for {search}"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
         result = data_author_to_pmids(search, nocache)
 
         author_pmids = {}
@@ -215,10 +222,23 @@ Users: {user_count}
         edges_all = []
         authors = set()
 
+        test = {"instruction": "show", "data": "loading publication list"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
         for pmid in result["idlist"]:
+
+            test = {"instruction": "show", "data": f"get authors for PMID {pmid}"}
+            yield self.return_string(json.dumps(test)+"\n")
+            sys.stdout.flush()
+
             pmid_authors = data_pmid(pmid)
 
             for author_name in pmid_authors:
+                test = {"instruction": "show", "data": f"get publications for {author_name}"}
+                yield self.return_string(json.dumps(test)+"\n")
+                sys.stdout.flush()
+
                 author_pmids[author_name] = data_author_to_pmids(author_name)["idlist"]
 
             for author_name in pmid_authors:
@@ -235,6 +255,10 @@ Users: {user_count}
                 authors.add(node["id"])
         nodes_all = nodes_all_filtered
             
+        test = {"instruction": "show", "data": "creating network"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
         # pairs of authors, number of overlapping pmids
         author_copmids = {}
         author_pairs = list(combinations(authors, 2))
@@ -258,8 +282,11 @@ Users: {user_count}
         #results["author_author_pmids"] = author_author_pmids
         results["nodes_all"] = nodes_all
         results["edges_all"] = edges_all
+        results["instruction"] = "data"
 
-        yield self.return_string(json.dumps(results))
+        yield self.return_string(json.dumps(results)+"\n")
+        sys.stdout.flush()
+
 
     def get_pmid(self):
         pmid = self.pars["pmid"]

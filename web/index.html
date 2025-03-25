@@ -13,7 +13,7 @@
 
 <body>
     <div class="relative" style="width: 250px;">
-        <input value="Gregor Rot" type="text" id="query" placeholder="Search..." class="w-full text-sm border rounded-full shadow-md px-3 focus:outline-none focus:border-gray-500" style="height: 30px; padding-top: 0; padding-bottom: 0;">
+        <input value="Janko Tackmann" type="text" id="query" placeholder="Search..." class="w-full text-sm border rounded-full shadow-md px-3 focus:outline-none focus:border-gray-500" style="height: 30px; padding-top: 0; padding-bottom: 0;">
         <button id="searchButton" class="absolute right-2 top-0 bottom-0 flex items-center text-gray-500 hover:text-blue-600">            🔍
         </button>
     </div>    
@@ -36,7 +36,7 @@
     
     <div id="output">Output</div>
 
-    <a href="javascript:openModal()">stream</a>
+    <a href="javascript:globalThis.my_network.fit();">stream</a>
     <div id="mynetwork"></div>
     <div id="div_bottom">@grexor</div>
 
@@ -122,18 +122,25 @@
           edges: edges_all,
         };
         var options = {
+            autoResize: true,
+            height: '100%',
+            width: '100%',            
           groups : {
-        'g0': { color: {background:'#FFB26F', highlight: { background: '#FFB26F'} } },
-        'g1': { color: {background:'#789DBC', highlight: { background: '#789DBC'} } },
-        'g2': { color: {background:'#CEDF9F', highlight: { background: '#CEDF9F'} } },
-        'g3': { color: {background:'#CB80AB', highlight: { background: '#CB80AB'} } },
-        'g4': { color: {background:'#D37676', highlight: { background: '#D37676'} } },
-        'g5': { color: {background:'#A37676', highlight: { background: '#A37676'} } },
+        'g0': { color: {background:'#EBF2F6', highlight: { background: '#EBF2F6'} } },
+        'g1': { color: {background:'#C6D6E2', highlight: { background: '#C6D6E2'} } },
+        'g2': { color: {background:'#93AEC5', highlight: { background: '#93AEC5'} } },
+        'g3': { color: {background:'#293D4D', highlight: { background: '#293D4D'} } },
+        'g4': { color: {background:'#CCEEFA', highlight: { background: '#C3EEFA'} } },
+        'g5': { color: {background:'#FFEEFA', highlight: { background: '#C3EEFA'} } },
         'g6': { color: {background:'#B37676', highlight: { background: '#B37676'} } },
         'g7': { color: {background:'#C37676', highlight: { background: '#C37676'} } },
         'g8': { color: {background:'#D37676', highlight: { background: '#D37676'} } },
         },
-          nodes: {
+        interaction: {
+            zoomSpeed: 0.1,  // Slow down zooming (default is 1)
+            navigationButtons: true  // Optionally add navigation buttons (optional)
+        },        
+        nodes: {
             shape: "dot",
             size: 18,
                 font: {
@@ -143,16 +150,25 @@
                 },            
           },
           edges: {
+            color: '#ff0000',
             font: {
               size: 20,
               face: 'arial',
               color: '#a1a1a1',
             },
+            selectionWidth: 1,
           },
           layout: {
-            improvedLayout: false,
+            improvedLayout: true,
+            randomSeed: 42,
           },
           physics: {
+            stabilization: {
+                enabled: true,
+                iterations: 200,
+                updateInterval: 20,
+                fit: true,
+            },
             barnesHut: {
                 gravitationalConstant: -4000, // Strength of attraction (-ve pulls nodes together)
                 centralGravity: 0.3,         // Pull towards center
@@ -162,24 +178,34 @@
                 avoidOverlap: 1              // Avoid node overlap (0 = disabled)
             },
             forceAtlas2Based: {
-              gravitationalConstant: -50,
+              gravitationalConstant: -20,
               centralGravity: 0.001,
-              //springLength: 100,
-              springConstant: 0.08, // really influences jiggling
-              damping: 0.4,
+              springConstant: 0.06, // really influences jiggling
+              damping: 0.9,
               avoidOverlap: 1,
             },
             maxVelocity: 50,
             solver: "forceAtlas2Based",
-            timestep: 0.5,
+            timestep: 0.4,
             adaptiveTimestep: true,
-            stabilization: { iterations: 1000 },
           },
         };
 
         let my_network = new vis.Network(container, data, options);
 
         globalThis.my_network = my_network;
+
+        //globalThis.my_network.on('stabilizationIterationsDone', function () {
+        //network.setOptions({
+        //    physics: {
+        //    enabled: false
+        //    }
+        //});
+        //});        
+
+
+        //globalThis.my_network.fit();
+        //globalThis.my_network.clustering.clusterByHubsize();
 
         //setTimeout(function () {
         //    globalThis.my_network.setOptions({ physics: { solver: "barnesHut", timestep: 0.1 } }); // Slow down physics
@@ -247,11 +273,12 @@
                                 console.log("Received JSON data:", mydata);
                                 if (mydata["instruction"]=="data") {
                                     nodes_all = mydata["nodes_all"];
+                                    console.log(nodes_all);
                                     edges_all = mydata["edges_all"];
                                     draw();
                                 }
                                 if (mydata["instruction"]=="show") {
-                                    openModal();
+                                    //openModal();
                                     updateModalContent(mydata["data"]);
                                 }
 

@@ -83,6 +83,22 @@ mapper_registry.map_imperatively(Users, users_table)
 #import stripe
 #stripe.api_key = 'sk_test_1iVkPyJIyvEOzGfTIwNj978V00foajlMFx'
 
+def normalize_name(name):
+    parts = re.split(r'\s+', name.strip())
+    if len(parts) > 2:
+        parts = [parts[0], parts[-1]]  # Keep only first and last name
+    return set(parts)
+
+def are_names_equal(name1, name2):
+    return normalize_name(name1) == normalize_name(name2)
+
+def get_unique_author_name(db, name):
+    for temp in db:
+        if are_names_equal(temp, name):
+            return temp
+    db.add(name)
+    return name
+
 def remove_special_characters(text):
     return unidecode(text)
     #return re.sub(r'[^a-zA-Z0-9\s]', '', text)
@@ -106,15 +122,26 @@ def data_author_to_pmids(search, nocache=None):
     search_id = remove_special_characters(search_id)
     search_file = os.path.join(data_folder, f"{search_id}.author_search")
 
-    if os.path.exists(search_file) and nocache==None:
-        with open(search_file, 'rb') as file:
-            result = pickle.load(file)
-    else:
+    search_candidates = [search_file]
+    if len(search_id.split("_"))==2:
+        temp = search_id.split("_")
+        search_id_alt = f"{temp[1]} {temp[0]}"
+        search_file_alt = os.path.join(data_folder, f"{search_id_alt}.author_search")
+        search_candidates.append(search_file_alt)
+
+    result = None
+    for fname in search_candidates:
+        if os.path.exists(search_file) and nocache==None:
+            with open(search_file, 'rb') as file:
+                result = pickle.load(file)
+    
+    if result==None:
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?term={search}[Author]&retmax=200&retmode=json"
         page = requests.get(url, verify=False).text
         result = json.loads(page)["esearchresult"]
         with open(search_file, 'wb') as file:
             pickle.dump(result, file)
+
     return result
 
 def data_pmid(pmid, nocache=None):
@@ -209,6 +236,8 @@ Users: {user_count}
     def get_author_network(self):
         search = unidecode(self.pars["author"])
         nocache = self.pars.get("nocache", None)
+        nodes_ids = set()
+        db_authors = set()
 
         test = {"instruction": "show", "data": f"download publications PMIDs for {search}"}
         yield self.return_string(json.dumps(test)+"\n")
@@ -235,6 +264,7 @@ Users: {user_count}
             pmid_authors = data_pmid(pmid)
 
             for author_name in pmid_authors:
+                author_name = get_unique_author_name(db_authors, author_name)
                 test = {"instruction": "show", "data": f"get publications for {author_name}"}
                 yield self.return_string(json.dumps(test)+"\n")
                 sys.stdout.flush()
@@ -242,15 +272,26 @@ Users: {user_count}
                 author_pmids[author_name] = data_author_to_pmids(author_name)["idlist"]
 
             for author_name in pmid_authors:
+                author_name = get_unique_author_name(db_authors, author_name)
+                author_group = "g0"
+                if len(author_pmids[author_name])>10:
+                    author_group = "g1"
+                if len(author_pmids[author_name])>50:
+                    author_group = "g2"
+                if len(author_pmids[author_name])>100:
+                    author_group = "g3"
                 node_size = min(30, len(author_pmids[author_name]))
                 node_size = max(15, node_size)
-                author_rec = { "id": author_name, "label": author_name, "group": "g1", "size": node_size};
-                if author_rec not in nodes_all:
+                node_size = 20
+                author_rec = { "id": author_name, "label": author_name, "group": author_group, "size": node_size};
+                if author_name not in nodes_ids:
                     nodes_all.append(author_rec)
+                    nodes_ids.add(author_name)
 
+        names_used = set()
         nodes_all_filtered = []
         for node in nodes_all:
-            if len(author_pmids[node["id"]])>=10:
+            if len(author_pmids[node["id"]])>=1:
                 nodes_all_filtered.append(node)
                 authors.add(node["id"])
         nodes_all = nodes_all_filtered
@@ -260,6 +301,8 @@ Users: {user_count}
         sys.stdout.flush()
 
         # pairs of authors, number of overlapping pmids
+        nodes_out = {} # outgoing number of edges
+        nodes_in = {} # incoming number of edges
         author_copmids = {}
         author_pairs = list(combinations(authors, 2))
         for a1, a2 in author_pairs:
@@ -272,8 +315,19 @@ Users: {user_count}
                 edge_width = len(common)/2
                 if edge_width>20:
                     edge_width = 20
-                edge_rec = {"from":a1, "to":a2, "width":edge_width, "length":len(common)/2, "label": f"{len(common)}", "color": {"color": '#CB80AB', "highlight": '#CB80AB'} }
+                #edge_rec = {"from":a1, "to":a2, "width":edge_width, "length":len(common), "label": f"{len(common)}", "color": {"color": '#CB80AB', "highlight": '#CB80AB'} }
+                #edge_rec = {"from":a1, "to":a2, "width":len(common), "label": f"{len(common)}", "color": {"color": '#CB80AB', "highlight": '#CB80AB'} }
+                edge_rec = {"from":a1, "to":a2, "value":len(common), "label": f"{len(common)}", "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} }
+                nodes_in[a2] = nodes_in.get(a2, 0) + 1
+                nodes_out[a1] = nodes_out.get(a1, 0) + 1
                 edges_all.append(edge_rec)
+
+        nodes_all_filtered = []
+        for node in nodes_all:
+            node_id = node["id"]
+            if nodes_out.get(node_id, 0)>0 and nodes_in.get(node_id, 0)>0:
+                nodes_all_filtered.append(node)
+        nodes_all = nodes_all_filtered
 
         #result = json.dumps(result)
         #return self.return_string(result)

@@ -19,3 +19,57 @@
     margin: 20px;
     border: 1px dashed red;
 }
+
+div.vis-network div.vis-navigation div.vis-button.vis-up, 
+div.vis-network div.vis-navigation div.vis-button.vis-down, 
+div.vis-network div.vis-navigation div.vis-button.vis-left, 
+div.vis-network div.vis-navigation div.vis-button.vis-right, 
+div.vis-network div.vis-navigation div.vis-button.vis-zoomIn, 
+div.vis-network div.vis-navigation div.vis-button.vis-zoomOut, 
+div.vis-network div.vis-navigation div.vis-button.vis-zoomExtends {
+  background-image: none !important;
+}
+
+div.vis-network div.vis-navigation div.vis-button:hover {
+    box-shadow: none !important;
+  }
+  
+  .vis-button:after {
+    font-size: 15px;
+    color: rgb(206, 206, 206);
+  }
+  
+  .vis-button:hover:after {
+    font-size: 15px;
+    color: rgb(251, 191, 191);
+  }
+  
+  .vis-button.vis-up:after {
+    content: "▲";
+  }
+  
+  .vis-button.vis-down:after {
+    content: "▼";
+  }
+  
+  .vis-button.vis-left:after {
+    content: "◀";
+  }
+  
+  .vis-button.vis-right:after {
+    content: "▶";
+  }
+  
+  .vis-button.vis-zoomIn:after {
+    content: "+";
+    font-weight: regular;
+  }
+  
+  .vis-button.vis-zoomOut:after {
+    content: "−";
+    font-weight: regular;
+  }
+  
+  .vis-button.vis-zoomExtends:after {
+    content: "o";
+  }

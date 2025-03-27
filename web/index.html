@@ -12,11 +12,19 @@
 </head>
 
 <body>
-    <div class="relative" style="width: 250px;">
-        <input value="Janko Tackmann" type="text" id="query" placeholder="Search..." class="w-full text-sm border rounded-full shadow-md px-3 focus:outline-none focus:border-gray-500" style="height: 30px; padding-top: 0; padding-bottom: 0;">
-        <button id="searchButton" class="absolute right-2 top-0 bottom-0 flex items-center text-gray-500 hover:text-blue-600">            🔍
-        </button>
-    </div>    
+    <div style="background-color:cornflowerblue; padding-left: 10px;"><div style="color:aliceblue; font-size: 15px;">pubScan v0.1; discover your co-authors network</div></div>
+    <div style="background-color:rgb(226, 234, 255); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; display: flex">
+
+        <div class="relative" style="width: 200px; display: flex">
+            <input value="Gregor Rot" type="text" id="query" placeholder="Search..." class="w-full text-sm border rounded-full shadow-md px-3 focus:outline-none focus:border-gray-500" style="height: 25px; padding-top: 0; padding-bottom: 0;">
+            <button id="searchButton" class="absolute right-2 top-0 bottom-0 flex items-center text-gray-500 hover:text-blue-600">            🔍
+            </button>
+        </div>
+        <div style="display: flex; padding-left: 10px;">
+            <a href="javascript:globalThis.my_network.fit();">Center</a>
+        </div>
+    </div>
+
 
     <!-- Modal -->
     <div id="modal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50" onclick="closeModal()">
@@ -34,11 +42,9 @@
         </div>
     </div>
     
-    <div id="output">Output</div>
-
-    <a href="javascript:globalThis.my_network.fit();">stream</a>
     <div id="mynetwork"></div>
-    <div id="div_bottom">@grexor</div>
+    <div id="info">some information</div>
+    <div id="div_bottom"><a href="https://grexor.github.io">Developed by Gregor Rot, @grexor</a></div>
 
     <script>
 

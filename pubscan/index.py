@@ -93,9 +93,9 @@ def are_names_equal(name1, name2):
     return normalize_name(name1) == normalize_name(name2)
 
 def get_unique_author_name(db, name):
-    for temp in db:
-        if are_names_equal(temp, name):
-            return temp
+    #for temp in db:
+    #    if are_names_equal(temp, name):
+    #        return temp
     db.add(name)
     return name
 

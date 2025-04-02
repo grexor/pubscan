@@ -162,7 +162,7 @@
               face: 'arial',
               color: '#a1a1a1',
             },
-            selectionWidth: 1,
+            //selectionWidth: 1,
           },
           layout: {
             improvedLayout: true,
@@ -186,13 +186,13 @@
             forceAtlas2Based: {
               gravitationalConstant: -20,
               centralGravity: 0.001,
-              springConstant: 0.06, // really influences jiggling
+              springConstant: 0.03, // how much attraction between nodes
               damping: 0.9,
               avoidOverlap: 1,
             },
-            maxVelocity: 50,
+            maxVelocity: 100,
             solver: "forceAtlas2Based",
-            timestep: 0.4,
+            timestep: 0.3,
             adaptiveTimestep: true,
           },
         };
@@ -253,8 +253,9 @@
 
         function get_author_network(query) {
             let encodedQuery = encodeURIComponent(query);
+            const datetime = new Date().toISOString();
 
-            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json").then(response =>
+            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json&datetime=" + datetime).then(response =>
             {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -279,8 +280,8 @@
                                 console.log("Received JSON data:", mydata);
                                 if (mydata["instruction"]=="data") {
                                     nodes_all = mydata["nodes_all"];
-                                    console.log(nodes_all);
                                     edges_all = mydata["edges_all"];
+                                    console.log(edges_all);
                                     draw();
                                 }
                                 if (mydata["instruction"]=="show") {

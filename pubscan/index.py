@@ -93,9 +93,9 @@ def are_names_equal(name1, name2):
     return normalize_name(name1) == normalize_name(name2)
 
 def get_unique_author_name(db, name):
-    #for temp in db:
-    #    if are_names_equal(temp, name):
-    #        return temp
+    for temp in db:
+        if are_names_equal(temp, name):
+            return temp
     db.add(name)
     return name
 
@@ -236,7 +236,7 @@ Users: {user_count}
     def get_author_network(self):
         search = unidecode(self.pars["author"])
         nocache = self.pars.get("nocache", None)
-        nodes_ids = set()
+        authors = set()
         db_authors = set()
 
         test = {"instruction": "show", "data": f"download publications PMIDs for {search}"}
@@ -249,7 +249,6 @@ Users: {user_count}
         author_author_pmids = {}
         nodes_all = []
         edges_all = []
-        authors = set()
 
         test = {"instruction": "show", "data": "loading publication list"}
         yield self.return_string(json.dumps(test)+"\n")
@@ -265,12 +264,7 @@ Users: {user_count}
 
             for author_name in pmid_authors:
                 author_name = get_unique_author_name(db_authors, author_name)
-                test = {"instruction": "show", "data": f"get publications for {author_name}"}
-                yield self.return_string(json.dumps(test)+"\n")
-                sys.stdout.flush()
-
                 author_pmids[author_name] = data_author_to_pmids(author_name)["idlist"]
-
             for author_name in pmid_authors:
                 author_name = get_unique_author_name(db_authors, author_name)
                 author_group = "g0"
@@ -284,25 +278,28 @@ Users: {user_count}
                 node_size = max(15, node_size)
                 node_size = 20
                 author_rec = { "id": author_name, "label": author_name, "group": author_group, "size": node_size};
-                if author_name not in nodes_ids:
+                if author_name not in authors:
                     nodes_all.append(author_rec)
-                    nodes_ids.add(author_name)
+                    authors.add(author_name)
 
-        names_used = set()
+        authors = set()
         nodes_all_filtered = []
         for node in nodes_all:
+            test = {"instruction": "show", "data": f"node id {node['id']} len pmids {len(author_pmids[node['id']])}"}
+            yield self.return_string(json.dumps(test)+"\n")
+            sys.stdout.flush()
+
             if len(author_pmids[node["id"]])>=1:
                 nodes_all_filtered.append(node)
                 authors.add(node["id"])
         nodes_all = nodes_all_filtered
             
-        test = {"instruction": "show", "data": "creating network"}
+        test = {"instruction": "show", "data": f"creating network with {len(nodes_all)} nodes"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
         # pairs of authors, number of overlapping pmids
-        nodes_out = {} # outgoing number of edges
-        nodes_in = {} # incoming number of edges
+        nodes_degree = {} # degree of nodes
         author_copmids = {}
         author_pairs = list(combinations(authors, 2))
         for a1, a2 in author_pairs:
@@ -310,22 +307,33 @@ Users: {user_count}
             p2 = author_pmids[a2]
             common = list(set(p1).intersection(p2))
             if len(common)>0:
+                num_common = len(common)
                 author_author_pmids[f"{a1}_{a2}"] = common
-                #author_author_pmids[f"{a2}_{a1}"] = common
-                edge_width = len(common)/2
-                if edge_width>20:
-                    edge_width = 20
-                #edge_rec = {"from":a1, "to":a2, "width":edge_width, "length":len(common), "label": f"{len(common)}", "color": {"color": '#CB80AB', "highlight": '#CB80AB'} }
-                #edge_rec = {"from":a1, "to":a2, "width":len(common), "label": f"{len(common)}", "color": {"color": '#CB80AB', "highlight": '#CB80AB'} }
-                edge_rec = {"from":a1, "to":a2, "value":len(common), "label": f"{len(common)}", "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} }
-                nodes_in[a2] = nodes_in.get(a2, 0) + 1
-                nodes_out[a1] = nodes_out.get(a1, 0) + 1
+                edge_width = min(num_common, 30)
+                edge_rec = {"from":a1, "to":a2, "width": edge_width, "label": f"{len(common)}", "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} } # no length
+                nodes_degree[a1] = nodes_degree.get(a1, 0) + num_common
+                nodes_degree[a2] = nodes_degree.get(a2, 0) + num_common
                 edges_all.append(edge_rec)
 
-        nodes_all_filtered = []
+        test = {"instruction": "show", "data": "sorting nodes by degree"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
+        # sort nodes by degree
+        temp = []
         for node in nodes_all:
             node_id = node["id"]
-            if nodes_out.get(node_id, 0)>0 and nodes_in.get(node_id, 0)>0:
+            dg = nodes_degree.get(node_id, 0)
+            temp.append((dg, node))
+        temp_sorted = sorted(temp, key=lambda x: x[0], reverse=True)
+
+        test = {"instruction": "show", "data": f"all nodes = {len(temp_sorted)}"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
+        nodes_all_filtered = []
+        for (degree, node) in temp_sorted:
+            if len(nodes_all_filtered)<100:
                 nodes_all_filtered.append(node)
         nodes_all = nodes_all_filtered
 

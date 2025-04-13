@@ -74,11 +74,17 @@ class Basic(object):
             d[j] = self.__dict__[j]
         return d    
 
-class Users(Basic):
+class Authors(Basic):
     pass
 
-users_table = meta.tables["Users"]
-mapper_registry.map_imperatively(Users, users_table)
+class Publications(Basic):
+    pass
+
+authors_table = meta.tables["authors"]
+mapper_registry.map_imperatively(Authors, authors_table)
+
+publications_table = meta.tables["publications"]
+mapper_registry.map_imperatively(Publications, publications_table)
 
 #import stripe
 #stripe.api_key = 'sk_test_1iVkPyJIyvEOzGfTIwNj978V00foajlMFx'
@@ -215,10 +221,8 @@ class TableClass():
         return pars
 
     def version(self):
-        user_count = Session.query(Users).count()
         status_string = f"""pubscan v0.1 {datetime.datetime.now()}
 Database: {config["mysql"]["database"]}
-Users: {user_count}
 """
         return [self.return_string(status_string)]
 
@@ -246,7 +250,6 @@ Users: {user_count}
         result = data_author_to_pmids(search, nocache)
 
         author_pmids = {}
-        author_author_pmids = {}
         nodes_all = []
         edges_all = []
 
@@ -300,7 +303,6 @@ Users: {user_count}
 
         # pairs of authors, number of overlapping pmids
         nodes_degree = {} # degree of nodes
-        author_copmids = {}
         author_pairs = list(combinations(authors, 2))
         for a1, a2 in author_pairs:
             p1 = author_pmids[a1]
@@ -308,7 +310,6 @@ Users: {user_count}
             common = list(set(p1).intersection(p2))
             if len(common)>0:
                 num_common = len(common)
-                author_author_pmids[f"{a1}_{a2}"] = common
                 edge_width = min(num_common, 30)
                 edge_rec = {"from":a1, "to":a2, "width": edge_width, "label": f"{len(common)}", "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} } # no length
                 nodes_degree[a1] = nodes_degree.get(a1, 0) + num_common
@@ -331,11 +332,171 @@ Users: {user_count}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
+        authors_all = set()
         nodes_all_filtered = []
         for (degree, node) in temp_sorted:
-            if len(nodes_all_filtered)<100:
+            if len(nodes_all_filtered)<150 and degree>0:
                 nodes_all_filtered.append(node)
+                authors_all.add(node["id"])
         nodes_all = nodes_all_filtered
+
+        edges_all_filtered = []
+        for edge in edges_all:
+            edge_from = edge["from"]
+            edge_to = edge["to"]
+            if edge_from in authors_all and edge_to in authors_all:
+                edges_all_filtered.append(edge)
+        edges_all = edges_all_filtered
+
+        #result = json.dumps(result)
+        #return self.return_string(result)
+
+        results = {}
+        #results["author_author_pmids"] = author_author_pmids
+        results["nodes_all"] = nodes_all
+        results["edges_all"] = edges_all
+        results["instruction"] = "data"
+
+        yield self.return_string(json.dumps(results)+"\n")
+        sys.stdout.flush()
+
+    def author_pmids_mysql(self, author):
+        stmt = text("SELECT * FROM authors WHERE author_name = :name")
+        result = Session.execute(stmt, {"name": author}).mappings()
+        authors = []
+        rows = result.fetchall()
+        if len(rows)>0:
+            author = rows[0]["author_name"]
+            pmids = rows[0]["pmids"]
+            return author, pmids.split(",")
+        else:
+            return author, []
+
+    def data_pmid_mysql(self, pmid):
+        authors_t = []
+        stmt = text("SELECT * FROM publications WHERE pmid = :pmid")
+        result = Session.execute(stmt, {"pmid": pmid}).mappings()
+        rows = result.fetchall()
+        if len(rows)>0:
+            authors = rows[0]["authors"].split(",")
+            return authors
+        else:
+            return []
+
+    def get_author_network_mysql(self):
+        search = unidecode(self.pars["author"]).lower()
+        nocache = self.pars.get("nocache", None)
+        authors = set()
+        db_authors = set()
+
+        test = {"instruction": "show", "data": f"download publications PMIDs for {search}"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
+        center_name, pmids = self.author_pmids_mysql(search)
+
+        test = {"instruction": "show", "data": f"found PMIds for {center_name} = {pmids}"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
+        author_pmids = {}
+        nodes_all = []
+        edges_all = []
+
+        test = {"instruction": "show", "data": "loading publication list"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
+        for pmid in pmids:
+
+            test = {"instruction": "show", "data": f"get authors for PMID {pmid}"}
+            yield self.return_string(json.dumps(test)+"\n")
+            sys.stdout.flush()
+
+            pmid_authors = self.data_pmid_mysql(pmid)
+
+            for author_name in pmid_authors:
+                author_name = get_unique_author_name(db_authors, author_name)
+                _, author_pmids[author_name] = self.author_pmids_mysql(author_name)
+            for author_name in pmid_authors:
+                author_name = get_unique_author_name(db_authors, author_name)
+                author_group = "g0"
+                if len(author_pmids[author_name])>10:
+                    author_group = "g1"
+                if len(author_pmids[author_name])>50:
+                    author_group = "g2"
+                if len(author_pmids[author_name])>100:
+                    author_group = "g3"
+                node_size = min(30, len(author_pmids[author_name]))
+                node_size = max(15, node_size)
+                node_size = 20
+                author_rec = { "id": author_name, "label": author_name, "group": author_group, "size": node_size};
+                if author_name not in authors:
+                    nodes_all.append(author_rec)
+                    authors.add(author_name)
+
+        authors = set()
+        nodes_all_filtered = []
+        for node in nodes_all:
+            test = {"instruction": "show", "data": f"node id {node['id']} len pmids {len(author_pmids[node['id']])}"}
+            yield self.return_string(json.dumps(test)+"\n")
+            sys.stdout.flush()
+
+            if len(author_pmids[node["id"]])>=1:
+                nodes_all_filtered.append(node)
+                authors.add(node["id"])
+        nodes_all = nodes_all_filtered
+            
+        test = {"instruction": "show", "data": f"creating network with {len(nodes_all)} nodes"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
+        # pairs of authors, number of overlapping pmids
+        nodes_degree = {} # degree of nodes
+        author_pairs = list(combinations(authors, 2))
+        for a1, a2 in author_pairs:
+            p1 = author_pmids[a1]
+            p2 = author_pmids[a2]
+            common = list(set(p1).intersection(p2))
+            if len(common)>0:
+                num_common = len(common)
+                edge_width = min(num_common, 30)
+                edge_rec = {"from":a1, "to":a2, "width": edge_width, "label": f"{len(common)}", "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} } # no length
+                nodes_degree[a1] = nodes_degree.get(a1, 0) + num_common
+                nodes_degree[a2] = nodes_degree.get(a2, 0) + num_common
+                edges_all.append(edge_rec)
+
+        test = {"instruction": "show", "data": "sorting nodes by degree"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
+        # sort nodes by degree
+        temp = []
+        for node in nodes_all:
+            node_id = node["id"]
+            dg = nodes_degree.get(node_id, 0)
+            temp.append((dg, node))
+        temp_sorted = sorted(temp, key=lambda x: x[0], reverse=True)
+
+        test = {"instruction": "show", "data": f"all nodes = {len(temp_sorted)}"}
+        yield self.return_string(json.dumps(test)+"\n")
+        sys.stdout.flush()
+
+        authors_all = set()
+        nodes_all_filtered = []
+        for (degree, node) in temp_sorted:
+            if len(nodes_all_filtered)<150 and degree>0:
+                nodes_all_filtered.append(node)
+                authors_all.add(node["id"])
+        nodes_all = nodes_all_filtered
+
+        edges_all_filtered = []
+        for edge in edges_all:
+            edge_from = edge["from"]
+            edge_to = edge["to"]
+            if edge_from in authors_all and edge_to in authors_all:
+                edges_all_filtered.append(edge)
+        edges_all = edges_all_filtered
 
         #result = json.dumps(result)
         #return self.return_string(result)

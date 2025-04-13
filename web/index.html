@@ -23,6 +23,9 @@
         <div style="display: flex; padding-left: 10px;">
             <a href="javascript:globalThis.my_network.fit();">Center</a>
         </div>
+        <div style="display: flex; padding-left: 10px;">
+            <a href="javascript:color_node('Gregor Rot', 'red');">Color</a>
+        </div>
     </div>
 
 
@@ -48,6 +51,9 @@
 
     <script>
 
+        function color_node(nodeId, newColor) {
+            nodes_dataset.update({ id: nodeId, color: newColor });
+        }
 
         function openModal() {
             const modal = document.getElementById("modal");
@@ -118,14 +124,22 @@
     let nodes_all = [
     ];
 
+    let nodes_dataset = [
+    ];
+
     let edges_all = [
+    ];
+
+    let edges_dataset = [
     ];
 
     function draw() {
         var container = document.getElementById("mynetwork");
+        nodes_dataset = new vis.DataSet(nodes_all);
+        edges_dataset = new vis.DataSet(edges_all);
         var data = {
-          nodes: nodes_all,
-          edges: edges_all,
+          nodes: nodes_dataset,
+          edges: edges_dataset,
         };
         var options = {
             autoResize: true,

@@ -6,7 +6,7 @@ import re
 
 def remove_special_characters(text):
     t1 = unidecode(text)
-    return re.sub(r'[\x00-\x1F\x7F\u2028\u2029]', '', t1)
+    return re.sub(r'[\x00-\x1F\x7F\u2028\u2029]', '', t1).replace("\\", "")
 
 authors_pmids = {}
 pmids = set()
@@ -26,11 +26,10 @@ for xml_file in xml_files:
             continue
         pmid = int(pmid_node.text)
 
-        # Title
         title_node = article.find(".//ArticleTitle")
-        title = title_node.text if title_node is not None else ""
-        if title==None: # even from Xml, can be returned as None
-            title = ""
+        if title_node is not None:
+            title_node = "".join(title_node.itertext()).strip() # because .text returns None for cases of titles containing tags (<>)
+        title = title_node if title_node is not None else ""
         if title=="":
             continue
         title = remove_special_characters(title)
@@ -65,6 +64,8 @@ for xml_file in xml_files:
         authors_list = []
         for rec in author_rec:
             author_name = remove_special_characters(rec).lower()
+            if author_name == "none none":
+                continue
             authors_list.append(author_name)
             authors_pmids.setdefault(author_name, set()).add(pmid)
         publication.append(",".join(authors_list))
@@ -80,3 +81,12 @@ fout_aut = open("authors.tab", "wt")
 for author_name, pmids in authors_pmids.items():
     fout_aut.write(f"{author_name}\t{','.join([str(x) for x in pmids])}\n")
 fout_aut.close()
+
+"""
+none professional committee of cardiopulmonary resuscitation chinese research hospital society  36567552
+none professional committee of cardiopulmonary resuscitation chinese aging well association     36567552
+none on behalf of the swiss working group interventional cardiology of the swiss society of cardiology  34000055
+
+pubmed25n1256.xml.gz:      <PMID Version="1">39219843</PMID>
+pubmed25n1256.xml.gz:        <ArticleId IdType="pubmed">39219843</ArticleId>
+"""

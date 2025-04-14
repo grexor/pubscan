@@ -11,6 +11,16 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-G0X1YQBFGS"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'G-G0X1YQBFGS');
+</script>
+
 <body>
     <div style="background-color:cornflowerblue; padding-left: 10px;"><div style="color:aliceblue; font-size: 15px;">pubScan v0.1; discover your co-authors network</div></div>
     <div style="background-color:rgb(226, 234, 255); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; display: flex">
@@ -121,6 +131,8 @@
       
     var my_network;
   
+    let current_center = "";
+
     let nodes_all = [
     ];
 
@@ -135,6 +147,12 @@
 
     function draw() {
         var container = document.getElementById("mynetwork");
+
+        if (globalThis.my_network) {
+            globalThis.my_network.destroy();
+            globalThis.my_network = null;
+        }
+
         nodes_dataset = new vis.DataSet(nodes_all);
         edges_dataset = new vis.DataSet(edges_all);
         var data = {
@@ -214,6 +232,14 @@
         let my_network = new vis.Network(container, data, options);
 
         globalThis.my_network = my_network;
+        globalThis.my_network.on("doubleClick", function (params) {
+        if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            onNodeDoubleClick(nodeId);
+        }
+        });
+        color_node(current_center, 'red');
+
 
         //globalThis.my_network.on('stabilizationIterationsDone', function () {
         //network.setOptions({
@@ -267,9 +293,10 @@
 
         function get_author_network(query) {
             let encodedQuery = encodeURIComponent(query);
+            current_center = query.toLowerCase();
             const datetime = new Date().toISOString();
 
-            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json&datetime=" + datetime).then(response =>
+            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_author_network_mysql&author=" + encodedQuery + "&response_type=json&datetime=" + datetime).then(response =>
             {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -318,28 +345,10 @@
 
         }
 
-        function get_author_network_old(query) {
-            $.ajax({
-                url: "https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=not_json",
-                type: "GET",
-                //dataType: "json",
-                success: function(data) {
-                    console.log(data);
-                    mydata = data;
-                    if (mydata["instruction"]=="data") {
-                        console.log(mydata["instruction"]);
-                        nodes_all = mydata["nodes_all"];
-                        edges_all = mydata["edges_all"];
-                        //$("#output").text(JSON.stringify(data, null, 2));
-                        draw();
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error("Error:", error);
-                }
-            });
-        }
-
+    function onNodeDoubleClick(nodeId) {
+        console.log("Double-clicked node ID:", nodeId);
+        get_author_network(nodeId);
+    }        
 
     </script>
 

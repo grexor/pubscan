@@ -1,5 +1,5 @@
 echo "split"
-rm splits/*
+rm splits/authors_*
 split -l 1000000 authors.tab splits/authors_
 
 echo "remove table"
@@ -16,3 +16,6 @@ done
 
 echo "create index on table authors"
 sudo mysql pubscan -e "ALTER TABLE authors ADD PRIMARY KEY (author_name), ADD INDEX (author_name);"
+
+# file containing only names, much faster to grep for author names
+cut -f 1 authors.tab > authors_names.tab

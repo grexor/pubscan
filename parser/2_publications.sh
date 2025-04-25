@@ -1,5 +1,5 @@
 echo "split"
-rm splits/*
+rm splits/publications_*
 split -l 1000000 publications.tab splits/publications_
 
 echo "remove table publications"

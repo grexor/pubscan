@@ -23,6 +23,8 @@ import pickle
 from itertools import combinations
 import re
 import html
+import subprocess
+from difflib import SequenceMatcher
 urllib3.disable_warnings()
 from operator import itemgetter
 from sqlalchemy import *
@@ -34,6 +36,15 @@ config = yaml.safe_load(open(os.path.join(pubscan_folder, "pubscan.config.yaml")
 
 data_folder = os.path.dirname(os.path.realpath(__file__))
 data_folder = os.path.join(data_folder, "data")
+
+def name_sort(name, search):
+    if name == search:
+        return (0, 0)
+    elif name.startswith(search):
+        return (1, 0)
+    else:
+        similarity = SequenceMatcher(None, search, name).ratio()
+        return (2, -similarity)
 
 def dthandler(datetime_object):
     if isinstance(datetime_object, datetime.datetime):
@@ -532,6 +543,20 @@ Database: {config["mysql"]["database"]}
         except:
             pass
         return self.return_string("done")
+
+    def author_suggest(self):
+        author_name = self.pars.get("author_name", None)
+        if author_name==None:
+            yield self.return_string("error")
+            return
+        author_name = "( [a-z]+)* ".join(author_name.split(" "))
+        result = subprocess.run(f"grep -E '{author_name}' /home/gregor/pubscan/parser/author_names.tab", shell=True, capture_output=True, text=True)
+        result = result.stdout.split("\n")
+        result = [el for el in result if el!=""]
+        result = sorted(result, key=lambda name: name_sort(name, author_name))
+        #yield self.return_string(f"grep -E '{author_name}' /home/gregor/pubscan/parser/author_names.tab\n")
+        yield self.return_string(json.dumps(result))
+
 
     # find is case insensitive, replace is case sensitive (doesn't change the original text)
     # wraps s1 with up and down -> up + s1 + down, and replaces the construct in text

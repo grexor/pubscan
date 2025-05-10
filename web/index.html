@@ -1,14 +1,20 @@
 <html>
 
 <head>
-    <title>pubScan, your publication network scanner</title>
+    <title>pubScan: Explore your scientific co-authorship network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    <link rel="stylesheet" href="pubscan.css">
+    <link rel="stylesheet" href="pubscan.css?v=202505071">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@10.2.9/dist/autoComplete.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
 </head>
 
 <!-- Google tag (gtag.js) -->
@@ -22,128 +28,203 @@ gtag('config', 'G-G0X1YQBFGS');
 </script>
 
 <body>
-    <div style="background-color:cornflowerblue; padding-left: 10px;"><div style="color:aliceblue; font-size: 15px;">pubScan v0.1; discover your co-authors network</div></div>
-    <div style="background-color:rgb(226, 234, 255); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; display: flex">
 
-        <div class="relative" style="width: 200px; display: flex">
-            <input value="Gregor Rot" type="text" id="query" placeholder="Search..." class="w-full text-sm border rounded-full shadow-md px-3 focus:outline-none focus:border-gray-500" style="height: 25px; padding-top: 0; padding-bottom: 0;">
-            <button id="searchButton" class="absolute right-2 top-0 bottom-0 flex items-center text-gray-500 hover:text-blue-600">            🔍
-            </button>
-        </div>
-        <div style="display: flex; padding-left: 10px;">
-            <a href="javascript:globalThis.my_network.fit();">Center</a>
-        </div>
-        <div style="display: flex; padding-left: 10px;">
-            <a href="javascript:color_node('Gregor Rot', 'red');">Color</a>
-        </div>
-    </div>
-
-
-    <!-- Modal -->
-    <div id="modal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50" onclick="closeModal()">
-        <!-- Modal Content -->
-        <div class="bg-white p-6 rounded-lg shadow-lg w-3/4 h-3/4 relative z-50" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold">Streaming Data</h2>
-                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+    <div style="background-color:rgb(77, 131, 231); padding-left: 10px; padding-top: 10px; padding-bottom: 5px;">
+        <div style="display: flex; width: 100%;">
+            <!-- First div (logo) -->
+            <div style="text-align: left; padding: 2px;">
+                <a href="https://pubscan.expressrna.org"><img src="pubscan_logo.jpg" style="height: 25px;"></a>
             </div>
-            <pre id="jsonOutput" class="bg-gray-200 p-3 rounded-md text-sm max-h-[60vh] overflow-auto"></pre>
-            <div class="flex justify-end mt-4">
-                <button onclick="clearJson()" class="px-4 py-2 bg-gray-500 text-white rounded-md mr-2">Clear</button>
-                <button onclick="closeModal()" class="px-4 py-2 bg-red-500 text-white rounded-md">Close</button>
+            
+            <!-- Second div (text) -->
+            <div style="text-align: left; padding: 2px; padding-top: 4px;">
+                <div style="color: aliceblue; font-size: 15px; padding-left: 3px;">
+                    Explore your scientific co-authorship network
+                </div>
+            </div>
+            
+            <!-- Third div (this will take the remaining space) -->
+            <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1;">
+                <div style="color: aliceblue; font-size: 15px; padding-left: 3px; padding-bottom: 2px; vertical-align: middle;">
+                    <a href='https://github.com/grexor/pubscan' class="links" target=_github><i class="fab fa-github"></i>&nbsp;GitHub</a>
+                    &nbsp;
+                    <a id=btn_share href='javascript:url_to_clip();' class="links"><i class="fas fa-share-alt"></i>&nbsp;Share Network</a>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div id="mynetwork"></div>
-    <div id="info">some information</div>
-    <div id="div_bottom"><a href="https://grexor.github.io">Developed by Gregor Rot, @grexor</a></div>
+
+    <div style="background-color:rgb(245, 245, 245); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; color: #727272;">
+        <div style="display: flex; width: 100%;">
+            <div style="text-align: left; padding: 2px;">
+                <div style="padding-left: 0px;">
+                    <input id="autoComplete" placeholder="Type author name..." />
+                </div>
+            </div>
+            
+            <div style="text-align: left; padding: 2px; padding-top: 9px;">
+                <div id=btn_clear class=hidden style="padding-left: 5px; font-size: 14px;">
+                    <a href='javascript:clear_search();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 3px; margin-left: -31px; z-index: 100; position: absolute"></i></a>
+                </div>
+            </div>
+
+            <div style="text-align: left; padding: 2px; padding-top: 9px;">
+                <div id=div_info style="padding-left: 0px; font-size: 12px;">
+                    Start your search
+                </div>
+            </div>
+            
+            <!-- Third div (this will take the remaining space) -->
+            <div style="text-align: right; padding: 2px; padding-right: 15px; padding-top: 7px; flex-grow: 1; font-size: 14px;">
+                <input id="ac_search_nodes" placeholder="Find nodes..." />
+                <div id=btn_clear_search_nodes style="padding-left: 5px; font-size: 10px; display: inline-block;">
+                    <a href='javascript:clear_search_nodes();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: -9px; margin-left: -23px; z-index: 100; position: absolute"></i></a>
+                </div>
+                &nbsp;&nbsp;
+                <a id="btn_pub" class="links2" href="javascript:adjust_pub();"><i class="fas fa-pen-fancy" style="color: inherit !important;"></i>&nbsp;Publications</a>
+                &nbsp;&nbsp;
+                <a class=links2 href="javascript:globalThis.my_network.fit();"><i class="fas fa-align-center" style="color: inherit !important;"></i>&nbsp;Center</a>
+                &nbsp;&nbsp;
+                <a id="btn_log" class="links2" href="javascript:adjust_log();"><i class="fas fa-book" style="color: inherit !important;"></i>&nbsp;Log</a>
+            </div>
+        </div>
+    </div>
+   
+    <div id="mynetwork" tabindex="0"></div>
+    <div id="div_bottom">
+        <div style="display: flex; width: 100%;">
+            <div style="text-align: left; padding: 2px;">
+                Developed by <a href="https://grexor.github.io" target=_grexor>Gregor Rot</a>, open GitHub to report <a href='https://github.com/grexor/pubscan' target=_github>Issues and Ideas.</a><br>
+                <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://x.com/gregor_rot' target=_x>Twitter/X</a>, <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a>, and/or <a href='https://buymeacoffee.com/grexor' target="_coffee">buy me a coffee!</a> :-)</div>
+            </div>
+            <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; font-size: 12px; padding-top: 8px;">
+                <table border="0" style='font-size: 12px; width: 750px; margin-left: auto; text-align: right; color: #aaaaaa;'>
+                    <tr><td>
+                        This site parses data from PubMed, latest update 2025. The authors of pubScan make no guarantees regarding the accuracy, completeness, or timeliness of the data and accept no liability for any errors, omissions, or outcomes resulting from its use.
+                    </td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <script>
 
-        function color_node(nodeId, newColor) {
-            nodes_dataset.update({ id: nodeId, color: newColor });
+        function color_node_single(node_id, color) {
+            nodes_dataset.update({ id: node_id, color: color });
+
         }
 
-        function openModal() {
-            const modal = document.getElementById("modal");
-            modal.classList.remove("hidden");
-            modal.classList.add("flex"); // Ensure it's visible
+        let original_colors = {};
+
+        function color_node_clear() {
+            Object.entries(original_colors).forEach(([id, color_code]) => {
+            const node = nodes_dataset.get(id);
+            if (node && node.color) {
+                delete node.color;
+                nodes_dataset.update(node);
+            }
+            });
+            original_colors = {}; // Clear the original_colors object
+            console.log(nodes_dataset.get("miha modic"));
         }
 
-        function closeModal() {
-            const modal = document.getElementById("modal");
-            modal.classList.add("hidden");
-        }
-
-        function clearJson() {
-            document.getElementById("jsonOutput").textContent = "";
-        }
-
-        function updateModalContent(data) {
-            const jsonOutput = document.getElementById("jsonOutput");
-            jsonOutput.textContent += data + "\n";
-            jsonOutput.scrollTop = jsonOutput.scrollHeight;
-        }
-
-        function stream_test() {
-
-	// fetch instead of ajax
-
-            fetch("https://pubscan.expressrna.org/gw/index.py?action=stream_test&streaming=1")
-    .then(response => {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        const outputElement = document.getElementById("output");
-
-        function readStream() {
-            return reader.read().then(({ done, value }) => {
-                if (done) {
-                    console.log("Stream finished.");
-                    return;  // ✅ Properly close the stream
+        function color_node(search) {
+            color_node_clear();
+            new_color = "#00FF00";
+            search = search.toLowerCase();
+            const matching_nodes = nodes_dataset.get({
+                filter: (node) => node.id.toString().toLowerCase().includes(search)
+            });
+            
+            matching_nodes.forEach(node => {
+                if (!original_colors[node.id]) {
+                    if (node.color!="#00FF00") {
+                        console.log(node.id, node.color);
+                        original_colors[node.id] = 1;
+                    }
                 }
-                outputElement.innerText += decoder.decode(value);  // ✅ Append data
-                return readStream();  // Keep reading next chunks
+                nodes_dataset.update({ id: node.id, color: new_color });
             });
         }
 
-        return readStream();
-    })
-    .catch(error => console.error("Error:", error));
+        function adjust_log() {
+            if (document.getElementById("btn_pub").classList.contains("active")) {
+                adjust_pub();
+            }
+            const log_btn = document.getElementById("btn_log");
+            log_btn.classList.toggle("active");
 
-
+            document.getElementById("div_log").scrollTop = document.getElementById("div_log").scrollHeight;
+            document.getElementById("div_log").classList.toggle("hidden");
         }
 
-        document.getElementById("query").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {  // Detect "Enter" key
-                event.preventDefault();   // Prevent form submission (if inside a form)
-                document.getElementById("searchButton").click(); // Trigger button click
+        function adjust_pub() {
+            if (document.getElementById("btn_log").classList.contains("active")) {
+                adjust_log();
             }
-        });
+            const pub_btn = document.getElementById("btn_pub");
+            pub_btn.classList.toggle("active");
 
-        document.getElementById("searchButton").addEventListener("click", function() {
-            query = document.getElementById("query").value;
-            get_author_network(query);
-        });
+            document.getElementById("div_pub").scrollTop = 0;
+            document.getElementById("div_pub").classList.toggle("hidden");
+        }
+
+        function clear_search() {
+            document.querySelector("#autoComplete").value = "";
+            document.getElementById("btn_clear").classList.add("hidden");
+            document.querySelector("#autoComplete").focus();
+        }
+
+        function show_log() {
+            if (document.getElementById("btn_log").classList.contains("active")) {
+                return;
+            }
+            // close all the rest
+            if (!document.getElementById("btn_pub").classList.contains("active")) {
+                adjust_pub();
+            }
+            adjust_log(); // open log
+        }
+
+
+        function show_splash() {
+            document.getElementById("div_splash").classList.remove("hidden");
+        }
+
+        function hide_splash() {
+            document.getElementById("div_splash").classList.add("hidden");
+        }
+
+        function show_graph_info() {
+            document.getElementById("div_graph_info").classList.remove("hidden");
+        }
+
+        function hide_splash_info() {
+            document.getElementById("div_graph_info").classList.add("hidden");
+        }
+
+        function show_center_info() {
+            document.getElementById("div_center_info").classList.remove("hidden");
+        }
+
+        function hide_center_info() {
+            document.getElementById("div_center_info").classList.add("hidden");
+        }
+
     </script>
 
     <script type="text/javascript">
       
-    var my_network;
-  
+    var my_network; 
     let current_center = "";
-
-    let nodes_all = [
-    ];
-
-    let nodes_dataset = [
-    ];
-
-    let edges_all = [
-    ];
-
-    let edges_dataset = [
-    ];
+    let nodes_all = [];
+    let nodes_dataset = [];
+    let edges_all = [];
+    let edges_dataset = [];
+    let abortController = null;
+    let signal = null;
+    let clickTimeout = null;
+    let handling_popstate = false;
 
     function draw() {
         var container = document.getElementById("mynetwork");
@@ -232,71 +313,57 @@ gtag('config', 'G-G0X1YQBFGS');
         let my_network = new vis.Network(container, data, options);
 
         globalThis.my_network = my_network;
+
         globalThis.my_network.on("doubleClick", function (params) {
-        if (params.nodes.length > 0) {
-            const nodeId = params.nodes[0];
-            onNodeDoubleClick(nodeId);
-        }
+            console.log("double click");
+            if (clickTimeout) {
+                clearTimeout(clickTimeout);
+                clickTimeout = null;
+                console.log("double click is clearing click timeout");
+            }
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                onNodeDoubleClick(nodeId);
+            }
         });
-        color_node(current_center, 'red');
 
+        globalThis.my_network.on("click", function (params) {
+            if (clickTimeout) {
+                return;
+            }            
+            clickTimeout = setTimeout(() => {
+                clickTimeout = null;
+                document.getElementById("div_pub").innerHTML = "Click on a node or edge to show publication information.";
+                if (params.nodes.length > 0) { // node click
+                    const node_id = params.nodes[0];
+                    const node_data = nodes_dataset.get(node_id);
+                    document.getElementById("div_pub").innerHTML = "Publications: <b>" + node_data["id"] + "</b> (" + node_data["pmids"].split(",").length + ")<br><br>";
+                    document.getElementById("div_pub").scrollTop = 0;
+                    get_publications(node_data["pmids"]);
 
-        //globalThis.my_network.on('stabilizationIterationsDone', function () {
-        //network.setOptions({
-        //    physics: {
-        //    enabled: false
-        //    }
-        //});
-        //});        
+                }
+                else if (params.edges.length > 0) { // edge click
+                    const edge_id = params.edges[0];
+                    const edge_data = edges_dataset.get(edge_id);
+                    document.getElementById("div_pub").scrollTop = 0;
+                    document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + edge_data["from"] + "</b> and <b>" + edge_data["to"] + "</b> (" + edge_data["pmids"].split(",").length + ")<br><br>";
+                    get_publications(edge_data["pmids"]);
+                }
+            }, 250);
+        });
 
-
-        //globalThis.my_network.fit();
-        //globalThis.my_network.clustering.clusterByHubsize();
-
-        //setTimeout(function () {
-        //    globalThis.my_network.setOptions({ physics: { solver: "barnesHut", timestep: 0.1 } }); // Slow down physics
-        //}, 2000);
-
-        //setTimeout(function () {
-        //    globalThis.my_network.setOptions({ physics: false }); // Fully disable physics after 4 seconds
-        //}, 4000);
+        // color the node red and show publications for the node
+        color_node_single(current_center, 'red');
+        const center_data = nodes_dataset.get(current_center);
+        document.getElementById("div_pub").innerHTML = "Publications: <b>" + center_data["id"] + "</b> (" + center_data["pmids"].split(",").length + ")<br><br>";
+        get_publications(center_data["pmids"]);
 
       }
-    </script>
 
-    </script>
-
-    <script>
-        function pmids_download() {
-            $.ajax({
-                url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?term=Gregor Rot[Author]&retmax=200&retmode=json",
-                type: "GET",
-                dataType: "json",
-                success: function(data) {
-                    pmids = data["esearchresult"]["idlist"];
-                    for (let i = 0; i < pmids.length; i++) {
-                        console.log(pmids[i]);
-                    }
-                    $("#output").text(JSON.stringify(data, null, 2));
-                    nodes_all = [
-                        { id: 'Gregor Rot', label: 'Gregor Rot', group: 'g1', size: 20 },
-                        { id: 'Johannes Hartl', label: 'Johannes Hartl', group: 'g2', size: 20 },
-                        { id: 'Florian Hubrich', label: 'Florian Hubrich', group: 'g4', size: 20 },
-                    ];
-                    draw();
-                },
-                error: function(xhr, status, error) {
-                    console.error("Error:", error);
-                }
-            });
-        };
-
-        function get_author_network(query) {
-            let encodedQuery = encodeURIComponent(query);
-            current_center = query.toLowerCase();
+        function get_publications(pmids) {
+            let encodedQuery = encodeURIComponent(pmids);
             const datetime = new Date().toISOString();
-
-            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_author_network_mysql&author=" + encodedQuery + "&response_type=json&datetime=" + datetime).then(response =>
+            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_publications&pmids=" + encodedQuery + "&response_type=json&datetime=" + datetime).then(response =>
             {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -305,7 +372,81 @@ gtag('config', 'G-G0X1YQBFGS');
                 function readStream() {
                     return reader.read().then(({ done, value }) => {
                         if (done) {
-                            console.log("Stream finished.");
+                            // stream finished
+                            return;
+                        }
+                        buffer += decoder.decode(value, { stream: true });
+                        let parts = buffer.split("\n");  
+                        buffer = parts.pop();  // Keep the last incomplete part in buffer
+                        for (const part of parts) {
+                            try {
+                                const mydata = JSON.parse(part);
+                                const sorted_data = Object.values(mydata).sort((a, b) => b.pmid - a.pmid);
+                                html_add = "";
+                                html_add += "<table border=10>"
+                                for (const e of sorted_data) {
+                                    html_add += "<tr><td>" + e.pub_year + "&nbsp;&nbsp;</td><td><a href=https://pubmed.ncbi.nlm.nih.gov/" + e.pmid + " target=_" + e.pmid + ">" + e.title + "</a></td></tr>";
+                                }           
+                                html_add += "</table>"
+                                document.getElementById("div_pub").innerHTML += html_add;
+
+                                if (!document.getElementById("btn_pub").classList.contains("active")) {
+                                    adjust_pub();
+                                }
+
+                            } catch (error) {
+                                console.error("Error parsing JSON:", error);
+                            }
+                        }
+                        return readStream(); // Continue reading next chunks
+                    });
+                }
+                return readStream();
+            })
+            .catch(error => console.error("Error:", error));
+        }
+
+        function url_to_clip() {
+            navigator.clipboard.writeText(window.location.href).catch(err => alert("Failed to copy URL: " + err));
+        }
+
+        function get_author_network(query) {
+            hide_splash();
+            hide_center_info();
+            ac_tooltip.hide();
+            show_log();
+            show_graph_info()
+            document.getElementById("div_log").innerHTML = "Log of communication of pubScan with the server. Use to explore whats happening :-)";
+            let encodedQuery = encodeURIComponent(query);
+
+            // already loaded? abort
+            if (current_center==query.toLowerCase()) {
+                return;
+            }
+
+            current_center = query.toLowerCase();
+            const datetime = new Date().toISOString();
+
+            try {
+                if (abortController) {
+                    abortController.abort();
+                }
+            } catch (error) {
+            }
+
+            abortController = new AbortController();
+            signal = abortController.signal;
+
+            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json&datetime=" + datetime, { signal: signal }).then(response =>
+            {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+
+                function readStream() {
+                    return reader.read().then(({ done, value }) => {
+                        if (done) {
+                            // stream finished
                             return;
                         }
 
@@ -318,16 +459,33 @@ gtag('config', 'G-G0X1YQBFGS');
                         for (const part of parts) {
                             try {
                                 const mydata = JSON.parse(part);
-                                console.log("Received JSON data:", mydata);
                                 if (mydata["instruction"]=="data") {
+                                    if (mydata["nodes_all"].length==0) {
+                                        document.getElementById("div_log").innerHTML += "search for <b>" + query + "</b> returned no results.";
+                                        document.getElementById("div_center_info_content").innerHTML = "Search for <b>" + query + "</b> returned no results.";
+                                        if (nodes_all.length==[]) {
+                                            show_center_info();
+                                        }
+                                        return;
+                                    }
                                     nodes_all = mydata["nodes_all"];
                                     edges_all = mydata["edges_all"];
-                                    console.log(edges_all);
                                     draw();
+                                    document.querySelector("#autoComplete").value = query;
+                                    document.querySelector("#ac_search_nodes").value = "";
+                                    update_clear_button();
+                                    let encoded_coded_query = encodeURIComponent(query.replace(/ /g, "_"));
+                                    if (!handling_popstate) {
+                                        const new_url = `/${encoded_coded_query}`;
+                                        window.history.pushState({"search": query}, '', new_url);
+                                    }
+                                    handling_popstate = false;
+                                    document.getElementById("div_graph_title").innerHTML = "Browsing network for: <b>" + query + "</b>";
                                 }
-                                if (mydata["instruction"]=="show") {
-                                    //openModal();
-                                    updateModalContent(mydata["data"]);
+                                if (mydata["instruction"]=="progress") {
+                                    document.getElementById("div_info").textContent = mydata["description"];
+                                    document.getElementById("div_log").innerHTML += mydata["description"] + "<br>";
+                                    document.getElementById("div_log").scrollTop = document.getElementById("div_log").scrollHeight;
                                 }
 
                             } catch (error) {
@@ -346,11 +504,304 @@ gtag('config', 'G-G0X1YQBFGS');
         }
 
     function onNodeDoubleClick(nodeId) {
-        console.log("Double-clicked node ID:", nodeId);
+        if (current_center==nodeId) {
+            return;
+        }
         get_author_network(nodeId);
     }        
 
     </script>
+
+<script>
+
+    let suppressSuggestions;
+    let autocompleteAbortController;
+
+    const autoCompleteJS = new autoComplete({
+    selector: "#autoComplete",
+    placeHolder: "Search for author...",
+    data: {
+        src: async (query) => {
+            if (suppressSuggestions) {
+                suppressSuggestions = false;
+                return [];
+            }
+
+            if (autocompleteAbortController) {
+                try {
+                    autocompleteAbortController.abort();
+                } catch (err) {
+                    console.warn("Error aborting previous autocomplete request:", err);
+                }
+            }
+
+            autocompleteAbortController = new AbortController();
+            const autocomplete_signal = autocompleteAbortController.signal;
+
+            try {
+                const query_lower = encodeURIComponent(query.toLowerCase());
+                const response = await fetch(
+                    `https://pubscan.expressrna.org/gw/index.py?action=author_suggest&author_name=${query_lower}`,
+                    { signal: autocomplete_signal }
+                );
+                return await response.json();
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    return [];
+                } else {
+                    console.error("Fetch error:", err);
+                    return [];
+                }
+            }
+        },
+        cache: false
+    },
+    threshold: 2,
+    debounce: 10,
+    searchEngine: (query, record) => {
+        return record;
+    },
+    resultItem: {
+        highlight: true
+    },
+    resultsList: {
+        maxResults: 6
+    },
+    events: {
+        input: {
+            selection: (event) => {
+                const selection = event.detail.selection.value;
+                document.querySelector("#autoComplete").value = selection;
+                $('#mynetwork').focus();
+                get_author_network(selection);
+                autoCompleteJS.close();
+                $('#mynetwork').focus();
+            }
+        }
+    }
+    });
+
+    const ac_search_nodes_js = new autoComplete({
+    selector: "#ac_search_nodes",
+    placeHolder: "Search nodes...",
+    data: {
+        src: () => [], // 🔒 Always return an empty array (no suggestions)
+        cache: false
+    },
+    threshold: 2,
+    debounce: 10,
+    searchEngine: "strict", // Use default string search
+    resultItem: {
+        highlight: true
+    },
+    resultsList: {
+        maxResults: 6
+    },
+    });
+
+  </script>
+
+  <script>
+
+    function update_clear_button() {
+        if (document.querySelector("#autoComplete").value != "") {
+            document.getElementById("btn_clear").classList.remove("hidden");
+        }        
+    }
+
+    document.querySelector("#autoComplete").addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+            suppressSuggestions = true;
+            autoCompleteJS.close();        
+            const value = e.target.value;
+            get_author_network(value);
+            $('#mynetwork').focus();
+            e.preventDefault();
+        } else {
+            suppressSuggestions = false;    
+        }
+        update_clear_button();
+    });
+
+    document.querySelector("#autoComplete").addEventListener("input", function(e) {
+        update_clear_button();
+    });
+
+    document.querySelector("#autoComplete").addEventListener("focus", function(e) {
+        suppressSuggestions = false;
+        update_clear_button();
+        ac_tooltip.hide();
+    });
+
+    document.querySelector("#ac_search_nodes").addEventListener("input", function(e) {
+        const value = e.target.value.toLowerCase();
+        if (value.length>=3) {
+            color_node(value);
+        } else {
+            color_node_clear();
+        }       
+    });
+
+
+  </script>
+
+
+
+
+
+<style>
+
+    .tippy-box[data-theme='pubscan'] {
+      background-color: #0f4b92;
+      color: rgb(255, 255, 255);
+    }
+
+    .tippy-box[data-theme='pubscan'] .tippy-tooltip {
+        background-color: #0f4b92;
+        color: rgb(255, 255, 255);
+    }
+
+    .tippy-box[data-theme='pubscan'] .tippy-arrow {
+        color: #0f4b92;
+    }
+
+    .tippy-box[data-theme='pubscan_start'] {
+      background-color: #ff8b8b;
+      color: rgb(255, 255, 255);
+    }
+
+    .tippy-box[data-theme='pubscan_start'] .tippy-tooltip {
+        background-color: #ff8b8b;
+        color: rgb(255, 255, 255);
+    }
+
+    .tippy-box[data-theme='pubscan_start'] .tippy-arrow {
+        color: #ff8b8b;
+    }
+
+</style>
+
+<script>
+
+    tippy('#btn_share', {
+        theme: 'pubscan',
+        trigger: 'click',
+        content: 'Copied to clipboard!',
+        onShow(instance) {
+            setTimeout(() => {
+            instance.hide();
+            }, 2000);
+        }        
+      });
+
+      const [ac_tooltip] = tippy('#autoComplete', {
+        theme: 'pubscan_start',
+        trigger: 'click',
+        placement: 'bottom',
+        content: 'Start here by searching for a fellow scientist!',
+        trigger: 'manual',
+        interactive: true,
+        hideOnClick: false,
+      });
+
+</script>
+
+
+
+
+<script>
+    window.onload = function () {
+        const path = window.location.pathname;
+        const centerRaw = path.split("/").filter(Boolean).pop();
+        if (centerRaw) {
+            const center = centerRaw.replace(/_/g, " ");
+            get_author_network(center);
+        }
+    };
+  </script>
+
+<div id=div_log class="div_log hidden">
+    Log of communication of pubScan with the server. Use to explore whats happening :-)
+</div>
+
+<div id=div_pub class="div_pub hidden">
+    Here information on authors publications is provided when you click on a node (author) or on an edge between authors (joint publications).
+</div>
+
+<div id="div_splash" class="splash_div">
+    <div style="width: 800px; text-align: left; margin: 0 auto;">
+        <div style='font-size: 16px; padding-top: 10px; color: #a63f3b;'>
+            Welcome to pubScan!
+        </div>
+        <div style='font-size: 15px; padding-top: 13px; color: #868686''>
+            What is it?<br>
+        </div>
+        <div style='font-size: 13px; color: #9a9a9a'>
+            pubScan is an interactive interface to explore all PubMed articles as a co-authorship network. In this network
+            <br><b>nodes</b> represent authors, <b>edges</b> represent co-authored publications.
+        </div>
+        <div style='font-size: 15px; padding-top: 13px; color: #868686''>
+            Who appears at the center of the network?<br>
+        </div>
+        <div style='font-size: 13px; color: #9a9a9a'>
+            The author you search for in the input box (top-left) will appear at the center of the network, highlighted in red.<div style="width:10px; height:10px; background:red; border-radius:50%; display:inline-block;"></div>
+            <br>Other nodes are colored based on the number of publications for the author in PubMed:
+            <br><div style="width:10px; height:10px; background:#EBF2F6; border-radius:50%; display:inline-block;"></div> &lt; 10 publications,
+            <div style="width:10px; height:10px; background:#C6D6E2; border-radius:50%; display:inline-block;"></div> 10-50 publications,
+            <div style="width:10px; height:10px; background:#93AEC5; border-radius:50%; display:inline-block;"></div> 50-100 publications,
+            <div style="width:10px; height:10px; background:#293D4D; border-radius:50%; display:inline-block;"></div> &gt; 100 publications
+        </div>
+        <div style='font-size: 15px; padding-top: 13px; color: #868686''>
+            Are all co-authors shown?<br>
+        </div>
+        <div style='font-size: 13px; color: #9a9a9a'>
+            To keep the network readable and responsive, pubScan displays:
+            <ui><br>Up to 150 co-authors (ranked by number of shared publications)
+            <ui><br>Up to 2,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
+        </div>
+        <div style='font-size: 15px; padding-top: 13px; color: #868686''>
+            Love it? Want to support the project?<br>
+        </div>
+        <div style='font-size: 13px; color: #9a9a9a'>
+            Spread the word by sharing the pubScan link with colleagues, follow me on <a href='https://x.com/gregor_rot' target=_x>Twitter/X</a>, <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a>, or <a href='https://buymeacoffee.com/grexor' target="_coffee">consider buying me a coffee! </a> :-)
+        </div>
+
+
+    </div>
+</div>
+
+<div id="div_center_info" class="center_info_div hidden">
+    <div style="width: 400px; text-align: center; margin: 0 auto; border: 0px dashed #eaeaea; border-radius: 5px; background-color: #ffffff; height: 20px;">
+        <div id="div_center_info_content" style='font-size: 14px; padding-top: 0px; color: #666666;'>
+            No results found.
+        </div>
+    </div>
+</div>
+
+<div id="div_graph_info" style="font-size: 13px; padding-top: 10px; padding-left: 10px; color: #777777;" class="hidden">
+
+    Click node to show publications.<br>
+    Click edge to show co-authored publications.<br>
+    Double-click node to re-center network to clicked author.<br>
+
+</div>
+
+<div id="div_graph_title" style="width: 300px; height: 20px; position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 13px; color: #804343;">
+</div>
+
+<script>
+
+    ac_tooltip.show();
+
+// Listen to back/forward navigation
+window.addEventListener('popstate', function (event) {
+  handling_popstate = true;
+  get_author_network(event.state.search);
+});
+
+
+</script>
+
 
     </body>
 </html>

@@ -31,19 +31,16 @@ gtag('config', 'G-G0X1YQBFGS');
 
     <div style="background-color:rgb(77, 131, 231); padding-left: 10px; padding-top: 10px; padding-bottom: 5px;">
         <div style="display: flex; width: 100%;">
-            <!-- First div (logo) -->
             <div style="text-align: left; padding: 2px;">
                 <a href="https://pubscan.expressrna.org"><img src="pubscan_logo.jpg" style="height: 25px;"></a>
             </div>
             
-            <!-- Second div (text) -->
             <div style="text-align: left; padding: 2px; padding-top: 4px;">
                 <div style="color: aliceblue; font-size: 15px; padding-left: 3px;">
                     Explore your scientific co-authorship network
                 </div>
             </div>
             
-            <!-- Third div (this will take the remaining space) -->
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1;">
                 <div style="color: aliceblue; font-size: 15px; padding-left: 3px; padding-bottom: 2px; vertical-align: middle;">
                     <a href='https://github.com/grexor/pubscan' class="links" target=_github><i class="fab fa-github"></i>&nbsp;GitHub</a>
@@ -74,11 +71,10 @@ gtag('config', 'G-G0X1YQBFGS');
                 </div>
             </div>
             
-            <!-- Third div (this will take the remaining space) -->
-            <div style="text-align: right; padding: 2px; padding-right: 15px; padding-top: 7px; flex-grow: 1; font-size: 14px;">
-                <input id="ac_search_nodes" placeholder="Find nodes..." />
-                <div id=btn_clear_search_nodes style="padding-left: 5px; font-size: 10px; display: inline-block;">
-                    <a href='javascript:clear_search_nodes();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: -9px; margin-left: -23px; z-index: 100; position: absolute"></i></a>
+            <div style="text-align: right; padding: 2px; padding-right: 15px; padding-top: 6px; flex-grow: 1; font-size: 14px; display: flex; justify-content: flex-end;">
+                <input id="ac_search_nodes" placeholder="Find nodes..." style="flex-grow: 1;"/>
+                <div id="btn_clear_search_nodes" style="padding-left: 5px; font-size: 10px; display: inline-block; width: 0px;" class="hidden">
+                    <a href='javascript:clear_search_nodes();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 9px; margin-left: -20px; z-index: 100; position: absolute"></i></a>
                 </div>
                 &nbsp;&nbsp;
                 <a id="btn_pub" class="links2" href="javascript:adjust_pub();"><i class="fas fa-pen-fancy" style="color: inherit !important;"></i>&nbsp;Publications</a>
@@ -125,7 +121,6 @@ gtag('config', 'G-G0X1YQBFGS');
             }
             });
             original_colors = {}; // Clear the original_colors object
-            console.log(nodes_dataset.get("miha modic"));
         }
 
         function color_node(search) {
@@ -139,7 +134,6 @@ gtag('config', 'G-G0X1YQBFGS');
             matching_nodes.forEach(node => {
                 if (!original_colors[node.id]) {
                     if (node.color!="#00FF00") {
-                        console.log(node.id, node.color);
                         original_colors[node.id] = 1;
                     }
                 }
@@ -173,6 +167,13 @@ gtag('config', 'G-G0X1YQBFGS');
             document.querySelector("#autoComplete").value = "";
             document.getElementById("btn_clear").classList.add("hidden");
             document.querySelector("#autoComplete").focus();
+        }
+
+        function clear_search_nodes() {
+            document.querySelector("#ac_search_nodes").value = "";
+            document.getElementById("btn_clear_search_nodes").classList.add("hidden");
+            document.querySelector("#ac_search_nodes").focus();
+            color_node_clear();
         }
 
         function show_log() {
@@ -416,7 +417,7 @@ gtag('config', 'G-G0X1YQBFGS');
             ac_tooltip.hide();
             show_log();
             show_graph_info()
-            document.getElementById("div_log").innerHTML = "Log of communication of pubScan with the server. Use to explore whats happening :-)";
+            document.getElementById("div_log").innerHTML = "Log of communication of pubScan with the server. Use to follow what's happening.<br><br>";
             let encodedQuery = encodeURIComponent(query);
 
             // already loaded? abort
@@ -609,6 +610,15 @@ gtag('config', 'G-G0X1YQBFGS');
         }        
     }
 
+    function update_nodes_clear_button() {
+        if (document.querySelector("#ac_search_nodes").value != "") {
+            document.getElementById("btn_clear_search_nodes").classList.remove("hidden");
+        } else {
+            document.getElementById("btn_clear_search_nodes").classList.add("hidden");
+            color_node_clear();
+        }
+    }
+
     document.querySelector("#autoComplete").addEventListener("keydown", function(e) {
         if (e.key === "Enter") {
             suppressSuggestions = true;
@@ -634,6 +644,7 @@ gtag('config', 'G-G0X1YQBFGS');
     });
 
     document.querySelector("#ac_search_nodes").addEventListener("input", function(e) {
+        update_nodes_clear_button();
         const value = e.target.value.toLowerCase();
         if (value.length>=3) {
             color_node(value);
@@ -721,7 +732,7 @@ gtag('config', 'G-G0X1YQBFGS');
   </script>
 
 <div id=div_log class="div_log hidden">
-    Log of communication of pubScan with the server. Use to explore whats happening :-)
+    Log of communication of pubScan with the server. Use to follow what's happening.
 </div>
 
 <div id=div_pub class="div_pub hidden">

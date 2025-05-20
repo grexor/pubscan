@@ -319,7 +319,7 @@ a:hover i {
 }
 
   .hidden {
-    display: none;
+    display: none !important;
   }
 
   .splash_div {
@@ -368,7 +368,7 @@ a:hover i {
   #ac_search_nodes {
     background-color: #f0f0f0;
     height: 26px;
-    width: 150px;
+    width: 130px;
     font-size: 12px;
     padding: 2px 8px;
     border: 1px solid #ccc;

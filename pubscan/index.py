@@ -34,6 +34,7 @@ from sqlalchemy.ext.declarative import declarative_base
 random.seed(42)
 
 pubscan_folder = os.path.dirname(os.path.realpath(__file__))
+log_filename = os.path.join(pubscan_folder, "pubscan.log")
 config = yaml.safe_load(open(os.path.join(pubscan_folder, "pubscan.config.yaml")))
 
 data_folder = os.path.dirname(os.path.realpath(__file__))
@@ -41,8 +42,8 @@ data_folder = os.path.join(data_folder, "data")
 
 def sanitize_value(value: str) -> str:
     value = value.strip()
-    return re.sub(r'[^\w\s\.\-@]', '', value)
-
+    return re.sub(r'[^\w\s,-]', '', value)
+    
 def name_sort(name, search):
     if name == search:
         return (0, 0)
@@ -144,6 +145,9 @@ class TableClass():
     def log(self, message):
         print(message, file=self.environ['wsgi.errors'])
 
+    def logme(self, message):
+        os.system(f"echo '{datetime.datetime.now()}: {message}' >> {log_filename}")
+
     def __init__(self, environ, start_response):
         self.environ = environ
         self.start = start_response
@@ -154,8 +158,6 @@ class TableClass():
         self.string_save = "Save done."
         self.string_key_conflict = "Key conflict."
         self.pars = self.parse_fields(self.environ)
-        self.username = self.pars.get("username", "public")
-        self.password = self.pars.get("password", "public")
         self.db = {}
 
     def __iter__(self):
@@ -170,7 +172,7 @@ class TableClass():
         self.stream_out = self.start(status, response_headers)
 
         try:
-            method = getattr(self, self.pars.get("action", "version"))
+            method = getattr(self, sanitize_value(self.pars.get("action", "version")))
             yield from method()
         finally:
             Session.remove()
@@ -189,7 +191,7 @@ class TableClass():
         return pars
 
     def version(self):
-        status_string = f"""pubscan v0.1 {datetime.datetime.now()}
+        status_string = f"""pubscan v1 {datetime.datetime.now()}
 Database: {config["mysql"]["database"]}
 """
         return [self.return_string(status_string)]
@@ -237,8 +239,8 @@ Database: {config["mysql"]["database"]}
             return {}
 
     def get_author_network(self):
-        search = unidecode(self.pars["author"]).lower()
-        nocache = self.pars.get("nocache", None)
+        search = sanitize_value(unidecode(self.pars["author"]).lower())
+        self.logme(f"pubscan search: {search}")
         authors = set()
         db_authors = set()
 
@@ -397,25 +399,14 @@ Database: {config["mysql"]["database"]}
         #sys.stdout.flush()
 
     def get_publications(self):
-        pmids = unidecode(self.pars["pmids"]).split(",")
+        pmids = sanitize_value(self.pars["pmids"])
+        pmids = unidecode(pmids).split(",")
         publications = self.data_pmids(list(pmids))
         yield self.return_string(json.dumps(publications)+"\n")
         sys.stdout.flush()
 
-    def test_sql(self):
-        conn = Session()
-        u = Users()
-        u.UserId = "gregor.rot@ethz.ch"
-        conn.add(u)
-        try:
-            conn.commit()
-            conn.flush()        
-        except:
-            pass
-        return self.return_string("done")
-
     def author_suggest(self):
-        author_name = self.pars.get("author_name", None)
+        author_name = sanitize_value(self.pars.get("author_name", ""))
         if author_name==None:
             yield self.return_string("error")
             return

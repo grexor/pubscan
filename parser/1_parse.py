@@ -81,12 +81,3 @@ fout_aut = open("authors.tab", "wt")
 for author_name, pmids in authors_pmids.items():
     fout_aut.write(f"{author_name}\t{','.join([str(x) for x in pmids])}\n")
 fout_aut.close()
-
-"""
-none professional committee of cardiopulmonary resuscitation chinese research hospital society  36567552
-none professional committee of cardiopulmonary resuscitation chinese aging well association     36567552
-none on behalf of the swiss working group interventional cardiology of the swiss society of cardiology  34000055
-
-pubmed25n1256.xml.gz:      <PMID Version="1">39219843</PMID>
-pubmed25n1256.xml.gz:        <ArticleId IdType="pubmed">39219843</ArticleId>
-"""

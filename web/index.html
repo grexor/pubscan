@@ -37,7 +37,7 @@ gtag('config', 'G-G0X1YQBFGS');
             
             <div style="text-align: left; padding: 2px; padding-top: 4px;">
                 <div style="color: aliceblue; font-size: 15px; padding-left: 3px;">
-                    Explore your scientific co-authorship network (PubMed sync May 2025)
+                    Explore your scientific co-authorship network (PubMed sync June 2025)
                 </div>
             </div>
             
@@ -382,7 +382,17 @@ gtag('config', 'G-G0X1YQBFGS');
                         for (const part of parts) {
                             try {
                                 const mydata = JSON.parse(part);
-                                const sorted_data = Object.values(mydata).sort((a, b) => b.pmid - a.pmid);
+                                //const sorted_data = Object.values(mydata).sort((a, b) => b.pmid - a.pmid);
+                                const sorted_data = Object.values(mydata).sort((a, b) => {
+                                const yearA = parseInt(a.pub_year, 10);
+                                const yearB = parseInt(b.pub_year, 10);
+
+                                if (yearB !== yearA) {
+                                    return yearB - yearA; // Sort by pub_year descending
+                                }
+
+                                return parseInt(b.pmid, 10) - parseInt(a.pmid, 10); // Then by pmid descending
+                                });
                                 html_add = "";
                                 html_add += "<table border=10>"
                                 for (const e of sorted_data) {
@@ -797,7 +807,7 @@ gtag('config', 'G-G0X1YQBFGS');
 
 </div>
 
-<div id="div_graph_title" style="width: 300px; height: 20px; position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 13px; color: #804343;">
+<div id="div_graph_title" style="width: 350px; height: 20px; position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 13px; color: #804343;">
 </div>
 
 <script>

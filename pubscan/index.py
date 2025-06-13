@@ -225,6 +225,16 @@ Database: {config["mysql"]["database"]}
             return authors, rows[0]
         else:
             return []
+            
+    def get_update_date(self):
+        stmt = text("SELECT `update` FROM info ORDER BY id DESC LIMIT 1")
+        result = Session.execute(stmt).mappings()
+        row = result.first()
+        if row:
+            update_str = row['update'].strftime("%Y-%m-%d %H:%M:%S")
+            yield self.return_string(update_str+"\n")
+        else:
+            yield self.return_string(""+"\n")
 
     def data_pmids(self, pmids):
         result = {}

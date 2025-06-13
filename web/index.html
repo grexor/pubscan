@@ -37,7 +37,7 @@ gtag('config', 'G-G0X1YQBFGS');
             
             <div style="text-align: left; padding: 2px; padding-top: 4px;">
                 <div style="color: aliceblue; font-size: 15px; padding-left: 3px;">
-                    Explore your scientific co-authorship network (PubMed sync June 2025)
+                    Explore your scientific co-authorship network <div style="display:inline" id="div_update"></div>
                 </div>
             </div>
             
@@ -360,6 +360,38 @@ gtag('config', 'G-G0X1YQBFGS');
         get_publications(center_data["pmids"]);
 
       }
+
+        function get_update_date() {
+            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_update_date").then(response =>
+            {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+
+                function readStream() {
+                    return reader.read().then(({ done, value }) => {
+                        if (done) {
+                            return;
+                        }
+                        buffer += decoder.decode(value, { stream: true });
+                        let parts = buffer.split("\n");  
+                        buffer = parts.pop();  // Keep the last incomplete part in buffer
+                        for (const part of parts) {
+                            try {
+                                console.log(part);
+                                const update_str = part;
+                                document.getElementById("div_update").innerHTML = "(Pubmed sync: " + update_str + ")";
+                            } catch (error) {
+                                console.error("Error getting update date:", error);
+                            }
+                        }
+                        return readStream(); // Continue reading next chunks
+                    });
+                }
+                return readStream();
+            })
+            .catch(error => console.error("Error:", error));
+        }
 
         function get_publications(pmids) {
             let encodedQuery = encodeURIComponent(pmids);
@@ -732,11 +764,13 @@ gtag('config', 'G-G0X1YQBFGS');
 
 <script>
     window.onload = function () {
+        get_update_date();
         const path = window.location.pathname;
         const centerRaw = path.split("/").filter(Boolean).pop();
         if (centerRaw) {
             const center = centerRaw.replace(/_/g, " ");
             get_author_network(center);
+
         }
     };
   </script>

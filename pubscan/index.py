@@ -231,8 +231,8 @@ Database: {config["mysql"]["database"]}
         result = Session.execute(stmt).mappings()
         row = result.first()
         if row:
-            update_str = row['update'].strftime("%Y-%m-%d %H:%M:%S")
-            yield self.return_string(update_str+"\n")
+            update_str = row['update'].strftime("%Y-%m-%d %H:%M")
+            yield self.return_string(update_str+"h\n")
         else:
             yield self.return_string(""+"\n")
 

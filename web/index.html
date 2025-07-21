@@ -30,61 +30,68 @@ gtag('config', 'G-G0X1YQBFGS');
 <body>
 
     <div style="background-color:rgb(77, 131, 231); padding-left: 10px; padding-top: 10px; padding-bottom: 5px;">
-        <div style="display: flex; width: 100%;">
-            <div style="text-align: left; padding: 2px;">
-                <a href="https://pubscan.expressrna.org"><img src="pubscan_logo.jpg" style="height: 25px;"></a>
+        <div style="display: flex; width: 100%; flex-wrap: nowrap; align-items: center;">
+            
+            <div style="text-align: left; padding: 2px; flex-shrink: 0;">
+                <a href="https://pubscan.expressrna.org">
+                    <img src="pubscan_logo.jpg" style="height: 22px;">
+                </a>
             </div>
             
-            <div style="text-align: left; padding: 2px; padding-top: 4px;">
+            <div style="text-align: left; padding: 2px; padding-top: 2px; flex-shrink: 0;">
                 <div style="color: aliceblue; font-size: 15px; padding-left: 3px;">
                     Explore your scientific co-authorship network <div style="display:inline" id="div_update"></div>
                 </div>
             </div>
             
-            <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1;">
-                <div style="color: aliceblue; font-size: 15px; padding-left: 3px; padding-bottom: 2px; vertical-align: middle;">
+            <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; overflow: hidden;">
+                <div style="color: aliceblue; font-size: 15px; padding-left: 3px; padding-bottom: 2px; white-space: nowrap;">
                     <a href='https://github.com/grexor/pubscan' class="links" target=_github><i class="fab fa-github"></i>&nbsp;GitHub</a>
                     &nbsp;
                     <a id=btn_share href='javascript:url_to_clip();' class="links"><i class="fas fa-share-alt"></i>&nbsp;Share Network</a>
                 </div>
             </div>
+
         </div>
     </div>
 
-    <div style="background-color:rgb(245, 245, 245); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; color: #727272;">
-        <div style="display: flex; width: 100%;">
-            <div style="text-align: left; padding: 2px;">
-                <div style="padding-left: 0px;">
-                    <input id="autoComplete" placeholder="Type author name..." />
-                </div>
-            </div>
-            
-            <div style="text-align: left; padding: 2px; padding-top: 9px;">
-                <div id=btn_clear class=hidden style="padding-left: 5px; font-size: 14px;">
-                    <a href='javascript:clear_search();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 3px; margin-left: -31px; z-index: 100; position: absolute"></i></a>
-                </div>
-            </div>
-
-            <div style="text-align: left; padding: 2px; padding-top: 9px;">
-                <div id=div_info style="padding-left: 0px; font-size: 12px;">
-                    Start your search
-                </div>
-            </div>
-            
-            <div style="text-align: right; padding: 2px; padding-right: 15px; padding-top: 6px; flex-grow: 1; font-size: 14px; display: flex; justify-content: flex-end;">
-                <input id="ac_search_nodes" placeholder="Find nodes..." style="flex-grow: 1;"/>
-                <div id="btn_clear_search_nodes" style="padding-left: 5px; font-size: 10px; display: inline-block; width: 0px;" class="hidden">
-                    <a href='javascript:clear_search_nodes();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 9px; margin-left: -20px; z-index: 100; position: absolute"></i></a>
-                </div>
-                &nbsp;&nbsp;
-                <a id="btn_pub" class="links2" href="javascript:adjust_pub();"><i class="fas fa-pen-fancy" style="color: inherit !important;"></i>&nbsp;Publications</a>
-                &nbsp;&nbsp;
-                <a class=links2 href="javascript:globalThis.my_network.fit();"><i class="fas fa-align-center" style="color: inherit !important;"></i>&nbsp;Center</a>
-                &nbsp;&nbsp;
-                <a id="btn_log" class="links2" href="javascript:adjust_log();"><i class="fas fa-book" style="color: inherit !important;"></i>&nbsp;Log</a>
+<div style="background-color:rgb(245, 245, 245); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; color: #727272; z-index: 1000;">
+    <div style="display: flex; width: 100%; flex-wrap: nowrap; z-index: 1000;">
+        
+        <div style="text-align: left; padding: 2px; z-index: 1000;">
+            <div style="padding-left: 0px; z-index: 1000;">
+                <input id="autoComplete" placeholder="Type author name..." />
             </div>
         </div>
+        
+        <div style="text-align: left; padding: 2px; padding-top: 9px; z-index: 1001;">
+            <div id="btn_clear" class="hidden" style="padding-left: 5px; font-size: 14px; z-index: 1001;">
+                <a href='javascript:clear_search();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 3px; margin-left: -31px; z-index: 100; position: absolute"></i></a>
+            </div>
+        </div>
+
+        <div style="text-align: left; padding: 2px; padding-top: 9px; flex-shrink: 0; white-space: nowrap;">
+            <div id="div_info" style="padding-left: 0px; font-size: 12px;">
+                Start your search
+            </div>
+        </div>
+        
+        <div id="mene_right_2" style="text-align: right; padding: 2px; padding-right: 15px; padding-top: 6px; flex-grow: 1; font-size: 14px; display: flex; justify-content: flex-end;">
+            <input id="ac_search_nodes" placeholder="Find nodes..." style="flex-grow: 1;" />
+            <div id="btn_clear_search_nodes" style="padding-left: 5px; font-size: 10px; display: inline-block; width: 0px;" class="hidden">
+                <a href='javascript:clear_search_nodes();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 9px; margin-left: -20px; z-index: 100; position: absolute"></i></a>
+            </div>
+            &nbsp;&nbsp;
+            <a id="btn_pub" class="links2" href="javascript:adjust_pub();"><i class="fas fa-pen-fancy" style="color: inherit !important;"></i>&nbsp;Publications</a>
+            &nbsp;&nbsp;
+            <a class="links2" href="javascript:globalThis.my_network.fit();"><i class="fas fa-align-center" style="color: inherit !important;"></i>&nbsp;Center</a>
+            &nbsp;&nbsp;
+            <a id="btn_log" class="links2" href="javascript:adjust_log();"><i class="fas fa-book" style="color: inherit !important;"></i>&nbsp;Log</a>
+        </div>
+        
     </div>
+</div>
+
    
     <div id="mynetwork" tabindex="0"></div>
     <div id="div_bottom">
@@ -142,6 +149,8 @@ gtag('config', 'G-G0X1YQBFGS');
         }
 
         function adjust_log() {
+            if (isMobile())
+                return;
             if (document.getElementById("btn_pub").classList.contains("active")) {
                 adjust_pub();
             }
@@ -153,6 +162,8 @@ gtag('config', 'G-G0X1YQBFGS');
         }
 
         function adjust_pub() {
+            if (isMobile())
+                return;
             if (document.getElementById("btn_log").classList.contains("active")) {
                 adjust_log();
             }
@@ -177,6 +188,8 @@ gtag('config', 'G-G0X1YQBFGS');
         }
 
         function show_log() {
+            if (isMobile())
+                return;
             if (document.getElementById("btn_log").classList.contains("active")) {
                 return;
             }
@@ -189,6 +202,8 @@ gtag('config', 'G-G0X1YQBFGS');
 
 
         function show_splash() {
+            if (isMobile())
+                return;
             document.getElementById("div_splash").classList.remove("hidden");
         }
 
@@ -197,6 +212,8 @@ gtag('config', 'G-G0X1YQBFGS');
         }
 
         function show_graph_info() {
+            if (isMobile())
+                return;
             document.getElementById("div_graph_info").classList.remove("hidden");
         }
 
@@ -205,6 +222,8 @@ gtag('config', 'G-G0X1YQBFGS');
         }
 
         function show_center_info() {
+            if (isMobile())
+                return;
             document.getElementById("div_center_info").classList.remove("hidden");
         }
 
@@ -764,6 +783,9 @@ gtag('config', 'G-G0X1YQBFGS');
 
 <script>
     window.onload = function () {
+        if (isMobile()) {
+            document.getElementById('mene_right_2').style.display = 'none';
+        }
         get_update_date();
         const path = window.location.pathname;
         const centerRaw = path.split("/").filter(Boolean).pop();
@@ -854,6 +876,9 @@ window.addEventListener('popstate', function (event) {
   get_author_network(event.state.search);
 });
 
+function isMobile() {
+  return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 
 </script>
 

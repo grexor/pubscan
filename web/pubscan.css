@@ -18,6 +18,7 @@
     border-radius: 10rem;
     border: 0.05rem solid rgba(127, 127, 127, 0.5);
     background-image: url(search.svg);
+    z-index: 1000;
     background-size: 1rem;
     background-position: left 1.05rem top 0.5rem;
     background-repeat: no-repeat;
@@ -73,7 +74,7 @@
     right: 0;
     margin: 0.5rem 0 0 0;
     padding: 0;
-    z-index: 20;
+    z-index: 1000;
     list-style: none;
     border-radius: 0.6rem;
     background-color: #fff;

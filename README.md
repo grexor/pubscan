@@ -3,7 +3,7 @@
 
 ## What is it?
 pubScan is an interactive interface to explore all PubMed articles as a co-authorship network. In this network
-nodes represent authors, edges represent co-authored publications.
+<b>nodes represent authors</b> and <b>edges represent co-authored publications</b>.
 
 ## Who appears at the center of the network?
 The author you search for in the input box (top-left) will appear at the center of the network, highlighted in red.

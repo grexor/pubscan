@@ -1,3 +1,4 @@
+<picture><img src="web/pubscan_logo.jpg" height="30"/></picture>
 # Welcome to pubScan!
 
 ## What is it?

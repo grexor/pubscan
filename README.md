@@ -16,8 +16,9 @@ Other nodes are colored based on the number of publications for the author in Pu
 
 ## Are all co-authors shown?
 To keep the network readable and responsive, pubScan displays:
-Up to 150 co-authors (ranked by number of shared publications)
-Up to 2,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
+
+* up to 150 co-authors (ranked by number of shared publications)
+* up to 2,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
 
 ## Love it? Want to support the project?
 Star it and spread the word :-) Thanks

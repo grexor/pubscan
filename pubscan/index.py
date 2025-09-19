@@ -282,8 +282,14 @@ Database: {config["mysql"]["database"]}
                
             for author_name in pmid_authors:
                 author_name = get_unique_author_name(db_authors, author_name)
-                _, author_pmids[author_name] = self.author_pmids(author_name)
-                all_pmids.update(author_pmids[author_name])
+
+                if author_pmids.get(author_name, None)==None:
+                    #test = {"instruction": "progress", "description": f"obtaining PMIDs for author {author_name}"}
+                    #yield self.return_string(json.dumps(test)+"\n")
+                    #sys.stdout.flush()
+                    _, author_pmids[author_name] = self.author_pmids(author_name)
+                    all_pmids.update(author_pmids[author_name])
+
                 author_group = "g0"
                 if len(author_pmids[author_name])>10:
                     author_group = "g1"

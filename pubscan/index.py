@@ -146,7 +146,8 @@ class TableClass():
         print(message, file=self.environ['wsgi.errors'])
 
     def logme(self, message):
-        os.system(f"echo '{datetime.datetime.now()}: {message}' >> {log_filename}")
+        client_ip = self.environ.get("HTTP_X_FORWARDED_FOR", self.environ.get("REMOTE_ADDR", "unknown"))
+        os.system(f"echo '{datetime.datetime.now()} [{client_ip}]: {message}' >> {log_filename}")        
 
     def __init__(self, environ, start_response):
         self.environ = environ

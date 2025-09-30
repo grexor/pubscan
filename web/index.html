@@ -279,21 +279,22 @@ gtag('config', 'G-G0X1YQBFGS');
         },
         interaction: {
             zoomSpeed: 0.1,  // Slow down zooming (default is 1)
-            navigationButtons: true  // Optionally add navigation buttons (optional)
+            navigationButtons: true,  // Optionally add navigation buttons (optional)
+            keyboard: false
         },        
         nodes: {
             shape: "dot",
             size: 18,
                 font: {
                     size: 30, // Adjust the font size here
-                    color: '#343434',
+                    color: '#454545',
                     face: 'arial',
                 },            
           },
           edges: {
             color: '#ff0000',
             font: {
-              size: 20,
+              size: 25,
               face: 'arial',
               color: '#a1a1a1',
             },
@@ -801,40 +802,40 @@ gtag('config', 'G-G0X1YQBFGS');
 </div>
 
 <div id="div_splash" class="splash_div">
-    <div style="max-width: 800px; width: 90%; text-align: left; margin: 0 auto; word-wrap: break-word;">
-        <div style='font-size: 16px; padding-top: 10px; color: #a63f3b;'>
+    <div style="max-width: 900px; width: 90%; text-align: left; margin: 0 auto; word-wrap: break-word;">
+        <div style='font-size: 18px; padding-top: 10px; color: #a63f3b;'>
             Welcome to pubScan!
         </div>
-        <div style='font-size: 15px; padding-top: 13px; color: #868686'>
+        <div style='font-size: 16px; padding-top: 13px; color: #868686'>
             What is it?<br>
         </div>
-        <div style='font-size: 13px; color: #9a9a9a'>
+        <div style='font-size: 15px; color: #9a9a9a'>
             pubScan is an interactive interface to explore all PubMed articles as a co-authorship network. In this network
             <br><b>nodes</b> represent authors, <b>edges</b> represent co-authored publications.
         </div>
-        <div style='font-size: 15px; padding-top: 13px; color: #868686'>
+        <div style='font-size: 16px; padding-top: 13px; color: #868686'>
             Who appears at the center of the network?<br>
         </div>
-        <div style='font-size: 13px; color: #9a9a9a'>
-            The author you search for in the input box (top-left) will appear at the center of the network, highlighted in red.<div style="width:10px; height:10px; background:red; border-radius:50%; display:inline-block;"></div>
+        <div style='font-size: 16px; color: #9a9a9a'>
+            The author you search for in the input box (top-left) will appear at the center of the network, highlighted in red <div style="width:10px; height:10px; background:red; border-radius:50%; display:inline-block;"></div>.
             <br>Other nodes are colored based on the number of publications for the author in PubMed:
             <br><div style="width:10px; height:10px; background:#EBF2F6; border-radius:50%; display:inline-block;"></div> &lt; 10 publications,
             <div style="width:10px; height:10px; background:#C6D6E2; border-radius:50%; display:inline-block;"></div> 10-50 publications,
             <div style="width:10px; height:10px; background:#93AEC5; border-radius:50%; display:inline-block;"></div> 50-100 publications,
             <div style="width:10px; height:10px; background:#293D4D; border-radius:50%; display:inline-block;"></div> &gt; 100 publications
         </div>
-        <div style='font-size: 15px; padding-top: 13px; color: #868686'>
+        <div style='font-size: 16px; padding-top: 13px; color: #868686'>
             Are all co-authors shown?<br>
         </div>
-        <div style='font-size: 13px; color: #9a9a9a'>
+        <div style='font-size: 15px; color: #9a9a9a'>
             To keep the network readable and responsive, pubScan displays:
             <ui><br>Up to 150 co-authors (ranked by number of shared publications)
             <ui><br>Up to 2,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
         </div>
-        <div style='font-size: 15px; padding-top: 13px; color: #868686'>
+        <div style='font-size: 16px; padding-top: 13px; color: #868686'>
             Love it? Want to support the project?<br>
         </div>
-        <div style='font-size: 13px; color: #9a9a9a'>
+        <div style='font-size: 15px; color: #9a9a9a'>
             Spread the word by sharing the pubScan link with colleagues, follow me on <a href='https://x.com/gregor_rot' target=_x>Twitter/X</a>, <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a>
         </div>
 

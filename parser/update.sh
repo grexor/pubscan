@@ -19,6 +19,7 @@ if [ -n "$NEW_FILES" ]; then
     ./2_authors.sh
     ./3_publications.sh
     ./4_publish.sh
+    python 5_search.py
     mysql pubscan -e "INSERT INTO info () VALUES ();"    
 else
     # otherwise do nothing

@@ -3,6 +3,7 @@ import glob
 from tqdm import tqdm
 from unidecode import unidecode
 import re
+import gzip
 
 def remove_special_characters(text):
     t1 = unidecode(text)
@@ -10,7 +11,7 @@ def remove_special_characters(text):
 
 authors_pmids = {}
 pmids = set()
-fout_pub = open("publications.tab", "wt")
+fout_pub = gzip.open("publications.tab.gz", "wt")
 xml_files = glob.glob("../database/*.xml.gz")
 nfiles = len(xml_files)
 c = 0
@@ -69,6 +70,14 @@ for xml_file in xml_files:
             authors_list.append(author_name)
             authors_pmids.setdefault(author_name, set()).add(pmid)
         publication.append(",".join(authors_list))
+
+        # 20250930: adding mesh terms to publications
+        mesh_terms = []
+        for mesh in article.xpath(".//MeshHeadingList/MeshHeading/DescriptorName"):
+            if mesh is not None and mesh.text:
+                mesh_terms.append(remove_special_characters(mesh.text).lower())
+        publication.append("|".join(mesh_terms))
+
         if pmid not in pmids: # there are some duplicate (3165) pmids 
             fout_pub.write("\t".join([str(x) for x in publication]) + "\n")
             pmids.add(pmid)
@@ -77,7 +86,7 @@ for xml_file in xml_files:
 
 fout_pub.close()
 
-fout_aut = open("authors.tab", "wt")
+fout_aut = gzip.open("authors.tab.gz", "wt")
 for author_name, pmids in authors_pmids.items():
     fout_aut.write(f"{author_name}\t{','.join([str(x) for x in pmids])}\n")
 fout_aut.close()

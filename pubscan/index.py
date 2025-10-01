@@ -3,6 +3,7 @@ import cgi
 import urllib
 import os
 import sys
+import sqlite3
 import hashlib
 import datetime
 import random
@@ -11,7 +12,6 @@ import pubscan
 import glob
 import shlex
 import copy
-import re
 import shutil
 import time
 import yaml
@@ -32,6 +32,23 @@ from sqlalchemy.orm import registry, relationship, backref, validates, sessionma
 from sqlalchemy.ext.declarative import declarative_base
 
 random.seed(42)
+
+conn = sqlite3.connect("/home/gregor/pubscan/parser/authors.db", check_same_thread=False)
+conn.row_factory = lambda cur, row: row[0]  # return only the name string
+
+def build_like_pattern(author_name: str) -> str:
+    tokens = [token.strip() for token in author_name.split() if token.strip()]
+    return " ".join(token + "*" for token in tokens)
+
+def load_author_file():
+    """Load or reload the author_names.tab file if changed on disk."""
+    global _author_lines, _author_mtime
+    mtime = os.path.getmtime(AUTHOR_FILE)
+    if _author_mtime is None or mtime != _author_mtime:
+        with open(AUTHOR_FILE, "r", encoding="utf-8") as f:
+            _author_lines = f.read().splitlines()
+        _author_mtime = mtime
+    return _author_lines
 
 pubscan_folder = os.path.dirname(os.path.realpath(__file__))
 log_filename = os.path.join(pubscan_folder, "pubscan.log")
@@ -422,17 +439,37 @@ Database: {config["mysql"]["database"]}
         yield self.return_string(json.dumps(publications)+"\n")
         sys.stdout.flush()
 
-    def author_suggest(self):
+    def author_suggest_grep(self):
         author_name = sanitize_value(self.pars.get("author_name", ""))
         if author_name==None:
             yield self.return_string("error")
             return
         author_name = "( [a-z]+)* ".join(author_name.split(" "))
-        result = subprocess.run(f"grep -E '{author_name}' /home/gregor/pubscan/parser/author_names.tab", shell=True, capture_output=True, text=True)
+        result = subprocess.run(f"grep -E '{author_name}' {AUTHOR_FILE}", shell=True, capture_output=True, text=True)
         result = result.stdout.split("\n")
         result = [el for el in result if el!=""]
         result = sorted(result, key=lambda name: name_sort(name, author_name))
-        #yield self.return_string(f"grep -E '{author_name}' /home/gregor/pubscan/parser/author_names.tab\n")
+        yield self.return_string(json.dumps(result))
+
+    def author_suggest(self):
+        author_name = sanitize_value(self.pars.get("author_name", ""))
+        if not author_name:
+            yield self.return_string("error")
+            return
+        query = build_like_pattern(author_name)
+        self.logme(f"query = {query}")
+        try:
+            cur = conn.execute(
+                "SELECT name FROM authors WHERE name MATCH ? LIMIT 200",
+                (query,)
+            )
+            result = cur.fetchall()
+        except sqlite3.OperationalError:
+            self.logme(f"error")
+            result = []
+        self.logme(f"result = : {result}")
+        result = sorted(result, key=lambda name: name_sort(name, author_name))
+        self.logme(f"finished pubscan suggest author name: {author_name}")
         yield self.return_string(json.dumps(result))
 
     def close(self):

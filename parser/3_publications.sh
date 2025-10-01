@@ -1,6 +1,6 @@
 echo "split"
 rm splits/publications_*
-split -l 1000000 publications.tab splits/publications_
+gunzip -c publications.tab.gz | split -l 1000000 - splits/publications_
 
 echo "remove table publications_temp"
 mysql --local-infile=1 pubscan -e "DROP TABLE IF EXISTS publications_temp;"

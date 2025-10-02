@@ -383,3 +383,28 @@ a:hover i {
     background-image: none !important;
     padding-left: 0.8rem;
   }
+
+
+/* hide move buttons */
+.vis-navigation .vis-button.vis-up,
+.vis-navigation .vis-button.vis-down,
+.vis-navigation .vis-button.vis-left,
+.vis-navigation .vis-button.vis-right {
+  display: none !important;
+}
+
+/* put zoom + center in one row at bottom-left */
+.vis-navigation {
+  position: absolute;
+  bottom: 10px;
+  left: 20px;
+  display: flex !important;
+  gap: 1px; /* space between buttons */
+  flex-direction: row !important;
+}
+
+/* reset vis.js absolute positioning on remaining buttons */
+.vis-navigation .vis-button {
+  position: static !important;
+  margin: 0 !important;
+}

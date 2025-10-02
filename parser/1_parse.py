@@ -72,11 +72,11 @@ for xml_file in xml_files:
         publication.append(",".join(authors_list))
 
         # 20250930: adding mesh terms to publications
-        mesh_terms = []
-        for mesh in article.xpath(".//MeshHeadingList/MeshHeading/DescriptorName"):
-            if mesh is not None and mesh.text:
-                mesh_terms.append(remove_special_characters(mesh.text).lower())
-        publication.append("|".join(mesh_terms))
+        #mesh_terms = []
+        #for mesh in article.xpath(".//MeshHeadingList/MeshHeading/DescriptorName"):
+        #    if mesh is not None and mesh.text:
+        #        mesh_terms.append(remove_special_characters(mesh.text).lower())
+        #publication.append("|".join(mesh_terms))
 
         if pmid not in pmids: # there are some duplicate (3165) pmids 
             fout_pub.write("\t".join([str(x) for x in publication]) + "\n")

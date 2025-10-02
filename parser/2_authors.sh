@@ -17,5 +17,3 @@ done
 echo "create index on table authors_temp"
 mysql pubscan -e "ALTER TABLE authors_temp ADD PRIMARY KEY (author_name), ADD INDEX (author_name);"
 
-# file containing only names, much faster to grep for author names
-gunzip -c authors.tab.gz | cut -f 1 > authors_names.tab

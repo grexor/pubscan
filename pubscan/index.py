@@ -457,19 +457,17 @@ Database: {config["mysql"]["database"]}
             yield self.return_string("error")
             return
         query = build_like_pattern(author_name)
-        self.logme(f"query = {query}")
         try:
             cur = conn.execute(
-                "SELECT name FROM authors WHERE name MATCH ? LIMIT 200",
+                "SELECT name FROM authors WHERE name MATCH ? LIMIT 1000",
                 (query,)
             )
             result = cur.fetchall()
         except sqlite3.OperationalError:
             self.logme(f"error")
             result = []
-        self.logme(f"result = : {result}")
-        result = sorted(result, key=lambda name: name_sort(name, author_name))
-        self.logme(f"finished pubscan suggest author name: {author_name}")
+        result = sorted(result, key=lambda name: name_sort(name, author_name))[:20] # choose 20 most promising ones
+        result = sorted(result, key=len) # shorter first
         yield self.return_string(json.dumps(result))
 
     def close(self):

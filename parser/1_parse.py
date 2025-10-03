@@ -79,8 +79,9 @@ for xml_file in xml_files:
         #publication.append("|".join(mesh_terms))
 
         if pmid not in pmids: # there are some duplicate (3165) pmids 
-            fout_pub.write("\t".join([str(x) for x in publication]) + "\n")
-            pmids.add(pmid)
+            if len(authors_list)<100: # more than 100 authors? no
+                fout_pub.write("\t".join([str(x) for x in publication]) + "\n")
+                pmids.add(pmid)
         if npub%10000==0:
             print(xml_file, f"{c}/{nfiles}, {npub/1000000}M publications parsed")
 
@@ -88,5 +89,7 @@ fout_pub.close()
 
 fout_aut = gzip.open("authors.tab.gz", "wt")
 for author_name, pmids in authors_pmids.items():
+    if len(pmids)>2000: # if an author has more than 2000 publications, do not consider, unf. author names are not IDed in PubMed
+        continue
     fout_aut.write(f"{author_name}\t{','.join([str(x) for x in pmids])}\n")
 fout_aut.close()

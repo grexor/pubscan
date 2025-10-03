@@ -7,7 +7,6 @@ import sqlite3
 import hashlib
 import datetime
 import random
-import pybio
 import pubscan
 import glob
 import shlex
@@ -27,28 +26,15 @@ import subprocess
 from difflib import SequenceMatcher
 urllib3.disable_warnings()
 from operator import itemgetter
-from sqlalchemy import *
-from sqlalchemy.orm import registry, relationship, backref, validates, sessionmaker, scoped_session
-from sqlalchemy.ext.declarative import declarative_base
+
+DB = "/home/gregor/pubscan/parser/pubscan.db"
 
 random.seed(42)
-
-conn = sqlite3.connect("/home/gregor/pubscan/parser/authors.db", check_same_thread=False)
-conn.row_factory = lambda cur, row: row[0]  # return only the name string
+conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, check_same_thread=False)
 
 def build_like_pattern(author_name: str) -> str:
     tokens = [token.strip() for token in author_name.split() if token.strip()]
     return " ".join(token + "*" for token in tokens)
-
-def load_author_file():
-    """Load or reload the author_names.tab file if changed on disk."""
-    global _author_lines, _author_mtime
-    mtime = os.path.getmtime(AUTHOR_FILE)
-    if _author_mtime is None or mtime != _author_mtime:
-        with open(AUTHOR_FILE, "r", encoding="utf-8") as f:
-            _author_lines = f.read().splitlines()
-        _author_mtime = mtime
-    return _author_lines
 
 pubscan_folder = os.path.dirname(os.path.realpath(__file__))
 log_filename = os.path.join(pubscan_folder, "pubscan.log")
@@ -70,26 +56,6 @@ def name_sort(name, search):
         similarity = SequenceMatcher(None, search, name).ratio()
         return (2, -similarity)
 
-def dthandler(datetime_object):
-    if isinstance(datetime_object, datetime.datetime):
-        return "%04g/%02g/%02g %02g:%02g" % (datetime_object.year, datetime_object.month, datetime_object.day, datetime_object.hour, datetime_object.minute)
-    if isinstance(datetime_object, datetime.date):
-        return "%04g/%02g/%02g" % (datetime_object.year, datetime_object.month, datetime_object.day)
-    if isinstance(datetime_object, datetime.timedelta):
-        hours = datetime_object.seconds/3600
-        minutes = (datetime_object.seconds - hours*3600)/60
-        seconds = datetime_object.seconds - hours*3600 - minutes*60
-        return "%02gh:%02gm:%02gs" % (hours, minutes, seconds)
-
-engine = create_engine(f'mysql://{config["mysql"]["username"]}:{config["mysql"]["password"]}@localhost/{config["mysql"]["database"]}', pool_size = 20, pool_recycle=5, max_overflow=30, pool_timeout=5)
-
-Session = scoped_session(sessionmaker(bind=engine))
-
-meta = MetaData()
-meta.reflect(bind=engine, views=True)
-
-mapper_registry = registry()
-
 def create_json(results, records="", status=""):
     r = {}
     r["records"] = len(results) if records=="" else records
@@ -99,27 +65,6 @@ def create_json(results, records="", status=""):
         data.append(result.get_json())
     r["data"] = data
     return json.dumps(r, default=dthandler)
-
-class Basic(object):
-    def get_json(self):
-        d = {}
-        for j in self.__dict__.keys():
-            if j in ["_sa_instance_state"]:
-                continue
-            d[j] = self.__dict__[j]
-        return d    
-
-class Authors(Basic):
-    pass
-
-class Publications(Basic):
-    pass
-
-authors_table = meta.tables["authors"]
-mapper_registry.map_imperatively(Authors, authors_table)
-
-publications_table = meta.tables["publications"]
-mapper_registry.map_imperatively(Publications, publications_table)
 
 def normalize_name(name):
     parts = re.split(r'\s+', name.strip())
@@ -216,55 +161,99 @@ Database: {config["mysql"]["database"]}
 
     def config(self):
         return self.return_string(config["folders"]["library_folder"])
-
+       
     def author_pmids(self, author):
-        stmt = text("SELECT * FROM authors WHERE author_name = :name")
-        result = Session.execute(stmt, {"name": author}).mappings()
-        authors = []
-        rows = result.fetchall()
-        if len(rows)>0:
-            author = rows[0]["author_name"]
-            pmids = rows[0]["pmids"]
-            pmids = pmids.split(",")
-            pmids = [int(x) for x in pmids]
-            pmids.sort(reverse=True)
-            pmids = [str(x) for x in pmids]
-            return author, pmids[:300]
-        else:
+        try:
+            cur = conn.execute(
+                "SELECT author_name, pmids FROM authors WHERE author_name = ?",
+                (author,)
+            )
+            row = cur.fetchone()
+        except sqlite3.OperationalError as e:
+            self.logme(f"DB error: {e}")
             return author, []
 
+        if row is None:
+            return author, []
+
+        # row is either a tuple or (if you kept row_factory) a string/list
+        # safer to unpack explicitly
+        author_name, pmids = row
+
+        # pmids stored as comma-separated string → turn into sorted list of strings
+        pmid_list = [int(x) for x in pmids.split(",") if x.strip().isdigit()]
+        pmid_list.sort(reverse=True)
+        pmid_list = [str(x) for x in pmid_list]
+
+        return author_name, pmid_list[:300]
+
     def data_pmid(self, pmid):
-        authors_t = []
-        stmt = text("SELECT * FROM publications WHERE pmid = :pmid")
-        result = Session.execute(stmt, {"pmid": pmid}).mappings()
-        rows = result.fetchall()
-        if len(rows)>0:
-            authors = rows[0]["authors"].split(",")
-            return authors, rows[0]
-        else:
-            return []
-            
+        try:
+            cur = conn.execute(
+                "SELECT pmid, title, pub_year, authors FROM publications WHERE pmid = ?",
+                (pmid,)
+            )
+            row = cur.fetchone()
+        except sqlite3.OperationalError as e:
+            self.logme(f"DB error: {e}")
+            return [], None
+
+        if row is None:
+            return [], None
+
+        # unpack row
+        pmid_val, title, pub_year, authors_str = row
+
+        authors = [a.strip() for a in authors_str.split(",") if a.strip()]
+
+        # build a dict so you can still access row["title"] etc. like before
+        row_dict = {
+            "pmid": pmid_val,
+            "title": title,
+            "pub_year": pub_year,
+            "authors": authors_str,
+        }
+
+        return authors, row_dict
+
     def get_update_date(self):
-        stmt = text("SELECT `update` FROM info ORDER BY id DESC LIMIT 1")
-        result = Session.execute(stmt).mappings()
-        row = result.first()
-        if row:
-            update_str = row['update'].strftime("%Y-%m-%d %H:%M")
-            yield self.return_string(update_str+"h\n")
-        else:
-            yield self.return_string(""+"\n")
+        try:
+            ctime = os.path.getctime(DB)
+            update_str = datetime.datetime.fromtimestamp(ctime).strftime("%Y-%m-%d %H:%M")
+            yield self.return_string(update_str + "h\n")
+        except Exception as e:
+            self.logme(f"error reading file date: {e}")
+            yield self.return_string("\n")
 
     def data_pmids(self, pmids):
         result = {}
-        stmt = text("SELECT * FROM publications WHERE pmid IN :pmids").bindparams(bindparam("pmids", expanding=True))
-        query = Session.execute(stmt, {"pmids": pmids}).mappings()
-        rows = query.fetchall()
-        if len(rows)>0:
-            for row in rows:
-                result[row["pmid"]] = {"pmid": row["pmid"], "pub_year": row["pub_year"], "title": row["title"]}
+
+        if not pmids:
             return result
-        else:
-            return {}
+
+        # Build placeholders (?, ?, ?, ...) for the IN clause
+        placeholders = ",".join("?" for _ in pmids)
+
+        try:
+            cur = conn.execute(
+                f"SELECT pmid, title, pub_year FROM publications WHERE pmid IN ({placeholders})",
+                tuple(pmids)
+            )
+            rows = cur.fetchall()
+        except sqlite3.OperationalError as e:
+            self.logme(f"DB error: {e}")
+            return result
+
+        for row in rows:
+            pmid_val, title, pub_year = row
+            result[pmid_val] = {
+                "pmid": pmid_val,
+                "title": title,
+                "pub_year": pub_year,
+            }
+
+        return result
+
 
     def get_author_network(self):
         search = sanitize_value(unidecode(self.pars["author"]).lower())
@@ -459,13 +448,14 @@ Database: {config["mysql"]["database"]}
         query = build_like_pattern(author_name)
         try:
             cur = conn.execute(
-                "SELECT name FROM authors WHERE name MATCH ? LIMIT 1000",
+                "SELECT name FROM names WHERE name MATCH ? LIMIT 1000",
                 (query,)
             )
             result = cur.fetchall()
         except sqlite3.OperationalError:
             self.logme(f"error")
             result = []
+        result = [row[0] for row in result]
         result = sorted(result, key=lambda name: name_sort(name, author_name))[:20] # choose 20 most promising ones
         result = sorted(result, key=len) # shorter first
         yield self.return_string(json.dumps(result))

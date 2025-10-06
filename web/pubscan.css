@@ -272,7 +272,7 @@ a:hover i {
     padding-right: 5px;
     border-left: 1px dashed #888888;
     font-family: 'Source Sans Pro', sans-serif;    
-    font-size: 13px;
+    font-size: 14px;
     color: #888888;
     z-index: 100;
   }
@@ -291,14 +291,14 @@ a:hover i {
     padding-top: 5px;
     border-left: 1px dashed #888888;
     font-family: 'Source Sans Pro', sans-serif;    
-    font-size: 13px;
+    font-size: 14px;
     color: #888888;
     z-index: 100;
 }
 
 .div_pub table {
     font-family: 'Source Sans Pro', sans-serif;    
-    font-size: 13px;
+    font-size: 14px;
     color: #888888;
     border-collapse: separate;
     border-spacing: 0 6px;

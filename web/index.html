@@ -59,7 +59,7 @@ gtag('config', 'G-G0X1YQBFGS');
     </div>
 
 <div style="background-color:rgb(245, 245, 245); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; color: #727272; z-index: 1000;">
-    <div style="display: flex; width: 100%; flex-wrap: nowrap; z-index: 1000;">
+    <div id="div_search_menu2" style="display: flex; width: 100%; flex-wrap: nowrap; z-index: 9999;">
         
         <div style="text-align: left; padding: 2px; z-index: 1000;">
             <div style="padding-left: 0px; z-index: 1000;">
@@ -91,11 +91,11 @@ gtag('config', 'G-G0X1YQBFGS');
             &nbsp;&nbsp;
             <a id="btn_log" class="links2" href="javascript:adjust_log();"><i class="fas fa-book" style="color: inherit !important;"></i>&nbsp;Log</a>
         </div>
-        
     </div>
 </div>
 
     <div id="mynetwork" tabindex="0"></div>
+
     <div id="div_bottom">
         <div style="display: flex; width: 100%;">
             <div style="text-align: left; padding: 2px;">
@@ -103,7 +103,7 @@ gtag('config', 'G-G0X1YQBFGS');
                 <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://x.com/gregor_rot' target=_x>Twitter/X</a>, <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a></div>
             </div>
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; font-size: 12px; padding-top: 8px;">
-                <table border="0" style='font-size: 12px; width: 750px; margin-left: auto; text-align: right; color: #aaaaaa;'>
+                <table border="0" style='font-size: 13px; width: 750px; margin-left: auto; text-align: right; color: #aaaaaa;'>
                     <tr><td>
                         This site parses data from PubMed, latest update 2025. The authors of pubScan make no guarantees regarding the accuracy, completeness, or timeliness of the data and accept no liability for any errors, omissions, or outcomes resulting from its use.
                     </td></tr>
@@ -286,7 +286,7 @@ gtag('config', 'G-G0X1YQBFGS');
             shape: "dot",
             size: 18,
                 font: {
-                    size: 30, // Adjust the font size here
+                    size: 35, // Adjust the font size here
                     color: '#454545',
                     face: 'arial',
                 },            
@@ -864,7 +864,15 @@ gtag('config', 'G-G0X1YQBFGS');
 
 <script>
 
-    ac_tooltip.show();
+    if (!isMobile())
+        ac_tooltip.show();
+
+    if (isMobile())
+    {
+        $("#div_bottom").hide();
+        $("#div_search_menu2").css("flex-direction", "column");
+        $("#mene_right_2").hide();
+    }
 
 // Listen to back/forward navigation
 window.addEventListener('popstate', function (event) {

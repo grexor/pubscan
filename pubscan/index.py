@@ -28,17 +28,33 @@ urllib3.disable_warnings()
 from operator import itemgetter
 
 DB = "/home/gregor/pubscan/parser/pubscan.db"
+DB_names = "/home/gregor/pubscan/parser/names.db"
 
 random.seed(42)
-conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, check_same_thread=False)
+conn = sqlite3.connect(f"file:{DB}?immutable=1", uri=True, check_same_thread=False)
+conn_names = sqlite3.connect(f"file:{DB_names}?immutable=1", uri=True, check_same_thread=False)
+
+conn.execute("PRAGMA query_only = ON;")
+conn.execute("PRAGMA cache_size = 2000000;")       # ~2 GB cache in pages (~2 GB RAM)
+conn.execute("PRAGMA mmap_size = 268435456;")       # 256 MB memory-mapped I/O
+conn.execute("PRAGMA temp_store = MEMORY;")
+conn.execute("PRAGMA synchronous = OFF;")
+conn.execute("PRAGMA journal_mode = OFF;")
+
+conn_names.execute("PRAGMA query_only = ON;")
+conn_names.execute("PRAGMA cache_size = 2000000;")       # ~2 GB cache in pages (~2 GB RAM)
+conn_names.execute("PRAGMA mmap_size = 268435456;")       # 256 MB memory-mapped I/O
+conn_names.execute("PRAGMA temp_store = MEMORY;")
+conn_names.execute("PRAGMA synchronous = OFF;")
+conn_names.execute("PRAGMA journal_mode = OFF;")
 
 def build_like_pattern(author_name: str) -> str:
     tokens = [token.strip() for token in author_name.split() if token.strip()]
     return " ".join(token + "*" for token in tokens)
 
 pubscan_folder = os.path.dirname(os.path.realpath(__file__))
-log_filename = os.path.join(pubscan_folder, "pubscan.log")
 config = yaml.safe_load(open(os.path.join(pubscan_folder, "pubscan.config.yaml")))
+log_filename = os.path.join(pubscan_folder, "pubscan.log")
 
 data_folder = os.path.dirname(os.path.realpath(__file__))
 data_folder = os.path.join(data_folder, "data")
@@ -155,13 +171,9 @@ class TableClass():
 
     def version(self):
         status_string = f"""pubscan v1 {datetime.datetime.now()}
-Database: {config["mysql"]["database"]}
 """
         return [self.return_string(status_string)]
-
-    def config(self):
-        return self.return_string(config["folders"]["library_folder"])
-       
+      
     def author_pmids(self, author):
         try:
             cur = conn.execute(
@@ -412,7 +424,7 @@ Database: {config["mysql"]["database"]}
         yield self.return_string(json.dumps(results)+"\n")
         sys.stdout.flush()
 
-        test = {"instruction": "progress", "description": f"showing network with {len(nodes_all)} author nodes and {len(edges_all)} co-author edges"}
+        test = {"instruction": "progress", "description": f"network of {len(nodes_all)} author nodes and {len(edges_all)} co-author edges"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
@@ -447,21 +459,18 @@ Database: {config["mysql"]["database"]}
             return
         query = build_like_pattern(author_name)
         try:
-            cur = conn.execute(
-                "SELECT name FROM names WHERE name MATCH ? LIMIT 1000",
+            cur = conn_names.execute(
+                "SELECT name FROM names WHERE name MATCH ? LIMIT 50",
                 (query,)
             )
             result = cur.fetchall()
         except sqlite3.OperationalError:
-            self.logme(f"error")
+            #self.logme(f"error")
             result = []
         result = [row[0] for row in result]
         result = sorted(result, key=lambda name: name_sort(name, author_name))[:20] # choose 20 most promising ones
         result = sorted(result, key=len) # shorter first
         yield self.return_string(json.dumps(result))
-
-    def close(self):
-        Session.remove()
 
 def application(environ, start_response):
     return iter(TableClass(environ, start_response))

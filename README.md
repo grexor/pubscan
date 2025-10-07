@@ -1,5 +1,5 @@
 <picture><img src="web/pubscan_logo.jpg" height="30"/></picture>
-# Welcome to pubScan!
+# Welcome to pubScan v2!
 
 A public instance of this platform is available at [https://pubscan.expressrna.org](https://pubscan.expressrna.org)
 
@@ -19,6 +19,11 @@ To keep the network readable and responsive, pubScan displays:
 
 * up to 150 co-authors (ranked by number of shared publications)
 * up to 2,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
+
+## Changelog
+
+* 202510: v2, Faster and simpler SQLite backend, mobile friendly
+* 202412: v1, Initial interface with a Mysql database
 
 ## Love it? Want to support the project?
 Star it and spread the word :-) Thanks

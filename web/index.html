@@ -4,11 +4,9 @@
     <title>pubScan: Explore your scientific co-authorship network</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">    
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <link rel="stylesheet" href="pubscan.css?v=202505071">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@10.2.9/dist/autoComplete.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
@@ -16,6 +14,7 @@
     <script src="https://unpkg.com/@popperjs/core@2"></script>
     <script src="https://unpkg.com/tippy.js@6"></script>
     <script async defer src="https://buttons.github.io/buttons.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 </head>
 
 <!-- Google tag (gtag.js) -->
@@ -30,7 +29,7 @@ gtag('config', 'G-G0X1YQBFGS');
 
 <body>
 
-    <div style="background-color:rgb(77, 131, 231); padding-left: 10px; padding-top: 10px; padding-bottom: 5px;">
+    <div id="div_top" style="background-color:rgb(77, 131, 231); padding-left: 10px; padding-top: 10px; padding-bottom: 5px;">
         <div style="display: flex; width: 100%; flex-wrap: nowrap; align-items: center;">
             
             <div style="text-align: left; padding: 2px; flex-shrink: 0;">
@@ -41,13 +40,13 @@ gtag('config', 'G-G0X1YQBFGS');
             
             <div style="text-align: left; padding: 2px; padding-top: 2px; flex-shrink: 0;">
                 <div style="color: aliceblue; font-size: 15px; padding-left: 3px;">
-                    Explore your scientific co-authorship network <div style="display:inline" id="div_update"></div>
+                    Explore co-authorships<div style="display:inline" id="div_update"></div>
                 </div>
             </div>
             
-            <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; overflow: hidden;">
+            <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; overflow: hidden;" id="toptop_right_menu">
                 <div style="color: aliceblue; font-size: 15px; padding-left: 3px; padding-bottom: 2px; white-space: nowrap;">
-                    <span style="position: relative; top: 5px; display:inline-block; transform: scale(1.1);">
+                    <span style="position: relative; top: 5px; display:inline-block; transform: scale(1.1);" id="btn_github_stars">
                     <a class="github-button" href="https://github.com/grexor/pubscan" data-icon="octicon-star" data-size="medium" data-show-count="true" aria-label="Star pubScan on GitHub">pubScan</a>
                     </span>
                     &nbsp;&nbsp;
@@ -58,7 +57,7 @@ gtag('config', 'G-G0X1YQBFGS');
         </div>
     </div>
 
-<div style="background-color:rgb(245, 245, 245); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; color: #727272; z-index: 1000;">
+<div style="background-color:rgb(245, 245, 245); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; color: #727272; z-index: 1000;  position: relative;">
     <div id="div_search_menu2" style="display: flex; width: 100%; flex-wrap: nowrap; z-index: 9999;">
         
         <div style="text-align: left; padding: 2px; z-index: 1000;">
@@ -68,12 +67,12 @@ gtag('config', 'G-G0X1YQBFGS');
         </div>
         
         <div style="text-align: left; padding: 2px; padding-top: 9px; z-index: 1001;">
-            <div id="btn_clear" class="hidden" style="padding-left: 5px; font-size: 14px; z-index: 1001;">
+            <div id="btn_clear" class="hidden" style="padding-left: 5px; font-size: 14px; z-index: 1001; display: flex;">
                 <a href='javascript:clear_search();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 3px; margin-left: -31px; z-index: 100; position: absolute"></i></a>
             </div>
         </div>
 
-        <div style="text-align: left; padding: 2px; padding-top: 9px; flex-shrink: 0; white-space: nowrap;">
+        <div style="text-align: left; padding: 2px; padding-top: 9px; flex-shrink: 0; white-space: nowrap;" id="div_search_label">
             <div id="div_info" style="padding-left: 0px; font-size: 12px;">
                 Start your search
             </div>
@@ -99,7 +98,7 @@ gtag('config', 'G-G0X1YQBFGS');
     <div id="div_bottom">
         <div style="display: flex; width: 100%;">
             <div style="text-align: left; padding: 2px;">
-                Developed by <a href="https://grexor.github.io" target=_grexor>Gregor Rot</a><br>
+                Developed by <a href='https://grexor.github.io' target=_grexor>Gregor Rot</a>, Open Source at <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub</a><br>
                 <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://x.com/gregor_rot' target=_x>Twitter/X</a>, <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a></div>
             </div>
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; font-size: 12px; padding-top: 8px;">
@@ -108,6 +107,14 @@ gtag('config', 'G-G0X1YQBFGS');
                         This site parses data from PubMed, latest update 2025. The authors of pubScan make no guarantees regarding the accuracy, completeness, or timeliness of the data and accept no liability for any errors, omissions, or outcomes resulting from its use.
                     </td></tr>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="div_bottom_mobile" style="display:none" onclick="swap_pub_mobile()">
+        <div style="display: flex; width: 100%;">
+            <div style="text-align: left; padding: 2px; padding-top: 10px;" id="div_bottom_mobile_label">
+                Developed by <b><a href='https://grexor.github.io' target='_new'>Gregor Rot</a></b>, Open Source at <b><a href='https://github.com/grexor/pubscan' target='_new'>GitHub</a></b>
             </div>
         </div>
     </div>
@@ -362,6 +369,7 @@ gtag('config', 'G-G0X1YQBFGS');
                     const node_data = nodes_dataset.get(node_id);
                     document.getElementById("div_pub").innerHTML = "Publications: <b>" + node_data["id"] + "</b> (" + node_data["pmids"].split(",").length + ")<br><br>";
                     document.getElementById("div_pub").scrollTop = 0;
+                    document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + node_data["id"] + "</b> (" + node_data["pmids"].split(",").length + ")";
                     get_publications(node_data["pmids"]);
 
                 }
@@ -370,6 +378,7 @@ gtag('config', 'G-G0X1YQBFGS');
                     const edge_data = edges_dataset.get(edge_id);
                     document.getElementById("div_pub").scrollTop = 0;
                     document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + edge_data["from"] + "</b> and <b>" + edge_data["to"] + "</b> (" + edge_data["pmids"].split(",").length + ")<br><br>";
+                    document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + edge_data["from"] + "</b> and <b>" + edge_data["to"] + "</b> (" + edge_data["pmids"].split(",").length + ")";
                     get_publications(edge_data["pmids"]);
                 }
             }, 250);
@@ -379,6 +388,8 @@ gtag('config', 'G-G0X1YQBFGS');
         color_node_single(current_center, 'red');
         const center_data = nodes_dataset.get(current_center);
         document.getElementById("div_pub").innerHTML = "Publications: <b>" + center_data["id"] + "</b> (" + center_data["pmids"].split(",").length + ")<br><br>";
+        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + center_data["id"] + "</b> (" + center_data["pmids"].split(",").length + ")";
+
         get_publications(center_data["pmids"]);
 
       }
@@ -778,11 +789,75 @@ gtag('config', 'G-G0X1YQBFGS');
 </script>
 
 <script>
+
+    function isMobile() {
+    return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    let mobile_view;
+    let div_pub_text;
+
     window.onload = function () {
-        if (isMobile()) {
-            document.getElementById('mene_right_2').style.display = 'none';
+
+        if (!isMobile()) {
+            ac_tooltip.show();
         }
+            
+        if (isMobile()) {
+
+            mobile_view = "network";
+
+            document.getElementById('mene_right_2').style.display = 'none';
+            $("#div_bottom").hide();
+            //$("#toptop_right_menu").hide();
+
+            $("#div_update").hide();
+
+            $("#div_search_menu2").css("flex-direction", "column");
+            $("#div_search_menu2").css("border", "");
+            $("#mene_right_2").hide();
+            $("#btn_github_stars").hide();
+            $("#div_graph_title").hide();
+            $("#div_search_label").css("padding-top", "0px");
+            $("#div_search_label").css("text-align", "center");
+            $("#div_search_label").css("margin-top", "-5px");
+            $("#div_search_label").css("border", "none");
+            $("#div_info").css("z-index", "0");
+            $("#div_info").html("Ready to start searching :-)");
+
+            $("#div_search_menu2").css("z-index", 9999);
+            $("#mynetwork").attr("style", "z-index: 1 !important;");
+
+            const el = document.getElementById("div_bottom_mobile");
+            el.style.display = "flex";
+            el.style.position = "fixed";
+            el.style.bottom = "0";
+            el.style.left = "0";
+            el.style.width = "100%";
+            el.style.height = "50px";
+            el.style.backgroundColor = "#408bed";
+            el.style.color = "white";
+            el.style.paddingLeft = "20px";
+            el.style.borderTop = "1px dashed rgb(220,220,220)";
+            el.style.zIndex = "9999";
+            el.style.transform = "translateZ(0)";
+            el.style.willChange = "transform";
+
+            $("#mynetwork").css("border", "none");
+            $("#mynetwork").css("top", "113px");
+
+            $("#div_pub").attr("style", $("#mynetwork").attr("style"));
+            const divPub = document.getElementById("div_pub");
+            divPub.className = "div_pub_mobile";
+            $("#div_pub").hide();
+
+            const divSplash = document.getElementById("div_splash");
+            divSplash.className = "splash_mobile_div";
+            
+        }
+
         get_update_date();
+
         const path = window.location.pathname;
         const centerRaw = path.split("/").filter(Boolean).pop();
         if (centerRaw) {
@@ -791,7 +866,30 @@ gtag('config', 'G-G0X1YQBFGS');
 
         }
     };
-  </script>
+
+function swap_pub_mobile() {
+    if (document.getElementById("div_bottom_mobile_label").innerHTML.indexOf("Developed by")>0)
+        return;
+    if (mobile_view=="network")
+    {
+        div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
+        document.getElementById("div_bottom_mobile_label").innerHTML = "Back to network";
+        $("#mynetwork").hide();
+        $("#div_pub").removeClass("hidden").show();
+        mobile_view = "pub";
+        return;
+    }
+    if (mobile_view=="pub")
+    {
+        document.getElementById("div_bottom_mobile_label").innerHTML = div_pub_text;
+        $("#div_pub").hide();
+        $("#mynetwork").show();
+        mobile_view = "network";
+        return;
+    }
+}
+
+</script>
 
 <div id=div_log class="div_log hidden">
     Log of communication of pubScan with the server. Use to follow what's happening.
@@ -864,25 +962,11 @@ gtag('config', 'G-G0X1YQBFGS');
 
 <script>
 
-    if (!isMobile())
-        ac_tooltip.show();
-
-    if (isMobile())
-    {
-        $("#div_bottom").hide();
-        $("#div_search_menu2").css("flex-direction", "column");
-        $("#mene_right_2").hide();
-    }
-
-// Listen to back/forward navigation
-window.addEventListener('popstate', function (event) {
-  handling_popstate = true;
-  get_author_network(event.state.search);
-});
-
-function isMobile() {
-  return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
+    // Listen to back/forward navigation
+    window.addEventListener('popstate', function (event) {
+    handling_popstate = true;
+    get_author_network(event.state.search);
+    });
 
 </script>
 

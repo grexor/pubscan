@@ -146,6 +146,25 @@
     border-top: 1px dashed rgb(220, 220, 220);
 }
 
+#div_bottom_mobile {
+    position: fixed;
+    z-index: 9999;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    background-color: #408bed;
+    text-align: left;
+    line-height: 20px;
+    color:white;
+    padding-top: 2px;
+    font-size: 15px;
+    padding-left: 20px;
+    font-family: 'Source Sans Pro', sans-serif;    
+    font-size: 14px;
+    border-top: 1px dashed rgb(220, 220, 220);
+}
+
 #div_bottom a:link,
 #div_bottom a:visited {
     color: #2471d5;      /* unvisited link */
@@ -154,8 +173,8 @@
 
 #mynetwork {
     position: fixed;
-    top: 90;
-    bottom: 50;
+    top: 90px;
+    bottom: 50px;
     left: 0;
     right: 0;
     margin: 0px;
@@ -319,11 +338,56 @@ a:hover i {
     text-decoration: none;  /* optional: add underline on hover */
 }
 
+
+
+
+.div_pub_mobile {
+    position: fixed;
+    top: 90px;
+    bottom: 50px;
+    width: 100%;
+    opacity: 0.7;
+    background-color: #fcfcfc;
+    overflow-y: auto;
+    padding-left: 5px;
+    padding-right: 5px;
+    padding-top: 5px;
+    border-left: 1px dashed #888888;
+    font-family: 'Source Sans Pro', sans-serif;    
+    font-size: 14px;
+    color: #888888;
+    z-index: 100;
+}
+
+.div_pub_mobile table {
+    font-family: 'Source Sans Pro', sans-serif;    
+    font-size: 14px;
+    color: #888888;
+    border-collapse: separate;
+    border-spacing: 0 6px;
+}
+
+.div_pub_mobile table td {
+    vertical-align: top;
+}
+
+.div_pub_mobile a {
+    color: #4d9aff;           /* nice blue */
+    text-decoration: none;    /* remove underline (optional) */
+    transition: color 0.2s;   /* smooth color change on hover */
+}
+
+.div_pub_mobile a:hover {
+    color: #0041a8;           /* lighter blue on hover */
+    text-decoration: none;  /* optional: add underline on hover */
+}
+
+
   .hidden {
     display: none !important;
   }
 
-  .splash_div {
+.splash_div {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -341,15 +405,45 @@ a:hover i {
     white-space: normal;
     word-wrap: break-word;
     background: url('https://www.transparenttextures.com/patterns/cubes.png');
+    overflow-y: auto;
 }
 
-  .splash_div a {
+.splash_div a {
     color: #4d9aff;           /* nice blue */
     text-decoration: none;    /* remove underline (optional) */
     transition: color 0.2s;   /* smooth color change on hover */
 }
 
 .splash_div a:hover {
+    color: #0041a8;           /* lighter blue on hover */
+    text-decoration: none;  /* optional: add underline on hover */
+}
+
+.splash_mobile_div {
+    position: fixed;
+    top: 110px;
+    bottom: 50px;
+    width: 100%;
+    background-color: #fafafa;
+    font-size: 13px;
+    text-align: center;
+    border-radius: 5px;
+    border-top: 1px solid #eaeaea;
+    border-bottom: 1px solid #eaeaea;
+    z-index: 10;
+    white-space: normal;
+    word-wrap: break-word;
+    background: url('https://www.transparenttextures.com/patterns/cubes.png');
+    overflow-y: auto;    
+}
+
+.splash_mobile_div a {
+    color: #4d9aff;           /* nice blue */
+    text-decoration: none;    /* remove underline (optional) */
+    transition: color 0.2s;   /* smooth color change on hover */
+}
+
+.splash_mobile_div a:hover {
     color: #0041a8;           /* lighter blue on hover */
     text-decoration: none;  /* optional: add underline on hover */
 }

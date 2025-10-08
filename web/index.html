@@ -15,6 +15,32 @@
     <script src="https://unpkg.com/tippy.js@6"></script>
     <script async defer src="https://buttons.github.io/buttons.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+
+    <meta name="description" content="pubScan lets you explore your scientific co-authorship network. Visualize collaborations across PubMed publications — fast, open-source, and mobile-friendly.">
+    <meta name="keywords" content="pubScan, co-authorship network, PubMed, scientific collaboration, research visualization, academic graph, open science, papers network, science network, scientists network">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="pubScan: Explore your scientific co-authorship network">
+    <meta property="og:description" content="Visualize your co-authorship network from PubMed data — fast, interactive, and open source.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/grexor/pubscan/main/web/pubscan_splash.jpg">
+    <meta property="og:url" content="https://pubscan.expressrna.org">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <script type="application/ld+json">
+    {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "pubScan",
+    "url": "https://pubscan.expressrna.org",
+    "description": "Explore and visualize scientific co-authorship networks using PubMed data.",
+    "applicationCategory": "Science",
+    "operatingSystem": "All",
+    "creator": {
+        "@type": "Organization",
+        "name": "pubScan Project"
+    }
+    }
+    </script>    
+
 </head>
 
 <!-- Google tag (gtag.js) -->
@@ -539,6 +565,8 @@ gtag('config', 'G-G0X1YQBFGS');
                                     if (mydata["nodes_all"].length==0) {
                                         document.getElementById("div_log").innerHTML += "search for <b>" + query + "</b> returned no results.";
                                         document.getElementById("div_center_info_content").innerHTML = "Search for <b>" + query + "</b> returned no results.";
+                                        document.getElementById("div_bottom_mobile_label").innerHTML = "Search for <b>" + query + "</b> returned no results.";
+                                        document.getElementById("div_info").innerHTML = "Search for <b>" + query + "</b> returned no results.";
                                         if (nodes_all.length==[]) {
                                             show_center_info();
                                         }
@@ -799,6 +827,17 @@ gtag('config', 'G-G0X1YQBFGS');
 
     window.onload = function () {
 
+    tippy('#btn_share2', {
+        theme: 'pubscan',
+        trigger: 'click',
+        content: 'Copied to clipboard!',
+        onShow(instance) {
+            setTimeout(() => {
+            instance.hide();
+            }, 2000);
+        }        
+      });
+
         if (!isMobile()) {
             ac_tooltip.show();
         }
@@ -909,7 +948,7 @@ function swap_pub_mobile() {
         </div>
         <div style='font-size: 15px; color: #9a9a9a'>
             pubScan is an interactive interface to explore all PubMed articles as a co-authorship network. In this network
-            <br><b>nodes</b> represent authors, <b>edges</b> represent co-authored publications.
+            <b>nodes</b> represent authors, <b>edges</b> represent co-authored publications.
         </div>
         <div style='font-size: 16px; padding-top: 13px; color: #868686'>
             Who appears at the center of the network?<br>
@@ -934,7 +973,7 @@ function swap_pub_mobile() {
             Love it? Want to support the project?<br>
         </div>
         <div style='font-size: 15px; color: #9a9a9a'>
-            Spread the word by sharing the pubScan link with colleagues, follow me on <a href='https://x.com/gregor_rot' target=_x>Twitter/X</a>, <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a>
+            Network and <a id="btn_share2" href='javascript:url_to_clip()'>share pubScan </a> with fellow scientists. Check the source code and * <a href='https://github.com/grexor/pubscan' target="_github">pubScan on Github</a>.
         </div>
 
 

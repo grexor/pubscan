@@ -266,7 +266,6 @@ class TableClass():
 
         return result
 
-
     def get_author_network(self):
         search = sanitize_value(unidecode(self.pars["author"]).lower())
         self.logme(f"pubscan search: {search}")

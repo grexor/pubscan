@@ -396,6 +396,7 @@ gtag('config', 'G-G0X1YQBFGS');
                     document.getElementById("div_pub").innerHTML = "Publications: <b>" + node_data["id"] + "</b> (" + node_data["pmids"].split(",").length + ")<br><br>";
                     document.getElementById("div_pub").scrollTop = 0;
                     document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + node_data["id"] + "</b> (" + node_data["pmids"].split(",").length + ")";
+                    div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
                     get_publications(node_data["pmids"]);
 
                 }
@@ -405,6 +406,7 @@ gtag('config', 'G-G0X1YQBFGS');
                     document.getElementById("div_pub").scrollTop = 0;
                     document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + edge_data["from"] + "</b> and <b>" + edge_data["to"] + "</b> (" + edge_data["pmids"].split(",").length + ")<br><br>";
                     document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + edge_data["from"] + "</b> and <b>" + edge_data["to"] + "</b> (" + edge_data["pmids"].split(",").length + ")";
+                    div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
                     get_publications(edge_data["pmids"]);
                 }
             }, 250);
@@ -415,8 +417,17 @@ gtag('config', 'G-G0X1YQBFGS');
         const center_data = nodes_dataset.get(current_center);
         document.getElementById("div_pub").innerHTML = "Publications: <b>" + center_data["id"] + "</b> (" + center_data["pmids"].split(",").length + ")<br><br>";
         document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + center_data["id"] + "</b> (" + center_data["pmids"].split(",").length + ")";
+        div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
 
         get_publications(center_data["pmids"]);
+
+        // switch to network view on mobile (in case pub view was open)
+        if (isMobile()) {
+            document.getElementById("div_bottom_mobile_label").innerHTML = div_pub_text;
+            $("#div_pub").hide();
+            $("#mynetwork").show();
+            mobile_view = "network";
+        }
 
       }
 

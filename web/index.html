@@ -91,11 +91,14 @@ gtag('config', 'G-G0X1YQBFGS');
         
         <div style="text-align: left; padding: 2px; z-index: 1000;">
             <div style="padding-left: 0px; z-index: 1000;">
-                <input id="autoComplete" placeholder="Type author name..." />
+                <input id="autoComplete" placeholder="Type author name..." style="max-width: 300px; min-width: 300px;"/>
+                <div id="btnm_clear" class="hidden" style="position: absolute; left: 290px; top: 18; cursor: pointer; color: #aaa; font-size: 12px;">
+                    <a href='javascript:clear_search();'><i class="fas fa-times"></i></a>
+                </div>
             </div>
         </div>
         
-        <div style="text-align: left; padding: 2px; padding-top: 9px; z-index: 1001;">
+        <div style="text-align: left; padding: 2px; padding-top: 9px; z-index: 1001;" id="btn_clean_c">
             <div id="btn_clear" class="hidden" style="padding-left: 5px; font-size: 14px; z-index: 1001; display: flex;">
                 <a href='javascript:clear_search();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 3px; margin-left: -31px; z-index: 100; position: absolute"></i></a>
             </div>
@@ -215,6 +218,9 @@ gtag('config', 'G-G0X1YQBFGS');
         function clear_search() {
             document.querySelector("#autoComplete").value = "";
             document.getElementById("btn_clear").classList.add("hidden");
+            if (isMobile()){
+                document.getElementById("btnm_clear").classList.add("hidden");
+            }
             document.querySelector("#autoComplete").focus();
         }
 
@@ -724,6 +730,9 @@ gtag('config', 'G-G0X1YQBFGS');
     function update_clear_button() {
         if (document.querySelector("#autoComplete").value != "") {
             document.getElementById("btn_clear").classList.remove("hidden");
+            if (isMobile()) {
+                document.getElementById("btnm_clear").classList.remove("hidden");
+            }
         }        
     }
 
@@ -868,6 +877,7 @@ gtag('config', 'G-G0X1YQBFGS');
 
             $("#div_search_menu2").css("flex-direction", "column");
             $("#div_search_menu2").css("border", "");
+            //$("#div_search_menu2").css("border", "1px solid red");
             $("#mene_right_2").hide();
             $("#btn_github_stars").hide();
             $("#div_graph_title").hide();

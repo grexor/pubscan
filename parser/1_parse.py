@@ -10,6 +10,8 @@ def remove_special_characters(text):
     return re.sub(r'[\x00-\x1F\x7F\u2028\u2029]', '', t1).replace("\\", "")
 
 authors_pmids = {}
+orcids_pmids = {}
+orcids_authors = {}
 pmids = set()
 fout_pub = gzip.open("publications.tab.gz", "wt")
 xml_files = glob.glob("../database/*.xml.gz")
@@ -61,15 +63,26 @@ for xml_file in xml_files:
             initials = author.findtext("Initials")
             affil = author.findtext("AffiliationInfo/Affiliation")
             author_text = f"{forename} {lastname}"
-            author_rec.append(author_text)
+            orcid_node = author.find('Identifier[@Source="ORCID"]')
+            orcid = orcid_node.text if orcid_node is not None else ""
+            orcid = orcid.replace('https://orcid.org/', '').replace('http://orcid.org/', '').replace('-', '')
+            if len(orcid)!=16:
+                orcid = ""
+            author_rec.append((author_text, orcid))
         authors_list = []
-        for rec in author_rec:
-            author_name = remove_special_characters(rec).lower()
+        authors_list_orcid = []
+        for (name, orcid) in author_rec:
+            author_name = remove_special_characters(name).lower()
             if author_name == "none none":
                 continue
             authors_list.append(author_name)
             authors_pmids.setdefault(author_name, set()).add(pmid)
+            if orcid!="":
+                orcids_authors[orcid] = author_name
+                orcids_pmids.setdefault(orcid, set()).add(pmid)
+                authors_list_orcid.append(orcid)
         publication.append(",".join(authors_list))
+        publication.append(",".join(authors_list_orcid))
 
         # 20250930: adding mesh terms to publications
         #mesh_terms = []
@@ -92,4 +105,16 @@ for author_name, pmids in authors_pmids.items():
     if len(pmids)>2000: # if an author has more than 2000 publications, do not consider, unf. author names are not IDed in PubMed
         continue
     fout_aut.write(f"{author_name}\t{','.join([str(x) for x in pmids])}\n")
+fout_aut.close()
+
+fout_aut = gzip.open("orcids_pmids.tab.gz", "wt")
+for orcid, pmids in orcids_pmids.items():
+    if len(pmids)>2000: # if an author has more than 2000 publications, do not consider, unf. author names are not IDed in PubMed
+        continue
+    fout_aut.write(f"{orcid}\t{','.join([str(x) for x in pmids])}\n")
+fout_aut.close()
+
+fout_aut = gzip.open("orcids_authors.tab.gz", "wt")
+for orcid, author in orcids_authors.items():
+    fout_aut.write(f"{orcid}\t{author}\n")
 fout_aut.close()

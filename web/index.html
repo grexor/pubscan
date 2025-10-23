@@ -92,9 +92,9 @@ gtag('config', 'G-G0X1YQBFGS');
         <div style="text-align: left; padding: 2px; z-index: 1000;">
             <div style="padding-left: 0px; z-index: 1000;">
                 <input id="autoComplete" placeholder="Type author name..." style="max-width: 300px; min-width: 300px;"/>
-                <div id="btnm_clear" class="hidden" style="position: absolute; left: 290px; top: 18; cursor: pointer; color: #aaa; font-size: 12px;">
-                    <a href='javascript:clear_search();'><i class="fas fa-times"></i></a>
-                </div>
+                <button id="btnm_clear" class="hidden" style="position: absolute; left: 288px; top: 17; cursor: pointer; color: #aaa; font-size: 14px;">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
         </div>
         
@@ -216,12 +216,18 @@ gtag('config', 'G-G0X1YQBFGS');
         }
 
         function clear_search() {
-            document.querySelector("#autoComplete").value = "";
-            document.getElementById("btn_clear").classList.add("hidden");
-            if (isMobile()){
-                document.getElementById("btnm_clear").classList.add("hidden");
+            if (!isMobile()) {
+                document.querySelector("#autoComplete").value = "";
+                document.getElementById("btn_clear").classList.add("hidden");
+                document.querySelector("#autoComplete").focus();
             }
-            document.querySelector("#autoComplete").focus();
+            else {
+                document.getElementById("btnm_clear").classList.add("hidden");
+                const input = document.querySelector("#autoComplete");
+                input.value = "";
+                update_clear_button();   // update visibility correctly
+                input.focus();
+            }
         }
 
         function clear_search_nodes() {
@@ -729,8 +735,10 @@ gtag('config', 'G-G0X1YQBFGS');
 
     function update_clear_button() {
         if (document.querySelector("#autoComplete").value != "") {
-            document.getElementById("btn_clear").classList.remove("hidden");
-            if (isMobile()) {
+            if (!isMobile()) {
+                document.getElementById("btn_clear").classList.remove("hidden");    
+            }
+            else {
                 document.getElementById("btnm_clear").classList.remove("hidden");
             }
         }        
@@ -745,6 +753,10 @@ gtag('config', 'G-G0X1YQBFGS');
         }
     }
 
+    document.querySelector("#btnm_clear").addEventListener("click", function(e) {
+        clear_search();
+    });
+
     document.querySelector("#autoComplete").addEventListener("keydown", function(e) {
         if (e.key === "Enter") {
             suppressSuggestions = true;
@@ -756,6 +768,14 @@ gtag('config', 'G-G0X1YQBFGS');
         } else {
             suppressSuggestions = false;    
         }
+        update_clear_button();
+    });
+
+    document.querySelector("#autoComplete").addEventListener("keyup", function(e) {
+        update_clear_button();
+    });
+
+    document.querySelector("#autoComplete").addEventListener("compositionend", function(e) {
         update_clear_button();
     });
 

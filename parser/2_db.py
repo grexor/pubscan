@@ -7,8 +7,8 @@ import time
 
 # === Config ===
 BASE_DIR = Path("/home/gregor/pubscan/parser")
-DB_FILE = BASE_DIR / "pubscan.db"
-DB_FILE_NAMES = BASE_DIR / "names.db"
+DB_FILE = BASE_DIR / "pubscan_temp.db"
+DB_FILE_NAMES = BASE_DIR / "names_temp.db"
 
 AUTHORS_FILE = BASE_DIR / "authors.tab.gz"
 PUBLICATIONS_FILE = BASE_DIR / "publications.tab.gz"
@@ -97,7 +97,8 @@ CREATE TABLE publications (
     pmid INTEGER NOT NULL PRIMARY KEY,
     title TEXT NOT NULL,
     pub_year INTEGER,
-    authors TEXT
+    authors TEXT,
+    authors_orcid TEXT
 );
 """)
 
@@ -133,11 +134,11 @@ with gzip.open(PUBLICATIONS_FILE, "rt", encoding="utf-8", errors="replace") as f
     batch = []
     commit_every = 100_000
     for i, row in enumerate(reader, 1):
-        row = (row + [None] * 4)[:4]  # pad/truncate to 4 cols
+        #row = (row + [None] * 4)[:4]  # pad/truncate to 4 cols
         batch.append(tuple(row))
         if len(batch) >= 5_000:
             c.executemany(
-                "INSERT OR IGNORE INTO publications (pmid, title, pub_year, authors) VALUES (?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO publications (pmid, title, pub_year, authors, authors_orcid) VALUES (?, ?, ?, ?, ?)",
                 batch,
             )
             batch.clear()
@@ -145,7 +146,7 @@ with gzip.open(PUBLICATIONS_FILE, "rt", encoding="utf-8", errors="replace") as f
             conn.commit()
     if batch:
         c.executemany(
-            "INSERT OR IGNORE INTO publications (pmid, title, pub_year, authors) VALUES (?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO publications (pmid, title, pub_year, authors, authors_orcid) VALUES (?, ?, ?, ?, ?)",
             batch,
         )
 conn.commit()

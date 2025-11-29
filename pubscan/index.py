@@ -27,8 +27,12 @@ from difflib import SequenceMatcher
 urllib3.disable_warnings()
 from operator import itemgetter
 
-DB = "/home/gregor/pubscan/parser/pubscan.db"
-DB_names = "/home/gregor/pubscan/parser/names.db"
+DB = os.environ.get("pubscan_DB")
+DB_names = os.environ.get("pubscan_DB_names")
+
+if DB is None or DB_names is None:
+    DB = "/home/gregor/pubscan/parser/pubscan.db"
+    DB_names = "/home/gregor/pubscan/parser/names.db"
 
 random.seed(42)
 conn = sqlite3.connect(f"file:{DB}?immutable=1", uri=True, check_same_thread=False)
@@ -54,7 +58,10 @@ def build_like_pattern(author_name: str) -> str:
 
 pubscan_folder = os.path.dirname(os.path.realpath(__file__))
 config = yaml.safe_load(open(os.path.join(pubscan_folder, "pubscan.config.yaml")))
-log_filename = os.path.join(pubscan_folder, "pubscan.log")
+
+log_filename = os.environ.get("pubscan_log_filename")
+if log_filename is None:
+    log_filename = os.path.join(pubscan_folder, "pubscan.log")
 
 data_folder = os.path.dirname(os.path.realpath(__file__))
 data_folder = os.path.join(data_folder, "data")
@@ -153,8 +160,8 @@ class TableClass():
         try:
             method = getattr(self, sanitize_value(self.pars.get("action", "version")))
             yield from method()
-        finally:
-            Session.remove()
+        except AttributeError:
+            yield from self.error("method not found")
 
     def parse_fields(self, environ):
         request_method = environ["REQUEST_METHOD"]
@@ -170,7 +177,7 @@ class TableClass():
         return pars
 
     def version(self):
-        status_string = f"""pubscan v1 {datetime.datetime.now()}
+        status_string = f"""pubscan v2 {datetime.datetime.now()}
 """
         return [self.return_string(status_string)]
       

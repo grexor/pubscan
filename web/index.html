@@ -447,7 +447,7 @@ gtag('config', 'G-G0X1YQBFGS');
       }
 
         function get_update_date() {
-            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_update_date").then(response =>
+            fetch("/gw/index.py?action=get_update_date").then(response =>
             {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -481,7 +481,7 @@ gtag('config', 'G-G0X1YQBFGS');
         function get_publications(pmids) {
             let encodedQuery = encodeURIComponent(pmids);
             const datetime = new Date().toISOString();
-            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_publications&pmids=" + encodedQuery + "&response_type=json&datetime=" + datetime).then(response =>
+            fetch("/gw/index.py?action=get_publications&pmids=" + encodedQuery + "&response_type=json&datetime=" + datetime).then(response =>
             {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -565,7 +565,7 @@ gtag('config', 'G-G0X1YQBFGS');
             abortController = new AbortController();
             signal = abortController.signal;
 
-            fetch("https://pubscan.expressrna.org/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json&datetime=" + datetime, { signal: signal }).then(response =>
+            fetch("/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json&datetime=" + datetime, { signal: signal }).then(response =>
             {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -671,7 +671,7 @@ gtag('config', 'G-G0X1YQBFGS');
             try {
                 const query_lower = encodeURIComponent(query.toLowerCase());
                 const response = await fetch(
-                    `https://pubscan.expressrna.org/gw/index.py?action=author_suggest&author_name=${query_lower}`,
+                    `/gw/index.py?action=author_suggest&author_name=${query_lower}`,
                     { signal: autocomplete_signal }
                 );
                 return await response.json();

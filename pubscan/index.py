@@ -161,7 +161,10 @@ class TableClass():
             method = getattr(self, sanitize_value(self.pars.get("action", "version")))
             yield from method()
         except AttributeError:
-            yield from self.error("method not found")
+            status = '404 Not Found'
+            response_headers = [('Content-type', 'text/plain; charset=utf-8')]
+            self.stream_out = self.start(status, response_headers)
+            yield b"Error: requested action not found.\n"
 
     def parse_fields(self, environ):
         request_method = environ["REQUEST_METHOD"]

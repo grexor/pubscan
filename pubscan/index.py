@@ -253,8 +253,7 @@ class TableClass():
         if not pmids:
             return result
 
-        # Build placeholders (?, ?, ?, ...) for the IN clause
-        placeholders = ",".join("?" for _ in pmids)
+        placeholders = ",".join("?" for _ in pmids) # Build placeholders (?, ?, ?, ...) for the IN clause
 
         try:
             cur = conn.execute(
@@ -437,11 +436,6 @@ class TableClass():
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
-        #publications = self.data_pmids(list(all_pmids))
-        #publications["instruction"] = "pub_data";
-        #yield self.return_string(json.dumps(publications)+"\n")
-        #sys.stdout.flush()
-
     def get_publications(self):
         pmids = sanitize_value(self.pars["pmids"])
         pmids = unidecode(pmids).split(",")
@@ -474,7 +468,6 @@ class TableClass():
             )
             result = cur.fetchall()
         except sqlite3.OperationalError:
-            #self.logme(f"error")
             result = []
         result = [row[0] for row in result]
         result = sorted(result, key=lambda name: name_sort(name, author_name))[:20] # choose 20 most promising ones

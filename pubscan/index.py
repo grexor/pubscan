@@ -161,7 +161,10 @@ class TableClass():
             method = getattr(self, sanitize_value(self.pars.get("action", "version")))
             yield from method()
         except AttributeError:
-            yield from self.error("method not found")
+            status = '404 Not Found'
+            response_headers = [('Content-type', 'text/plain; charset=utf-8')]
+            self.stream_out = self.start(status, response_headers)
+            yield b"Error: requested action not found.\n"
 
     def parse_fields(self, environ):
         request_method = environ["REQUEST_METHOD"]
@@ -250,8 +253,7 @@ class TableClass():
         if not pmids:
             return result
 
-        # Build placeholders (?, ?, ?, ...) for the IN clause
-        placeholders = ",".join("?" for _ in pmids)
+        placeholders = ",".join("?" for _ in pmids) # Build placeholders (?, ?, ?, ...) for the IN clause
 
         try:
             cur = conn.execute(
@@ -434,11 +436,6 @@ class TableClass():
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
-        #publications = self.data_pmids(list(all_pmids))
-        #publications["instruction"] = "pub_data";
-        #yield self.return_string(json.dumps(publications)+"\n")
-        #sys.stdout.flush()
-
     def get_publications(self):
         pmids = sanitize_value(self.pars["pmids"])
         pmids = unidecode(pmids).split(",")
@@ -471,7 +468,6 @@ class TableClass():
             )
             result = cur.fetchall()
         except sqlite3.OperationalError:
-            #self.logme(f"error")
             result = []
         result = [row[0] for row in result]
         result = sorted(result, key=lambda name: name_sort(name, author_name))[:20] # choose 20 most promising ones

@@ -17,6 +17,8 @@ if [ -n "$NEW_FILES" ]; then
     echo "$NEW_FILES" | sed -E "s/.*[‘'\''](.*\.gz)[’'\''].*/\1/"
     python 1_parse.py
     python 2_db.py
+    mv names_temp.db names.db
+    mv pubscan_temp.db pubscan.db
 else
     # otherwise do nothing
     echo "No new files were downloaded."

@@ -4,7 +4,9 @@ rm -rf logs run
 mkdir -p logs run
 
 docker run \
+    -d \
     --name pubscan \
+    --restart unless-stopped \
     --user $(id -u):$(id -g) \
     --init \
     --sig-proxy=true \

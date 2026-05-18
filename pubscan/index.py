@@ -14,6 +14,7 @@ import copy
 import shutil
 import time
 import yaml
+import gc
 from unidecode import unidecode
 import requests
 import urllib3
@@ -26,6 +27,15 @@ import subprocess
 from difflib import SequenceMatcher
 urllib3.disable_warnings()
 from operator import itemgetter
+import ctypes
+import ctypes.util
+
+def malloc_trim():
+    try:
+        libc = ctypes.CDLL(ctypes.util.find_library("c"))
+        libc.malloc_trim(0)
+    except Exception:
+        pass
 
 DB = os.environ.get("pubscan_DB")
 DB_names = os.environ.get("pubscan_DB_names")
@@ -39,14 +49,14 @@ conn = sqlite3.connect(f"file:{DB}?immutable=1", uri=True, check_same_thread=Fal
 conn_names = sqlite3.connect(f"file:{DB_names}?immutable=1", uri=True, check_same_thread=False)
 
 conn.execute("PRAGMA query_only = ON;")
-conn.execute("PRAGMA cache_size = 2000000;")       # ~2 GB cache in pages (~2 GB RAM)
+conn.execute("PRAGMA cache_size = 10000;")   # ~10 MB
 conn.execute("PRAGMA mmap_size = 268435456;")       # 256 MB memory-mapped I/O
 conn.execute("PRAGMA temp_store = MEMORY;")
 conn.execute("PRAGMA synchronous = OFF;")
 conn.execute("PRAGMA journal_mode = OFF;")
 
 conn_names.execute("PRAGMA query_only = ON;")
-conn_names.execute("PRAGMA cache_size = 2000000;")       # ~2 GB cache in pages (~2 GB RAM)
+conn_names.execute("PRAGMA cache_size = 10000;")
 conn_names.execute("PRAGMA mmap_size = 268435456;")       # 256 MB memory-mapped I/O
 conn_names.execute("PRAGMA temp_store = MEMORY;")
 conn_names.execute("PRAGMA synchronous = OFF;")
@@ -295,9 +305,6 @@ class TableClass():
         author_pmids = {}
         nodes_all = []
         edges_all = []
-        publications = {}
-        all_pmids = set()
-        all_pmids.update(pmids)
         
         for index, pmid in enumerate(pmids):
 
@@ -315,7 +322,6 @@ class TableClass():
                     #yield self.return_string(json.dumps(test)+"\n")
                     #sys.stdout.flush()
                     _, author_pmids[author_name] = self.author_pmids(author_name)
-                    all_pmids.update(author_pmids[author_name])
 
                 author_group = "g0"
                 if len(author_pmids[author_name])>10:
@@ -435,6 +441,21 @@ class TableClass():
         test = {"instruction": "progress", "description": f"network of {len(nodes_all)} author nodes and {len(edges_all)} co-author edges"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
+
+        # explicit cleanup
+        author_pmids.clear()
+        nodes_all.clear()
+        edges_all.clear()
+        temp.clear()
+        temp_sorted.clear()
+        nodes_all_filtered.clear()
+        edges_all_filtered.clear()
+        edges_A.clear() if 'edges_A' in dir() else None
+        edges_rest.clear() if 'edges_rest' in dir() else None
+        author_pairs.clear()
+        gc.collect()
+        malloc_trim()
+
 
     def get_publications(self):
         pmids = sanitize_value(self.pars["pmids"])

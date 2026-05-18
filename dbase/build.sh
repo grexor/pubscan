@@ -2,7 +2,7 @@
 
 set -e
 
-IMAGE_NAME="dbase_expressrna"
+IMAGE_NAME="pubscan3"
 TAG="latest"
 
 echo "Building Docker image: ${IMAGE_NAME}:${TAG}"

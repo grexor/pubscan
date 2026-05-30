@@ -41,8 +41,8 @@ DB = os.environ.get("pubscan_DB")
 DB_names = os.environ.get("pubscan_DB_names")
 
 if DB is None or DB_names is None:
-    DB = "/home/gregor/pubscan/parser/pubscan.db"
-    DB_names = "/home/gregor/pubscan/parser/names.db"
+    DB = "/home/gregor/pubscan3/parser/pubscan.db"
+    DB_names = "/home/gregor/pubscan3/parser/names.db"
 
 random.seed(42)
 conn = sqlite3.connect(f"file:{DB}?immutable=1", uri=True, check_same_thread=False)
@@ -194,49 +194,50 @@ class TableClass():
 """
         return [self.return_string(status_string)]
       
-    def author_pmids(self, author):
+    def author_pmids(self, orcid):
         try:
             cur = conn.execute(
-                "SELECT author_name, pmids FROM authors WHERE author_name = ?",
-                (author,)
+                "SELECT orcid, author_name, pmids FROM authors WHERE orcid = ?",
+                (orcid,)
             )
             row = cur.fetchone()
         except sqlite3.OperationalError as e:
             self.logme(f"DB error: {e}")
-            return author, []
+            return orcid, "", []
 
         if row is None:
-            return author, []
+            return orcid, "", []
 
         # row is either a tuple or (if you kept row_factory) a string/list
         # safer to unpack explicitly
-        author_name, pmids = row
+        orcid, author_name, pmids = row
 
         # pmids stored as comma-separated string → turn into sorted list of strings
         pmid_list = [int(x) for x in pmids.split(",") if x.strip().isdigit()]
         pmid_list.sort(reverse=True)
         pmid_list = [str(x) for x in pmid_list]
 
-        return author_name, pmid_list[:300]
+        return orcid, author_name, pmid_list[:300]
 
     def data_pmid(self, pmid):
         try:
             cur = conn.execute(
-                "SELECT pmid, title, pub_year, authors FROM publications WHERE pmid = ?",
+                "SELECT pmid, title, pub_year, authors_name, authors_orcid FROM publications WHERE pmid = ?",
                 (pmid,)
             )
             row = cur.fetchone()
         except sqlite3.OperationalError as e:
             self.logme(f"DB error: {e}")
-            return [], None
+            return [], [], None
 
         if row is None:
-            return [], None
+            return [], [], None
 
         # unpack row
-        pmid_val, title, pub_year, authors_str = row
+        pmid_val, title, pub_year, authors_str, authors_orcid_str = row
 
         authors = [a.strip() for a in authors_str.split(",") if a.strip()]
+        orcids = [a.strip() for a in authors_orcid_str.split(",") if a.strip()]
 
         # build a dict so you can still access row["title"] etc. like before
         row_dict = {
@@ -244,9 +245,10 @@ class TableClass():
             "title": title,
             "pub_year": pub_year,
             "authors": authors_str,
+            "orcids": orcids,
         }
 
-        return authors, row_dict
+        return authors, orcids, row_dict
 
     def get_update_date(self):
         try:
@@ -289,16 +291,22 @@ class TableClass():
         search = sanitize_value(unidecode(self.pars["author"]).lower())
         self.logme(f"pubscan search: {search}")
         authors = set()
-        db_authors = set()
+        db_authors = {}
+
+        if len(search.split(" "))==0:
+            orcid = search
+        else:
+            orcid = search.split(" ")[-1]
+        center_id = orcid
 
         test = {"instruction": "progress", "description": f"download publications PMIDs for {search}"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
-        center_name, pmids = self.author_pmids(search)
+        _, _, pmids = self.author_pmids(orcid)
         pmids = pmids[:200] # maximum 200 publications for center
 
-        test = {"instruction": "progress", "description": f"found {len(pmids)} publications for {center_name}"}
+        test = {"instruction": "progress", "description": f"found {len(pmids)} publications for {center_id}"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
@@ -312,31 +320,29 @@ class TableClass():
             yield self.return_string(json.dumps(test)+"\n")
             sys.stdout.flush()
 
-            pmid_authors, pmid_data = self.data_pmid(pmid)
-               
-            for author_name in pmid_authors:
-                author_name = get_unique_author_name(db_authors, author_name)
-
-                if author_pmids.get(author_name, None)==None:
+            pmid_authors, pmid_orcids, pmid_data = self.data_pmid(pmid)
+            for author_orcid, author_name in zip(pmid_orcids, pmid_authors):
+                if author_pmids.get(author_orcid, None)==None:
                     #test = {"instruction": "progress", "description": f"obtaining PMIDs for author {author_name}"}
                     #yield self.return_string(json.dumps(test)+"\n")
                     #sys.stdout.flush()
-                    _, author_pmids[author_name] = self.author_pmids(author_name)
+                    _, _, author_pmids[author_orcid] = self.author_pmids(author_orcid)
 
                 author_group = "g0"
-                if len(author_pmids[author_name])>10:
+                if len(author_pmids[author_orcid])>10:
                     author_group = "g1"
-                if len(author_pmids[author_name])>50:
+                if len(author_pmids[author_orcid])>50:
                     author_group = "g2"
-                if len(author_pmids[author_name])>100:
+                if len(author_pmids[author_orcid])>100:
                     author_group = "g3"
-                node_size = min(30, len(author_pmids[author_name]))
+                node_size = min(30, len(author_pmids[author_orcid]))
                 node_size = max(15, node_size)
                 node_size = 20
-                author_rec = { "id": author_name, "label": author_name, "group": author_group, "size": node_size, "pmids":",".join(author_pmids[author_name])};
-                if author_name not in authors:
+                author_rec = { "id": author_orcid, "label": author_name, "group": author_group, "size": node_size, "pmids":",".join(author_pmids[author_orcid])};
+                db_authors[author_orcid] = author_name
+                if author_orcid not in authors:
                     nodes_all.append(author_rec)
-                    authors.add(author_name)
+                    authors.add(author_orcid)
 
         authors = set()
         nodes_all_filtered = []
@@ -363,16 +369,16 @@ class TableClass():
             if len(common)>0:
                 num_common = len(common)
                 edge_width = min(num_common, 30)
-                edge_rec = {"from":a1, "to":a2, "width": edge_width, "label": f"{num_common}", "common": num_common, "pmids":",".join(common), "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} }
+                edge_rec = {"from":a1, "to":a2, "from_label":db_authors[a1], "to_label":db_authors[a2], "width": edge_width, "label": f"{num_common}", "common": num_common, "pmids":",".join(common), "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} }
                 nodes_degree[a1] = nodes_degree.get(a1, 0) + num_common
                 nodes_degree[a2] = nodes_degree.get(a2, 0) + num_common
-                if center_name in [a1, a2]:
-                    other_node = a1 if a2==center_name else a2
+                if center_id in [a1, a2]:
+                    other_node = a1 if a2==center_id else a2
                     nodes_cdegree[other_node] = num_common
-                    nodes_cdegree[center_name] = max(num_common, nodes_cdegree.get(center_name, 0))
+                    nodes_cdegree[center_id] = max(num_common, nodes_cdegree.get(center_id, 0))
                 edges_all.append(edge_rec)
 
-        test = {"instruction": "progress", "description": "sorting nodes by common publications with center [desc]"}
+        test = {"instruction": "progress", "description": "sorting nodes by common publications with center [descending]"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
@@ -416,7 +422,7 @@ class TableClass():
             edges_A = [] # first, keep all edges that are connected to the center node
             edges_rest = [] # edges not connected to the centre node
             for edge in edges_all:
-                if center_name in [edge["from"], edge["to"]]:
+                if center_id in [edge["from"], edge["to"]]:
                     edges_A.append(edge)
                 else:
                     edges_rest.append(edge)
@@ -438,7 +444,7 @@ class TableClass():
         yield self.return_string(json.dumps(results)+"\n")
         sys.stdout.flush()
 
-        test = {"instruction": "progress", "description": f"network of {len(nodes_all)} author nodes and {len(edges_all)} co-author edges"}
+        test = {"instruction": "progress", "description": f"{len(nodes_all)} author nodes and {len(edges_all)} co-author edges"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
@@ -455,7 +461,6 @@ class TableClass():
         author_pairs.clear()
         gc.collect()
         malloc_trim()
-
 
     def get_publications(self):
         pmids = sanitize_value(self.pars["pmids"])

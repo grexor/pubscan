@@ -1,7 +1,7 @@
 <picture><img src="web/pubscan_logo.jpg" height="30"/></picture>
 # Welcome to pubScan v2!
 
-A public instance of this platform is available at [https://pubscan.expressrna.org](https://pubscan.expressrna.org)
+A public instance of this platform is available at [https://pubscan.org](https://pubscan.org)
 
 ## What is it?
 pubScan is an interactive interface to explore all PubMed articles as a co-authorship network. In this network

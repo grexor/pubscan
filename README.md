@@ -22,6 +22,7 @@ To keep the network readable and responsive, pubScan displays:
 
 ## Changelog
 
+* 202605: v3, switched from parsing PubMed records to OpenAlex formatted data, with only considering authors ORCID records to result in author name disambiguation
 * 202510: v2, Faster and simpler SQLite backend, mobile friendly
 * 202412: v1, Initial interface with a Mysql database
 

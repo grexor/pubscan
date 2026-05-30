@@ -1,5 +1,5 @@
 <picture><img src="web/pubscan_logo.jpg" height="30"/></picture>
-# Welcome to pubScan v2!
+# Welcome to pubScan v3!
 
 A public instance of this platform is available at [https://pubscan.org](https://pubscan.org)
 

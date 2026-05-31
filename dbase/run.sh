@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 docker rm -f pubscan3 2>/dev/null || true
+=======
+docker rm -f pubscan 2>/dev/null || true
+>>>>>>> main
 
 rm -rf logs run
 mkdir -p logs run

@@ -5,12 +5,9 @@ from pathlib import Path
 import time
 from unidecode import unidecode
 
-# === Config ===
-BASE_DIR = Path("/home/gregor/pubscan3")
-DB_FILE = BASE_DIR / "parser" / "pubscan.db"
-DB_FILE_NAMES = BASE_DIR / "parser" / "names.db"
-
-AUTHORS_FILE = BASE_DIR / "openalex" / "authors_final.tsv.gz"
+DB_FILE = "pubscan.db"
+DB_FILE_NAMES = "names.db"
+AUTHORS_FILE = "authors_publications.tab.gz"
 
 # === Helper ===
 def to_ascii(text):

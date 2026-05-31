@@ -37,12 +37,9 @@ def malloc_trim():
     except Exception:
         pass
 
+# Dockerfile env vars
 DB = os.environ.get("pubscan_DB")
 DB_names = os.environ.get("pubscan_DB_names")
-
-if DB is None or DB_names is None:
-    DB = "/home/gregor/pubscan3/parser/pubscan.db"
-    DB_names = "/home/gregor/pubscan3/parser/names.db"
 
 random.seed(42)
 conn = sqlite3.connect(f"file:{DB}?immutable=1", uri=True, check_same_thread=False)
@@ -253,6 +250,7 @@ class TableClass():
     def get_update_date(self):
         try:
             ctime = os.path.getctime(DB)
+            self.logme(f"{DB}")
             update_str = datetime.datetime.fromtimestamp(ctime).strftime("%Y-%m-%d %H:%M")
             yield self.return_string(update_str + "h\n")
         except Exception as e:

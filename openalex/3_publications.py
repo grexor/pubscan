@@ -4,11 +4,11 @@ import glob
 import csv
 
 input_files = glob.glob('openalex-snapshot/data/works/**/*.gz', recursive=True)
-output_file = 'publications_with_orcids.tsv.gz'
+output_file = 'publications.tab.gz'
 
 # load author orcid -> name mapping from the authors table
 author_lookup = {}
-with open('authors_with_orcid.tsv', 'r', encoding='utf-8') as f:
+with gzip.open('authors.tab.gz', 'rt', encoding='utf-8') as f:
     reader = csv.DictReader(f, delimiter='\t')
     for row in reader:
         orcid = row['orcid'].replace('https://orcid.org/', '')
@@ -36,7 +36,7 @@ def extract_pmid(work):
             return pmid_str
     return ''
 
-with open(output_file, 'w', newline='', encoding='utf-8') as tsv:
+with gzip.open(output_file, 'wt', newline='', encoding='utf-8') as tsv:
     writer = csv.writer(tsv, delimiter='\t')
     writer.writerow(['openalex_work_id', 'pmid', 'title', 'short_abstract', 'journal', 'year', 'author_orcids', 'author_orcid_names', 'all_author_names'])
 

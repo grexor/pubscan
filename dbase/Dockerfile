@@ -17,8 +17,8 @@ COPY site.conf /etc/apache2/sites-available/000-default.conf
 
 EXPOSE 80
 WORKDIR /var/www/site
-ENV pubscan_DB="/var/www/site/parser/pubscan.db"
-ENV pubscan_DB_names="/var/www/site/parser/names.db"
+ENV pubscan_DB="/var/www/site/db/pubscan.db"
+ENV pubscan_DB_names="/var/www/site/db/names.db"
 ENV pubscan_log_filename="/var/www/site/dbase/logs/search.log"
 
 RUN sed -i 's|/var/log/apache2|/var/www/site/dbase/logs|g' /etc/apache2/envvars

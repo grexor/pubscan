@@ -2,9 +2,9 @@ import gzip
 import csv
 from collections import defaultdict
 
-AUTHORS_FILE      = 'authors_with_orcid.tsv.gz'
-PUBLICATIONS_FILE = 'publications_with_orcids.tsv.gz'
-OUTPUT_FILE       = 'authors_final.tsv.gz'
+AUTHORS_FILE      = 'authors.tab.gz'
+PUBLICATIONS_FILE = 'publications.tab.gz'
+OUTPUT_FILE       = 'authors_publications.tab.gz'
 
 # === Step 1: load orcid -> display_name from authors file ===
 print("Loading authors...")

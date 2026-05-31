@@ -4,9 +4,9 @@ import glob
 import csv
 
 input_files = glob.glob('openalex-snapshot/data/authors/**/*.gz', recursive=True)
-output_file = 'authors_with_orcid.tsv.gz'
+output_file = 'authors.tab.gz'
 
-with open(output_file, 'w', newline='', encoding='utf-8') as tsv:
+with gzip.open(output_file, 'wt', newline='', encoding='utf-8') as tsv:
     writer = csv.writer(tsv, delimiter='\t')
     writer.writerow(['openalex_id', 'name', 'orcid'])
 

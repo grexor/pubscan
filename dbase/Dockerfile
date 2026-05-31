@@ -10,15 +10,15 @@ RUN apt-get update && \
         python3-venv && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN a2enmod wsgi
+RUN a2enmod wsgi rewrite
 RUN mkdir -p /var/www/site/logs
 
 COPY site.conf /etc/apache2/sites-available/000-default.conf
 
 EXPOSE 80
 WORKDIR /var/www/site
-ENV pubscan_DB="/var/www/site/parser/pubscan.db"
-ENV pubscan_DB_names="/var/www/site/parser/names.db"
+ENV pubscan_DB="/var/www/site/db/pubscan.db"
+ENV pubscan_DB_names="/var/www/site/db/names.db"
 ENV pubscan_log_filename="/var/www/site/dbase/logs/search.log"
 
 RUN sed -i 's|/var/log/apache2|/var/www/site/dbase/logs|g' /etc/apache2/envvars
@@ -41,4 +41,3 @@ CMD bash -c '\
     echo "docker server apache+mod_wsgi is running"; \
     # Start Apache in foreground \
     apache2ctl -D FOREGROUND' \
-

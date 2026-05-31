@@ -1,7 +1,7 @@
 <picture><img src="web/pubscan_logo.jpg" height="30"/></picture>
-# Welcome to pubScan v2!
+# Welcome to pubScan v3!
 
-A public instance of this platform is available at [https://pubscan.expressrna.org](https://pubscan.expressrna.org)
+A public instance of this platform is available at [https://pubscan.org](https://pubscan.org)
 
 ## What is it?
 pubScan is an interactive interface to explore all PubMed articles as a co-authorship network. In this network
@@ -22,6 +22,7 @@ To keep the network readable and responsive, pubScan displays:
 
 ## Changelog
 
+* 202605: v3, switched from parsing PubMed records to OpenAlex formatted data, with only considering authors ORCID records to result in author name disambiguation
 * 202510: v2, Faster and simpler SQLite backend, mobile friendly
 * 202412: v1, Initial interface with a Mysql database
 

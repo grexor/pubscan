@@ -1,6 +1,16 @@
 <html>
 
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-76DD8WBGLJ"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-76DD8WBGLJ');
+    </script>
+
     <title>pubScan: Explore your scientific co-authorship network</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
     <meta charset="UTF-8">
@@ -25,7 +35,7 @@
     <meta property="og:title" content="pubScan: Explore your scientific co-authorship network">
     <meta property="og:description" content="Visualize your co-authorship network from PubMed data — fast, interactive, and open source.">
     <meta property="og:image" content="https://raw.githubusercontent.com/grexor/pubscan/main/web/pubscan_splash.jpg">
-    <meta property="og:url" content="https://pubscan.expressrna.org">
+    <meta property="og:url" content="https://pubscan.org">
     <meta name="twitter:card" content="summary_large_image">
 
     <script type="application/ld+json">
@@ -33,7 +43,7 @@
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "pubScan",
-    "url": "https://pubscan.expressrna.org",
+    "url": "https://pubscan.org",
     "description": "Explore and visualize scientific co-authorship networks using PubMed data.",
     "applicationCategory": "Science",
     "operatingSystem": "All",
@@ -46,30 +56,20 @@
 
 </head>
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-G0X1YQBFGS"></script>
-<script>
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-
-gtag('config', 'G-G0X1YQBFGS');
-</script>
-
 <body>
 
     <div id="div_top" style="background-color:rgb(77, 131, 231); padding-left: 10px; padding-top: 10px; padding-bottom: 5px;">
         <div style="display: flex; width: 100%; flex-wrap: nowrap; align-items: center;">
             
             <div style="text-align: left; padding: 2px; flex-shrink: 0;">
-                <a href="https://pubscan.expressrna.org">
+                <a href="https://pubscan.org">
                     <img src="pubscan_logo.jpg" style="height: 22px;">
                 </a>
             </div>
             
             <div style="text-align: left; padding: 2px; padding-top: 2px; flex-shrink: 0;">
                 <div style="color: aliceblue; font-size: 15px; padding-left: 3px;">
-                    Explore co-authorships<div style="display:inline" id="div_update"></div>
+                    Explore co-authorships <div style="display:inline" id="div_update"></div>
                 </div>
             </div>
             
@@ -131,7 +131,7 @@ gtag('config', 'G-G0X1YQBFGS');
         <div style="display: flex; width: 100%;">
             <div style="text-align: left; padding: 2px;">
                 Developed by <a href='https://grexor.github.io' target=_grexor>Gregor Rot</a>, Open Source at <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub</a><br>
-                <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://x.com/gregor_rot' target=_x>Twitter/X</a>, <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a></div>
+                <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a></div>
             </div>
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; font-size: 12px; padding-top: 8px;">
                 <table border="0" style='font-size: 13px; width: 750px; margin-left: auto; text-align: right; color: #aaaaaa;'>
@@ -176,7 +176,7 @@ gtag('config', 'G-G0X1YQBFGS');
             new_color = "#00FF00";
             search = search.toLowerCase();
             const matching_nodes = nodes_dataset.get({
-                filter: (node) => node.id.toString().toLowerCase().includes(search)
+                filter: (node) => node.label.toString().toLowerCase().includes(search)
             });
             
             matching_nodes.forEach(node => {
@@ -394,7 +394,8 @@ gtag('config', 'G-G0X1YQBFGS');
             }
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
-                onNodeDoubleClick(nodeId);
+                const node = globalThis.my_network.body.data.nodes.get(nodeId);
+                onNodeDoubleClick(node.id, node.label);
             }
         });
 
@@ -408,9 +409,9 @@ gtag('config', 'G-G0X1YQBFGS');
                 if (params.nodes.length > 0) { // node click
                     const node_id = params.nodes[0];
                     const node_data = nodes_dataset.get(node_id);
-                    document.getElementById("div_pub").innerHTML = "Publications: <b>" + node_data["id"] + "</b> (" + node_data["pmids"].split(",").length + ")<br><br>";
+                    document.getElementById("div_pub").innerHTML = "Publications: <b>" + node_data["label"] + "</b> <a href='https://orcid.org/" + node_data["id"] + "' target=_new>" + node_data["id"] + "</a> " + " (" + node_data["pmids"].split(",").length + ")<br><br>";
                     document.getElementById("div_pub").scrollTop = 0;
-                    document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + node_data["id"] + "</b> (" + node_data["pmids"].split(",").length + ")";
+                    document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + node_data["label"] + "</b> (" + node_data["pmids"].split(",").length + ")";
                     div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
                     get_publications(node_data["pmids"]);
 
@@ -419,8 +420,8 @@ gtag('config', 'G-G0X1YQBFGS');
                     const edge_id = params.edges[0];
                     const edge_data = edges_dataset.get(edge_id);
                     document.getElementById("div_pub").scrollTop = 0;
-                    document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + edge_data["from"] + "</b> and <b>" + edge_data["to"] + "</b> (" + edge_data["pmids"].split(",").length + ")<br><br>";
-                    document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + edge_data["from"] + "</b> and <b>" + edge_data["to"] + "</b> (" + edge_data["pmids"].split(",").length + ")";
+                    document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + edge_data["from_label"] + "</b> and <b>" + edge_data["to_label"] + "</b> (" + edge_data["pmids"].split(",").length + ")<br><br>";
+                    document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + edge_data["from_label"] + "</b> and <b>" + edge_data["to_label"] + "</b> (" + edge_data["pmids"].split(",").length + ")";
                     div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
                     get_publications(edge_data["pmids"]);
                 }
@@ -430,8 +431,8 @@ gtag('config', 'G-G0X1YQBFGS');
         // color the node red and show publications for the node
         color_node_single(current_center, 'red');
         const center_data = nodes_dataset.get(current_center);
-        document.getElementById("div_pub").innerHTML = "Publications: <b>" + center_data["id"] + "</b> (" + center_data["pmids"].split(",").length + ")<br><br>";
-        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + center_data["id"] + "</b> (" + center_data["pmids"].split(",").length + ")";
+        document.getElementById("div_pub").innerHTML = "Publications: <b>" + center_data["label"] + "</b> <a href='https://orcid.org/" + center_data["id"] + "' target=_mew>" + center_data["id"] + "</a> (" + center_data["pmids"].split(",").length + ")<br><br>";
+        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + center_data["label"] + "</b> (" + center_data["pmids"].split(",").length + ")";
         div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
 
         get_publications(center_data["pmids"]);
@@ -465,7 +466,7 @@ gtag('config', 'G-G0X1YQBFGS');
                             try {
                                 console.log(part);
                                 const update_str = part;
-                                document.getElementById("div_update").innerHTML = "(Pubmed sync: " + update_str + ")";
+                                document.getElementById("div_update").innerHTML = "(<a href='https://openalex.org/' target=_new>OpenAlex</a> sync: " + update_str + ")";
                             } catch (error) {
                                 console.error("Error getting update date:", error);
                             }
@@ -542,17 +543,21 @@ gtag('config', 'G-G0X1YQBFGS');
             hide_splash();
             hide_center_info();
             ac_tooltip.hide();
+
+            const orcid = query.split(" ").at(-1);
+            const author_name = query.split(" ").at(0);
+
+            // already loaded? abort
+            if (current_center==orcid) {
+                return;
+            }
+
             show_log();
             show_graph_info();
             document.getElementById("div_log").innerHTML = "Log of communication of pubScan with the server. Use to follow what's happening.<br><br>";
             let encodedQuery = encodeURIComponent(query);
 
-            // already loaded? abort
-            if (current_center==query.toLowerCase()) {
-                return;
-            }
-
-            current_center = query.toLowerCase();
+            current_center = orcid;
             const datetime = new Date().toISOString();
 
             try {
@@ -633,11 +638,11 @@ gtag('config', 'G-G0X1YQBFGS');
 
         }
 
-    function onNodeDoubleClick(nodeId) {
+    function onNodeDoubleClick(nodeId, nodeLabel) {
         if (current_center==nodeId) {
             return;
         }
-        get_author_network(nodeId);
+        get_author_network(nodeLabel + " " + nodeId);
     }        
 
     </script>
@@ -1040,7 +1045,7 @@ function swap_pub_mobile() {
 
 </div>
 
-<div id="div_graph_title" style="width: 350px; height: 20px; position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 13px; color: #804343;">
+<div id="div_graph_title" style="width: 450px; height: 20px; position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #804343; z-index: 1000;">
 </div>
 
 <script>

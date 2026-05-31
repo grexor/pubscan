@@ -11,6 +11,3 @@ docker build -t "${IMAGE_NAME}:${TAG}" .
 
 echo ""
 echo "Done!"
-echo "Run it with:"
-echo "  docker run -p 8080:80 ${IMAGE_NAME}:${TAG}"
-

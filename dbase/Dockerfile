@@ -10,7 +10,7 @@ RUN apt-get update && \
         python3-venv && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN a2enmod wsgi
+RUN a2enmod wsgi rewrite
 RUN mkdir -p /var/www/site/logs
 
 COPY site.conf /etc/apache2/sites-available/000-default.conf
@@ -41,4 +41,3 @@ CMD bash -c '\
     echo "docker server apache+mod_wsgi is running"; \
     # Start Apache in foreground \
     apache2ctl -D FOREGROUND' \
-

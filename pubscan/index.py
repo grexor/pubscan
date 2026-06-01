@@ -250,7 +250,6 @@ class TableClass():
     def get_update_date(self):
         try:
             ctime = os.path.getctime(DB)
-            self.logme(f"{DB}")
             update_str = datetime.datetime.fromtimestamp(ctime).strftime("%Y-%m-%d %H:%M")
             yield self.return_string(update_str + "h\n")
         except Exception as e:

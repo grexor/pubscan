@@ -47,7 +47,6 @@ CREATE TABLE publications (
     pmid          INTEGER NOT NULL PRIMARY KEY,
     title         TEXT NOT NULL,
     pub_year      INTEGER,
-    authors_all   TEXT,
     authors_name  TEXT,
     authors_orcid TEXT
 );
@@ -68,8 +67,7 @@ with gzip.open(PUBLICATIONS_FILE, "rt", encoding="utf-8", errors="replace") as f
                 int(row[1]),                             # pmid
                 to_ascii(row[2]),                        # title
                 row[5],                                  # pub_year
-                to_ascii(row[8]).replace(";", ","),      # authors_all
-                to_ascii(row[7]).replace(";", ","),      # authors_name
+                to_ascii(row[7]).replace(";", ","),      # authors_name (authors with an ORCID, aligned with authors_orcid)
                 row[6].replace(";", ","),                # authors_orcid
             ]
         except Exception:
@@ -77,7 +75,7 @@ with gzip.open(PUBLICATIONS_FILE, "rt", encoding="utf-8", errors="replace") as f
         batch.append(tuple(row))
         if len(batch) >= 5_000:
             c.executemany(
-                "INSERT OR IGNORE INTO publications (pmid, title, pub_year, authors_all, authors_name, authors_orcid) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO publications (pmid, title, pub_year, authors_name, authors_orcid) VALUES (?, ?, ?, ?, ?)",
                 batch,
             )
             batch.clear()
@@ -86,7 +84,7 @@ with gzip.open(PUBLICATIONS_FILE, "rt", encoding="utf-8", errors="replace") as f
             print(f"  Publications: {i:,} imported...")
     if batch:
         c.executemany(
-            "INSERT OR IGNORE INTO publications (pmid, title, pub_year, authors_all, authors_name, authors_orcid) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO publications (pmid, title, pub_year, authors_name, authors_orcid) VALUES (?, ?, ?, ?, ?)",
             batch,
         )
 conn.commit()

@@ -22,6 +22,7 @@ To keep the network readable and responsive, pubScan displays:
 
 ## Changelog
 
+* 202610: v3.1, much faster network retrieval: co-author degree to the centre is computed first and the pairwise co-authorship step runs only on the 100 kept nodes (prolific authors: 10-13 s to under 1 s); database files are read into the page cache at container start to avoid slow cold-disk lookups; unused column dropped from the publications table (database 13.7 GB to 9.4 GB); fixed lookups for ORCIDs whose check digit is X
 * 202605: v3, switched from parsing PubMed records to OpenAlex formatted data, with only considering authors ORCID records to result in author name disambiguation
 * 202510: v2, Faster and simpler SQLite backend, mobile friendly
 * 202412: v1, Initial interface with a Mysql database

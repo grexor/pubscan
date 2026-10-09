@@ -38,6 +38,8 @@ CMD bash -c '\
     if [ -d /var/www/site/pubscan ]; then \
         /var/www/site/dbase/venv/bin/pip install -e /var/www/site/pubscan; \
     fi; \
+    # Warm the OS page cache with the SQLite databases (HDD seeks make cold lookups slow) \
+    (cat /var/www/site/db/*.db > /dev/null 2>&1 &); \
     echo "docker server apache+mod_wsgi is running"; \
     # Start Apache in foreground \
     apache2ctl -D FOREGROUND' \

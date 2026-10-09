@@ -37,6 +37,10 @@ def malloc_trim():
     except Exception:
         pass
 
+# config
+max_nodes = 100
+max_edges = 1000
+
 # Dockerfile env vars
 DB = os.environ.get("pubscan_DB")
 DB_names = os.environ.get("pubscan_DB_names")
@@ -187,7 +191,7 @@ class TableClass():
         return pars
 
     def version(self):
-        status_string = f"""pubscan v2 {datetime.datetime.now()}
+        status_string = f"""pubscan v3.1 {datetime.datetime.now()}
 """
         return [self.return_string(status_string)]
       
@@ -294,6 +298,7 @@ class TableClass():
             orcid = search
         else:
             orcid = search.split(" ")[-1]
+        orcid = orcid.upper() # ORCID check digit can be "X"; the search string was lowercased above, DB stores "X"
         center_id = orcid
 
         test = {"instruction": "progress", "description": f"download publications PMIDs for {search}"}
@@ -352,34 +357,30 @@ class TableClass():
                 authors.add(node["id"])
         nodes_all = nodes_all_filtered
             
-        test = {"instruction": "progress", "description": f"generating network with {len(nodes_all)} authors (could take up to 5 sec)"}
+        test = {"instruction": "progress", "description": f"generating network with {len(nodes_all)} authors"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
-        nodes_degree = {} # degree of nodes
-        nodes_cdegree = {} # degree of node to center node
-        author_pairs = list(combinations(authors, 2))
-        for a1, a2 in author_pairs:
-            p1 = author_pmids[a1]
-            p2 = author_pmids[a2]
-            common = list(set(p1).intersection(p2))
-            if len(common)>0:
-                num_common = len(common)
-                edge_width = min(num_common, 30)
-                edge_rec = {"from":a1, "to":a2, "from_label":db_authors[a1], "to_label":db_authors[a2], "width": edge_width, "label": f"{num_common}", "common": num_common, "pmids":",".join(common), "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} }
-                nodes_degree[a1] = nodes_degree.get(a1, 0) + num_common
-                nodes_degree[a2] = nodes_degree.get(a2, 0) + num_common
-                if center_id in [a1, a2]:
-                    other_node = a1 if a2==center_id else a2
-                    nodes_cdegree[other_node] = num_common
-                    nodes_cdegree[center_id] = max(num_common, nodes_cdegree.get(center_id, 0))
-                edges_all.append(edge_rec)
+        # PMID sets built once per author (instead of once per pair)
+        author_sets = {a: set(author_pmids[a]) for a in authors}
+
+        # degree of each node to the center node: one intersection per author
+        # (the all-pairs loop is only needed among the nodes we keep, see below)
+        nodes_cdegree = {}
+        center_set = author_sets.get(center_id, set())
+        for a in authors:
+            if a == center_id:
+                continue
+            num_common = len(center_set & author_sets[a])
+            if num_common > 0:
+                nodes_cdegree[a] = num_common
+                nodes_cdegree[center_id] = max(num_common, nodes_cdegree.get(center_id, 0))
 
         test = {"instruction": "progress", "description": "sorting nodes by common publications with center [descending]"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
-        # sort nodes by degree
+        # sort nodes by degree to center (stable sort: ties keep first-appearance order)
         temp = []
         for node in nodes_all:
             node_id = node["id"]
@@ -387,35 +388,34 @@ class TableClass():
             temp.append((dg, node))
         temp_sorted = sorted(temp, key=lambda x: x[0], reverse=True)
 
-        test = {"instruction": "progress", "description": "keeping 150 most connected nodes to center"}
+        test = {"instruction": "progress", "description": f"keeping {max_nodes} most connected nodes to center"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
-        # filter nodes: <150 nodes, each node must have edges (degree>0)
+        # filter nodes: <max_nodes nodes, each node must share a publication with the center (degree>0)
         authors_all = set()
         nodes_all_filtered = []
         for (degree, node) in temp_sorted:
-            if len(nodes_all_filtered)<150 and degree>0:
+            if len(nodes_all_filtered)<max_nodes and degree>0:
                 nodes_all_filtered.append(node)
                 authors_all.add(node["id"])
         nodes_all = nodes_all_filtered
 
-        edges_all_filtered = []
-        for edge in edges_all:
-            edge_from = edge["from"]
-            edge_to = edge["to"]
-            num_common = edge["common"]
-            if edge_from in authors_all and edge_to in authors_all:
-                edges_all_filtered.append(edge)
-                nodes_degree[edge_from] = nodes_degree.get(edge_from, 0) + num_common
-                nodes_degree[edge_to] = nodes_degree.get(edge_to, 0) + num_common
-        edges_all = edges_all_filtered
+        # edges only among kept nodes: all pairs of at most max_nodes nodes
+        kept_ids = [node["id"] for node in nodes_all]
+        for a1, a2 in combinations(kept_ids, 2):
+            common = author_sets[a1] & author_sets[a2]
+            if len(common)>0:
+                num_common = len(common)
+                edge_width = min(num_common, 15)
+                edge_rec = {"from":a1, "to":a2, "from_label":db_authors[a1], "to_label":db_authors[a2], "width": edge_width, "label": f"{num_common}", "common": num_common, "pmids":",".join(common), "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} }
+                edges_all.append(edge_rec)
 
-        test = {"instruction": "progress", "description": "keeping all edges to centre + 100 others most heavy + sampling randomly others to reach max 2000 edges"}
+        test = {"instruction": "progress", "description": "keeping all edges to centre + 100 others most heavy + sampling randomly others to reach max edges"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
-        if len(edges_all)>2000:
+        if len(edges_all)>max_edges:
             edges_A = [] # first, keep all edges that are connected to the center node
             edges_rest = [] # edges not connected to the centre node
             for edge in edges_all:
@@ -426,7 +426,7 @@ class TableClass():
             edges_rest.sort(key=lambda x: x["common"], reverse=True)
             edges_B = edges_rest[:100] # take 100 most connected
             edges_all = edges_A + edges_B
-            edges_C = random.sample(edges_rest[100:], max(2000-len(edges_all), 0))
+            edges_C = random.sample(edges_rest[100:], max(max_edges-len(edges_all), 0))
             edges_all = edges_all + edges_C
 
         test = {"instruction": "progress", "description": "network construction on server complete, sending data over"}
@@ -452,10 +452,9 @@ class TableClass():
         temp.clear()
         temp_sorted.clear()
         nodes_all_filtered.clear()
-        edges_all_filtered.clear()
         edges_A.clear() if 'edges_A' in dir() else None
         edges_rest.clear() if 'edges_rest' in dir() else None
-        author_pairs.clear()
+        author_sets.clear()
         gc.collect()
         malloc_trim()
 

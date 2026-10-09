@@ -136,7 +136,7 @@
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; font-size: 12px; padding-top: 8px;">
                 <table border="0" style='font-size: 13px; width: 750px; margin-left: auto; text-align: right; color: #aaaaaa;'>
                     <tr><td>
-                        This site parses data from PubMed, latest update 2025. The authors of pubScan make no guarantees regarding the accuracy, completeness, or timeliness of the data and accept no liability for any errors, omissions, or outcomes resulting from its use.
+                        This site parses data from <a href="https://openalex.org" target=_new>OpenAlex</a>. The authors of pubScan make no guarantees regarding the accuracy, completeness, or timeliness of the data and accept no liability for any errors, omissions, or outcomes resulting from its use.
                     </td></tr>
                 </table>
             </div>
@@ -341,6 +341,11 @@
           },
           edges: {
             color: '#ff0000',
+            smooth: {
+                enabled: true,
+                type: 'dynamic',   // cheaper than default 'dynamic', looks almost identical
+                roundness: 1        // subtle curve, less extreme than default
+            },
             font: {
               size: 25,
               face: 'arial',
@@ -1015,8 +1020,8 @@ function swap_pub_mobile() {
         </div>
         <div style='font-size: 15px; color: #9a9a9a'>
             To keep the network readable and responsive, pubScan displays:
-            <ui><br>Up to 150 co-authors (ranked by number of shared publications)
-            <ui><br>Up to 2,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
+            <ui><br>Up to 100 co-authors (ranked by number of shared publications)
+            <ui><br>Up to 1,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
         </div>
         <div style='font-size: 16px; padding-top: 13px; color: #868686'>
             Love it? Want to support the project?<br>

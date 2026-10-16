@@ -301,12 +301,33 @@ class TableClass():
         orcid = orcid.upper() # ORCID check digit can be "X"; the search string was lowercased above, DB stores "X"
         center_id = orcid
 
+        # optional publication year filter (inclusive); only 4-digit values are accepted, anything else = no bound
+        def parse_year(key):
+            val = sanitize_value(self.pars.get(key, "") or "")
+            return int(val) if len(val)==4 and val.isdigit() else None
+        year_from = parse_year("year_from")
+        year_to = parse_year("year_to")
+        if year_from is not None and year_to is not None and year_from > year_to:
+            year_from, year_to = year_to, year_from
+        year_filter = year_from is not None or year_to is not None
+        def year_ok(year):
+            if year is None: # unknown year: cannot be inside the range
+                return False
+            if year_from is not None and year < year_from:
+                return False
+            if year_to is not None and year > year_to:
+                return False
+            return True
+        year_label = f"{year_from or ''}-{year_to or ''}"
+
         test = {"instruction": "progress", "description": f"download publications PMIDs for {search}"}
         yield self.return_string(json.dumps(test)+"\n")
         sys.stdout.flush()
 
         _, _, pmids = self.author_pmids(orcid)
-        pmids = pmids[:200] # maximum 200 publications for center
+        if not year_filter:
+            pmids = pmids[:200] # maximum 200 publications for center
+        # with a year filter all (up to 300) publications are scanned and the first 200 inside the range are kept
 
         test = {"instruction": "progress", "description": f"found {len(pmids)} publications for {center_id}"}
         yield self.return_string(json.dumps(test)+"\n")
@@ -315,14 +336,26 @@ class TableClass():
         author_pmids = {}
         nodes_all = []
         edges_all = []
+        pmid_year = {} # years of publications looked up so far (center publications + edge publications)
+        center_kept = [] # center publications inside the year range (all of them when no filter)
         
         for index, pmid in enumerate(pmids):
 
-            test = {"instruction": "progress", "description": f"obtaining authors for PMID {pmid} ({int(index/len(pmids)*100)} % done)"}
-            yield self.return_string(json.dumps(test)+"\n")
-            sys.stdout.flush()
+            if len(center_kept) >= 200:
+                break
+
+            if index % 20 == 0: # progress every 20th publication; one line per publication floods the client log
+                test = {"instruction": "progress", "description": f"obtaining authors for PMID {pmid} ({int(index/len(pmids)*100)} % done)"}
+                yield self.return_string(json.dumps(test)+"\n")
+                sys.stdout.flush()
 
             pmid_authors, pmid_orcids, pmid_data = self.data_pmid(pmid)
+            if pmid_data is None:
+                continue
+            pmid_year[pmid] = pmid_data["pub_year"]
+            if year_filter and not year_ok(pmid_data["pub_year"]):
+                continue
+            center_kept.append(pmid)
             for author_orcid, author_name in zip(pmid_orcids, pmid_authors):
                 if author_pmids.get(author_orcid, None)==None:
                     #test = {"instruction": "progress", "description": f"obtaining PMIDs for author {author_name}"}
@@ -346,12 +379,20 @@ class TableClass():
                     nodes_all.append(author_rec)
                     authors.add(author_orcid)
 
+        if year_filter:
+            test = {"instruction": "progress", "description": f"year filter {year_label}: {len(center_kept)} of {len(pmids)} center publications kept"}
+            yield self.return_string(json.dumps(test)+"\n")
+            sys.stdout.flush()
+            # the center node only carries publications inside the range: degrees to the center and
+            # the center's publication list then respect the filter
+            author_pmids[center_id] = center_kept
+            for node in nodes_all:
+                if node["id"] == center_id:
+                    node["pmids"] = ",".join(center_kept)
+
         authors = set()
         nodes_all_filtered = []
         for node in nodes_all:
-            test = {"instruction": "progress", "description": f"author {node['id']} with {len(author_pmids[node['id']])} PMIDs"}
-            yield self.return_string(json.dumps(test)+"\n")
-            sys.stdout.flush()
             if len(author_pmids[node["id"]])>=1:
                 nodes_all_filtered.append(node)
                 authors.add(node["id"])
@@ -403,13 +444,44 @@ class TableClass():
 
         # edges only among kept nodes: all pairs of at most max_nodes nodes
         kept_ids = [node["id"] for node in nodes_all]
+        pair_common = []
         for a1, a2 in combinations(kept_ids, 2):
             common = author_sets[a1] & author_sets[a2]
             if len(common)>0:
-                num_common = len(common)
-                edge_width = min(num_common, 15)
-                edge_rec = {"from":a1, "to":a2, "from_label":db_authors[a1], "to_label":db_authors[a2], "width": edge_width, "label": f"{num_common}", "common": num_common, "pmids":",".join(common), "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} }
-                edges_all.append(edge_rec)
+                pair_common.append((a1, a2, common))
+
+        if year_filter and pair_common:
+            # publications shared by two co-authors (not involving the center) have unknown years:
+            # look them up in batches, then drop the ones outside the range from every edge
+            need = set()
+            for _, _, common in pair_common:
+                need.update(common)
+            need = [p for p in need if p not in pmid_year]
+            test = {"instruction": "progress", "description": f"year filter {year_label}: looking up years of {len(need)} co-author publications"}
+            yield self.return_string(json.dumps(test)+"\n")
+            sys.stdout.flush()
+            for start in range(0, len(need), 500):
+                chunk = need[start:start+500]
+                placeholders = ",".join("?" for _ in chunk)
+                try:
+                    rows = conn.execute(f"SELECT pmid, pub_year FROM publications WHERE pmid IN ({placeholders})", tuple(chunk)).fetchall()
+                except sqlite3.OperationalError as e:
+                    self.logme(f"DB error: {e}")
+                    rows = []
+                for pmid_val, pub_year in rows:
+                    pmid_year[str(pmid_val)] = pub_year
+            filtered = []
+            for a1, a2, common in pair_common:
+                common = {p for p in common if year_ok(pmid_year.get(p))}
+                if common:
+                    filtered.append((a1, a2, common))
+            pair_common = filtered
+
+        for a1, a2, common in pair_common:
+            num_common = len(common)
+            edge_width = min(num_common, 15)
+            edge_rec = {"from":a1, "to":a2, "from_label":db_authors[a1], "to_label":db_authors[a2], "width": edge_width, "label": f"{num_common}", "common": num_common, "pmids":",".join(common), "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} }
+            edges_all.append(edge_rec)
 
         test = {"instruction": "progress", "description": "keeping all edges to centre + 100 others most heavy + sampling randomly others to reach max edges"}
         yield self.return_string(json.dumps(test)+"\n")

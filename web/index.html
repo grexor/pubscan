@@ -15,7 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
     <meta charset="UTF-8">
 
-    <link rel="stylesheet" href="pubscan.css?v=202505071">
+    <link rel="stylesheet" href="pubscan.css?v=202610162">
     <link rel="stylesheet" href="statics/fa/css/all.min.css">
     <link rel="stylesheet" href="statics/css/tippy.css">
 
@@ -73,7 +73,10 @@
                 </div>
             </div>
             
-            <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; overflow: hidden;" id="toptop_right_menu">
+            <div id="div_graph_title" style="flex-grow: 1; min-width: 0; padding: 2px 20px 0 20px; text-align: center; font-size: 13px; color: #d6e4fb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            </div>
+
+            <div style="text-align: right; padding: 2px; padding-right: 15px; flex-shrink: 0; overflow: hidden;" id="toptop_right_menu">
                 <div style="color: aliceblue; font-size: 15px; padding-left: 3px; padding-bottom: 2px; white-space: nowrap;">
                     <span style="position: relative; top: 5px; display:inline-block; transform: scale(1.1);" id="btn_github_stars">
                     <a class="github-button" href="https://github.com/grexor/pubscan" data-icon="octicon-star" data-size="medium" data-show-count="true" aria-label="Star pubScan on GitHub">pubScan</a>&nbsp;&nbsp;
@@ -86,13 +89,13 @@
         </div>
     </div>
 
-<div style="background-color:rgb(245, 245, 245); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; color: #727272; z-index: 1000;  position: relative;">
+<div id="div_search_bar" style="background-color:rgb(245, 245, 245); padding-left: 10px; padding-top: 5px; padding-bottom: 5px; color: #727272; z-index: 1000;  position: relative;">
     <div id="div_search_menu2" style="display: flex; width: 100%; flex-wrap: nowrap; z-index: 9999;">
         
         <div style="text-align: left; padding: 2px; z-index: 1000;">
-            <div style="padding-left: 0px; z-index: 1000;">
-                <input id="autoComplete" placeholder="Type author name..." style="max-width: 300px; min-width: 300px;"/>
-                <button id="btnm_clear" class="hidden" style="position: absolute; left: 288px; top: 17; cursor: pointer; color: #aaa; font-size: 14px;">
+            <div id="div_search_input" style="padding-left: 0px; z-index: 1000; position: relative;">
+                <input id="autoComplete" placeholder="Type author name..."/>
+                <button id="btnm_clear" class="hidden" style="position: absolute; right: 23px; top: 9px; cursor: pointer; color: #aaa; font-size: 14px;">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -104,7 +107,17 @@
             </div>
         </div>
 
-        <div style="text-align: left; padding: 2px; padding-top: 9px; flex-shrink: 0; white-space: nowrap;" id="div_search_label">
+        <div id="div_year_filter_c" style="padding: 2px; padding-left: 6px; z-index: 1000;">
+            <div id="div_year_filter" class="year_filter" title="Only publications from these years (inclusive)">
+                <i class="fas fa-calendar-alt"></i><span class="year_label">Years</span>
+                <input id="year_from" placeholder="from" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="first publication year">
+                <span class="year_sep">&ndash;</span>
+                <input id="year_to" placeholder="to" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="last publication year">
+                <a href="javascript:clear_year_filter();" id="btn_clear_years" class="year_clear hidden" title="Remove year filter"><i class="fas fa-times"></i></a>
+            </div>
+        </div>
+
+        <div style="text-align: left; padding: 2px; padding-top: 9px;" id="div_search_label">
             <div id="div_info" style="padding-left: 0px; font-size: 12px;">
                 Start your search
             </div>
@@ -295,6 +308,93 @@
     let signal = null;
     let clickTimeout = null;
     let handling_popstate = false;
+    let current_network_key = null; // "<orcid>|<year from>|<year to>" of the network on screen
+    let current_query = null; // "Name ORCID" of the network on screen
+
+    // ---- publication year filter (from - to, inclusive) ----
+
+    function get_year_filter() {
+        const from = document.getElementById("year_from").value.trim();
+        const to = document.getElementById("year_to").value.trim();
+        return { from: /^\d{4}$/.test(from) ? from : "", to: /^\d{4}$/.test(to) ? to : "" };
+    }
+
+    function year_filter_active() {
+        const years = get_year_filter();
+        return years.from != "" || years.to != "";
+    }
+
+    function year_in_filter(year) {
+        const years = get_year_filter();
+        const y = parseInt(year, 10);
+        if (isNaN(y)) {
+            return false;
+        }
+        return (years.from == "" || y >= parseInt(years.from, 10)) && (years.to == "" || y <= parseInt(years.to, 10));
+    }
+
+    function year_filter_label() {
+        const years = get_year_filter();
+        if (years.from != "" && years.to != "") {
+            return years.from == years.to ? years.from : years.from + "\u2013" + years.to;
+        }
+        return years.from != "" ? "from " + years.from : "up to " + years.to;
+    }
+
+    function year_filter_note() { // appended to publication headers
+        return year_filter_active() ? " <span style='color: #408bed;'>" + year_filter_label() + "</span>" : "";
+    }
+
+    function year_filter_query_string() {
+        const years = get_year_filter();
+        const params = new URLSearchParams();
+        if (years.from != "") params.set("from", years.from);
+        if (years.to != "") params.set("to", years.to);
+        const qs = params.toString();
+        return qs ? "?" + qs : "";
+    }
+
+    function set_year_filter(from, to) {
+        document.getElementById("year_from").value = /^\d{4}$/.test(from || "") ? from : "";
+        document.getElementById("year_to").value = /^\d{4}$/.test(to || "") ? to : "";
+        update_year_filter_style();
+    }
+
+    function update_year_filter_style() {
+        const active = year_filter_active();
+        document.getElementById("div_year_filter").classList.toggle("active", active);
+        document.getElementById("btn_clear_years").classList.toggle("hidden", !active);
+    }
+
+    function apply_year_filter() {
+        let years = get_year_filter();
+        if (years.from != "" && years.to != "" && parseInt(years.from, 10) > parseInt(years.to, 10)) {
+            set_year_filter(years.to, years.from); // swap reversed ranges
+        }
+        update_year_filter_style();
+        if (current_query) { // a network is on screen: rebuild it with the new filter
+            get_author_network(current_query);
+        }
+    }
+
+    function clear_year_filter() {
+        set_year_filter("", "");
+        apply_year_filter();
+    }
+
+    for (const id of ["year_from", "year_to"]) {
+        const input = document.getElementById(id);
+        input.addEventListener("input", function() {
+            this.value = this.value.replace(/\D/g, "").slice(0, 4); // digits only
+            update_year_filter_style();
+        });
+        input.addEventListener("change", apply_year_filter);
+        input.addEventListener("keydown", function(e) {
+            if (e.key == "Enter") {
+                this.blur(); // fires change
+            }
+        });
+    }
 
     function draw() {
         var container = document.getElementById("mynetwork");
@@ -414,21 +514,27 @@
                 if (params.nodes.length > 0) { // node click
                     const node_id = params.nodes[0];
                     const node_data = nodes_dataset.get(node_id);
-                    document.getElementById("div_pub").innerHTML = "Publications: <b>" + node_data["label"] + "</b> <a href='https://orcid.org/" + node_data["id"] + "' target=_new>" + node_data["id"] + "</a> " + " (" + node_data["pmids"].split(",").length + ")<br><br>";
+                    const header = (n) => {
+                        document.getElementById("div_pub").innerHTML = "Publications: <b>" + node_data["label"] + "</b> <a href='https://orcid.org/" + node_data["id"] + "' target=_new>" + node_data["id"] + "</a> " + " (" + n + ")" + year_filter_note() + "<br><br>";
+                        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + node_data["label"] + "</b> (" + n + ")";
+                        div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
+                    };
+                    header(node_data["pmids"].split(",").length);
                     document.getElementById("div_pub").scrollTop = 0;
-                    document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + node_data["label"] + "</b> (" + node_data["pmids"].split(",").length + ")";
-                    div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
-                    get_publications(node_data["pmids"]);
+                    get_publications(node_data["pmids"], header);
 
                 }
                 else if (params.edges.length > 0) { // edge click
                     const edge_id = params.edges[0];
                     const edge_data = edges_dataset.get(edge_id);
+                    const header = (n) => {
+                        document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + edge_data["from_label"] + "</b> and <b>" + edge_data["to_label"] + "</b> (" + n + ")" + year_filter_note() + "<br><br>";
+                        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + edge_data["from_label"] + "</b> and <b>" + edge_data["to_label"] + "</b> (" + n + ")";
+                        div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
+                    };
+                    header(edge_data["pmids"].split(",").length);
                     document.getElementById("div_pub").scrollTop = 0;
-                    document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + edge_data["from_label"] + "</b> and <b>" + edge_data["to_label"] + "</b> (" + edge_data["pmids"].split(",").length + ")<br><br>";
-                    document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + edge_data["from_label"] + "</b> and <b>" + edge_data["to_label"] + "</b> (" + edge_data["pmids"].split(",").length + ")";
-                    div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
-                    get_publications(edge_data["pmids"]);
+                    get_publications(edge_data["pmids"], header);
                 }
             }, 250);
         });
@@ -436,11 +542,14 @@
         // color the node red and show publications for the node
         color_node_single(current_center, 'red');
         const center_data = nodes_dataset.get(current_center);
-        document.getElementById("div_pub").innerHTML = "Publications: <b>" + center_data["label"] + "</b> <a href='https://orcid.org/" + center_data["id"] + "' target=_mew>" + center_data["id"] + "</a> (" + center_data["pmids"].split(",").length + ")<br><br>";
-        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + center_data["label"] + "</b> (" + center_data["pmids"].split(",").length + ")";
-        div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
+        const center_header = (n) => {
+            document.getElementById("div_pub").innerHTML = "Publications: <b>" + center_data["label"] + "</b> <a href='https://orcid.org/" + center_data["id"] + "' target=_new>" + center_data["id"] + "</a> (" + n + ")" + year_filter_note() + "<br><br>";
+            document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + center_data["label"] + "</b> (" + n + ")";
+            div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
+        };
+        center_header(center_data["pmids"].split(",").length);
 
-        get_publications(center_data["pmids"]);
+        get_publications(center_data["pmids"], center_header);
 
         // switch to network view on mobile (in case pub view was open)
         if (isMobile()) {
@@ -484,7 +593,7 @@
             .catch(error => console.error("Error:", error));
         }
 
-        function get_publications(pmids) {
+        function get_publications(pmids, header) {
             let encodedQuery = encodeURIComponent(pmids);
             const datetime = new Date().toISOString();
             fetch("/gw/index.py?action=get_publications&pmids=" + encodedQuery + "&response_type=json&datetime=" + datetime).then(response =>
@@ -505,8 +614,15 @@
                         for (const part of parts) {
                             try {
                                 const mydata = JSON.parse(part);
-                                //const sorted_data = Object.values(mydata).sort((a, b) => b.pmid - a.pmid);
-                                const sorted_data = Object.values(mydata).sort((a, b) => {
+                                let pub_list = Object.values(mydata);
+                                if (year_filter_active()) {
+                                    // co-author nodes carry their whole publication list; only the years inside the filter are shown
+                                    pub_list = pub_list.filter((e) => year_in_filter(e.pub_year));
+                                    if (header) {
+                                        header(pub_list.length);
+                                    }
+                                }
+                                const sorted_data = pub_list.sort((a, b) => {
                                 const yearA = parseInt(a.pub_year, 10);
                                 const yearB = parseInt(b.pub_year, 10);
 
@@ -551,11 +667,14 @@
 
             const orcid = query.split(" ").at(-1);
             const author_name = query.split(" ").at(0);
+            const years = get_year_filter();
 
-            // already loaded? abort
-            if (current_center==orcid) {
+            // already loaded (same author, same year filter)? abort
+            const network_key = orcid + "|" + years.from + "|" + years.to;
+            if (current_network_key==network_key) {
                 return;
             }
+            current_network_key = network_key;
 
             show_log();
             show_graph_info();
@@ -575,7 +694,7 @@
             abortController = new AbortController();
             signal = abortController.signal;
 
-            fetch("/gw/index.py?action=get_author_network&author=" + encodedQuery + "&response_type=json&datetime=" + datetime, { signal: signal }).then(response =>
+            fetch("/gw/index.py?action=get_author_network&author=" + encodedQuery + "&year_from=" + years.from + "&year_to=" + years.to + "&response_type=json&datetime=" + datetime, { signal: signal }).then(response =>
             {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -594,15 +713,17 @@
                         let parts = buffer.split("\n");  
                         buffer = parts.pop();  // Keep the last incomplete part in buffer
 
+                        const div_log = document.getElementById("div_log");
+                        let log_changed = false;
                         for (const part of parts) {
                             try {
                                 const mydata = JSON.parse(part);
                                 if (mydata["instruction"]=="data") {
                                     if (mydata["nodes_all"].length==0) {
-                                        document.getElementById("div_log").innerHTML += "search for <b>" + query + "</b> returned no results.";
-                                        document.getElementById("div_center_info_content").innerHTML = "Search for <b>" + query + "</b> returned no results.";
-                                        //document.getElementById("div_bottom_mobile_label").innerHTML = "Search for <b>" + query + "</b> returned no results.";
-                                        document.getElementById("div_info").innerHTML = "Search for <b>" + query + "</b> returned no results.";
+                                        const no_results = "Search for <b>" + query + "</b> returned no results" + (year_filter_active() ? " for the years " + year_filter_label() : "") + ".";
+                                        document.getElementById("div_log").innerHTML += no_results;
+                                        document.getElementById("div_center_info_content").innerHTML = no_results;
+                                        document.getElementById("div_info").innerHTML = no_results;
                                         if (nodes_all.length==[]) {
                                             show_center_info();
                                         }
@@ -610,27 +731,32 @@
                                     }
                                     nodes_all = mydata["nodes_all"];
                                     edges_all = mydata["edges_all"];
+                                    current_query = query;
                                     draw();
                                     document.querySelector("#autoComplete").value = query;
                                     document.querySelector("#ac_search_nodes").value = "";
                                     update_clear_button();
                                     let encoded_coded_query = encodeURIComponent(query.replace(/ /g, "_"));
                                     if (!handling_popstate) {
-                                        const new_url = `/${encoded_coded_query}`;
-                                        window.history.pushState({"search": query}, '', new_url);
+                                        const new_url = `/${encoded_coded_query}` + year_filter_query_string();
+                                        window.history.pushState({"search": query, "from": years.from, "to": years.to}, '', new_url);
                                     }
                                     handling_popstate = false;
-                                    document.getElementById("div_graph_title").innerHTML = "Browsing network for: <b>" + query + "</b>";
+                                    document.getElementById("div_graph_title").innerHTML = "Browsing network for: <b>" + query + "</b>" + (year_filter_active() ? " (" + year_filter_label() + ")" : "");
                                 }
                                 if (mydata["instruction"]=="progress") {
                                     document.getElementById("div_info").textContent = mydata["description"];
-                                    document.getElementById("div_log").innerHTML += mydata["description"] + "<br>";
-                                    document.getElementById("div_log").scrollTop = document.getElementById("div_log").scrollHeight;
+                                    // append as nodes: innerHTML += re-parses the whole log on every line (quadratic)
+                                    div_log.append(mydata["description"], document.createElement("br"));
+                                    log_changed = true;
                                 }
 
                             } catch (error) {
                                 console.error("Error parsing JSON:", error);
                             }
+                        }
+                        if (log_changed) { // scroll once per received chunk, not once per line (each scroll forces a layout)
+                            div_log.scrollTop = div_log.scrollHeight;
                         }
 
                         return readStream(); // Continue reading next chunks
@@ -898,6 +1024,8 @@
         if (isMobile()) {
 
             mobile_view = "network";
+            document.body.classList.add("mobile");
+            $("#div_year_filter_c").hide(); // year filter is desktop only
 
             document.getElementById('mene_right_2').style.display = 'none';
             $("#div_bottom").hide();
@@ -937,7 +1065,7 @@
             el.style.willChange = "transform";
 
             $("#mynetwork").css("border", "none");
-            $("#mynetwork").css("top", "113px");
+            $("#mynetwork").css("top", Math.round(document.getElementById("div_search_bar").getBoundingClientRect().bottom) + "px");
 
             $("#div_pub").attr("style", $("#mynetwork").attr("style"));
             const divPub = document.getElementById("div_pub");
@@ -950,6 +1078,11 @@
         }
 
         get_update_date();
+
+        if (!isMobile()) { // year filter is desktop only
+            const url_params = new URLSearchParams(window.location.search);
+            set_year_filter(url_params.get("from"), url_params.get("to"));
+        }
 
         const path = window.location.pathname;
         const centerRaw = path.split("/").filter(Boolean).pop();
@@ -1050,14 +1183,15 @@ function swap_pub_mobile() {
 
 </div>
 
-<div id="div_graph_title" style="width: 450px; height: 20px; position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #804343; z-index: 1000;">
-</div>
-
 <script>
 
     // Listen to back/forward navigation
     window.addEventListener('popstate', function (event) {
+    if (!event.state || !event.state.search) {
+        return;
+    }
     handling_popstate = true;
+    set_year_filter(event.state.from, event.state.to);
     get_author_network(event.state.search);
     });
 

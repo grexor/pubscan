@@ -122,11 +122,128 @@
     background-color: rgba(73, 103, 255, 0.15);
     }
 
-    @media only screen and (max-width: 600px) {
-    .autoComplete_wrapper > input {
-        width: 18rem;
+    /* author search box: wide enough to show "Name Surname 0000-0000-0000-0000" */
+    #autoComplete {
+        width: 350px;
     }
-    }    
+
+    /* on phones (body.mobile is set by isMobile() in index.html) the box fills the row */
+    body.mobile #div_search_input {
+        padding-right: 12px;
+    }
+
+    body.mobile .autoComplete_wrapper {
+        width: 100%;
+    }
+
+    body.mobile #autoComplete {
+        width: 100%;
+    }
+
+    /* publication year filter pill (from - to), styled like the search box */
+    .year_filter {
+        display: inline-flex;
+        align-items: center;
+        height: 2rem;
+        box-sizing: border-box;
+        padding: 0 0.75rem 0 0.85rem;
+        border-radius: 10rem;
+        border: 0.05rem solid rgba(127, 127, 127, 0.5);
+        background-color: #fff;
+        color: #b0b0b0;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+    }
+
+    .year_filter:hover,
+    .year_filter:focus-within {
+        border-color: rgba(111, 111, 111, 0.8);
+        color: #808080;
+    }
+
+    .year_filter.active {
+        border-color: #408bed;
+        background-color: #f3f8ff;
+        color: #408bed;
+    }
+
+    .year_filter > i {
+        font-size: 0.85rem;
+        margin-right: 0.4rem;
+    }
+
+    .year_filter .year_label {
+        margin-right: 0.5rem;
+        font-size: 0.8rem;
+        letter-spacing: 0.02em;
+    }
+
+    .year_filter input {
+        width: 3.2em;
+        padding: 0;
+        margin: 0;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-size: 0.9rem;
+        text-align: center;
+        color: #525252;
+    }
+
+    .year_filter input::placeholder {
+        color: rgba(119, 119, 119, 0.5);
+    }
+
+    .year_filter .year_sep {
+        padding: 0 0.15rem;
+        color: #c0c0c0;
+    }
+
+    .year_filter .year_clear {
+        margin-left: 0.45rem;
+        color: #aaaaaa;
+        font-size: 0.85rem;
+        line-height: 0;
+        text-decoration: none;
+    }
+
+    .year_filter .year_clear:hover {
+        color: #525252;
+    }
+
+
+    /* right part of the search bar stays on one line; the node search box gives way on narrower windows */
+    #mene_right_2 {
+        white-space: nowrap;
+    }
+
+    #div_search_label {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    @media only screen and (max-width: 1200px) {
+        #ac_search_nodes {
+            width: 160px;
+        }
+        #div_search_label { /* progress text gives way (ellipsis) instead of pushing the menu off screen */
+            flex-shrink: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #div_info {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    @media only screen and (max-width: 1000px) {
+        #ac_search_nodes {
+            width: 120px;
+        }
+    }
 
 #div_bottom {
     position: fixed;

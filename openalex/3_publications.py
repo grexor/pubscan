@@ -64,7 +64,9 @@ with gzip.open(output_file, 'wt', newline='', encoding='utf-8') as tsv:
                         orcid_number = orcid.replace('https://orcid.org/', '')
                         orcids.append(orcid_number)
                         name = author_lookup.get(orcid_number) or display_name
-                        orcid_names.append(name)
+                        # the list is stored joined by ";" and later split on ","; a name containing either
+                        # character would shift the names of every following author
+                        orcid_names.append(name.replace(";", " ").replace(",", " "))
 
                 if not orcids:
                     continue

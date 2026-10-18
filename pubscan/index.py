@@ -157,12 +157,15 @@ def build_match_query(author_name: str):
     return query, tokens
 
 def name_sort(name, search):
-    if name == search:
+    """Rank a suggestion ("Name ORCID") against the lowercase typed text: exact name first, then names
+    starting with the text, then by similarity."""
+    person = name.rsplit(" ", 1)[0].lower()
+    if person == search:
         return (0, 0)
-    elif name.startswith(search):
+    elif person.startswith(search):
         return (1, 0)
     else:
-        similarity = SequenceMatcher(None, search, name).ratio()
+        similarity = SequenceMatcher(None, search, person).ratio()
         return (2, -similarity)
 
 class TableClass():
@@ -259,6 +262,8 @@ class TableClass():
                 (orcid,)
             )
             row = cur.fetchone()
+            if row is None and orcid.endswith("X"): # a few records store the check digit as lowercase x
+                row = get_conn().execute("SELECT orcid, author_name, pmids FROM authors WHERE orcid = ?", (orcid[:-1] + "x",)).fetchone()
         except sqlite3.OperationalError as e:
             self.logme(f"DB error: {e}")
             return orcid, "", []
@@ -387,7 +392,9 @@ class TableClass():
             yield self.return_string(json.dumps({"nodes_all": [], "edges_all": [], "instruction": "data"}) + "\n")
             return
 
-        _, _, pmids = self.author_pmids(center_id)
+        # the stored spelling of the ORCID becomes the center id (a few records keep a lowercase check
+        # digit, and the publication author lists use the same spelling)
+        center_id, _, pmids = self.author_pmids(center_id)
         if not year_filter:
             pmids = pmids[:200] # maximum 200 publications for center
         # with a year filter all (up to 300) publications are scanned and the first 200 inside the range are kept
@@ -395,6 +402,7 @@ class TableClass():
         yield progress(f"found {len(pmids)} publications for {center_id}")
 
         author_pmids = {}
+        author_names = {} # orcid -> name from the authors table (falls back to the publication's author list)
         nodes_all = []
         edges_all = []
         pmid_year = {} # years of publications looked up so far (center publications + edge publications)
@@ -415,9 +423,12 @@ class TableClass():
             if year_filter and not year_ok(pmid_data["pub_year"]):
                 continue
             center_kept.append(pmid)
-            for author_orcid, author_name in zip(pmid_orcids, pmid_authors):
+            aligned = len(pmid_authors) == len(pmid_orcids) # false when an author name contains a comma
+            for position, author_orcid in enumerate(pmid_orcids):
                 if author_pmids.get(author_orcid, None)==None:
-                    _, _, author_pmids[author_orcid] = self.author_pmids(author_orcid)
+                    _, canonical_name, author_pmids[author_orcid] = self.author_pmids(author_orcid)
+                    author_names[author_orcid] = canonical_name or (pmid_authors[position] if aligned else author_orcid)
+                author_name = author_names[author_orcid]
 
                 author_group = "g0"
                 if len(author_pmids[author_orcid])>10:

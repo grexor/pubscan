@@ -55,22 +55,33 @@ DB = os.environ.get("pubscan_DB")
 DB_names = os.environ.get("pubscan_DB_names")
 
 random.seed(42)
-conn = sqlite3.connect(f"file:{DB}?immutable=1", uri=True, check_same_thread=False)
-conn_names = sqlite3.connect(f"file:{DB_names}?immutable=1", uri=True, check_same_thread=False)
 
-conn.execute("PRAGMA query_only = ON;")
-conn.execute("PRAGMA cache_size = 10000;")   # ~10 MB
-conn.execute("PRAGMA mmap_size = 268435456;")       # 256 MB memory-mapped I/O
-conn.execute("PRAGMA temp_store = MEMORY;")
-conn.execute("PRAGMA synchronous = OFF;")
-conn.execute("PRAGMA journal_mode = OFF;")
+def open_db(path):
+    c = sqlite3.connect(f"file:{path}?immutable=1", uri=True)
+    c.execute("PRAGMA query_only = ON;")
+    c.execute("PRAGMA cache_size = 10000;")   # ~10 MB
+    c.execute("PRAGMA mmap_size = 268435456;")       # 256 MB memory-mapped I/O
+    c.execute("PRAGMA temp_store = MEMORY;")
+    c.execute("PRAGMA synchronous = OFF;")
+    c.execute("PRAGMA journal_mode = OFF;")
+    return c
 
-conn_names.execute("PRAGMA query_only = ON;")
-conn_names.execute("PRAGMA cache_size = 10000;")
-conn_names.execute("PRAGMA mmap_size = 268435456;")       # 256 MB memory-mapped I/O
-conn_names.execute("PRAGMA temp_store = MEMORY;")
-conn_names.execute("PRAGMA synchronous = OFF;")
-conn_names.execute("PRAGMA journal_mode = OFF;")
+# one connection per worker thread: a single sqlite3 connection shared by all mod_wsgi threads can
+# mix up statements that run at the same time (a column of an existing row came back NULL when two
+# network builds overlapped); the files are opened read-only, so per-thread connections are cheap
+_thread_db = threading.local()
+
+def get_conn():
+    c = getattr(_thread_db, "conn", None)
+    if c is None:
+        c = _thread_db.conn = open_db(DB)
+    return c
+
+def get_conn_names():
+    c = getattr(_thread_db, "conn_names", None)
+    if c is None:
+        c = _thread_db.conn_names = open_db(DB_names)
+    return c
 
 pubscan_folder = os.path.dirname(os.path.realpath(__file__))
 
@@ -243,7 +254,7 @@ class TableClass():
 
     def author_pmids(self, orcid):
         try:
-            cur = conn.execute(
+            cur = get_conn().execute(
                 "SELECT orcid, author_name, pmids FROM authors WHERE orcid = ?",
                 (orcid,)
             )
@@ -257,8 +268,8 @@ class TableClass():
 
         orcid, author_name, pmids = row
 
-        # pmids stored as comma-separated string -> sorted list of strings, newest first
-        pmid_list = [int(x) for x in pmids.split(",") if x.strip().isdigit()]
+        # pmids stored as comma-separated string (NULL for authors without publications) -> sorted list of strings, newest first
+        pmid_list = [int(x) for x in (pmids or "").split(",") if x.strip().isdigit()]
         pmid_list.sort(reverse=True)
         pmid_list = [str(x) for x in pmid_list]
 
@@ -266,7 +277,7 @@ class TableClass():
 
     def data_pmid(self, pmid):
         try:
-            cur = conn.execute(
+            cur = get_conn().execute(
                 "SELECT pmid, title, pub_year, authors_name, authors_orcid FROM publications WHERE pmid = ?",
                 (pmid,)
             )
@@ -280,14 +291,14 @@ class TableClass():
 
         pmid_val, title, pub_year, authors_str, authors_orcid_str = row
 
-        authors = [a.strip() for a in authors_str.split(",") if a.strip()]
-        orcids = [a.strip() for a in authors_orcid_str.split(",") if a.strip()]
+        authors = [a.strip() for a in (authors_str or "").split(",") if a.strip()]
+        orcids = [a.strip() for a in (authors_orcid_str or "").split(",") if a.strip()]
 
         row_dict = {
             "pmid": pmid_val,
             "title": title,
             "pub_year": pub_year,
-            "authors": authors_str,
+            "authors": authors_str or "",
             "orcids": orcids,
         }
 
@@ -311,7 +322,7 @@ class TableClass():
         placeholders = ",".join("?" for _ in pmids) # (?, ?, ?, ...) for the IN clause
 
         try:
-            cur = conn.execute(
+            cur = get_conn().execute(
                 f"SELECT pmid, title, pub_year FROM publications WHERE pmid IN ({placeholders})",
                 tuple(pmids)
             )
@@ -497,7 +508,7 @@ class TableClass():
                 chunk = need[start:start+500]
                 placeholders = ",".join("?" for _ in chunk)
                 try:
-                    rows = conn.execute(f"SELECT pmid, pub_year FROM publications WHERE pmid IN ({placeholders})", tuple(chunk)).fetchall()
+                    rows = get_conn().execute(f"SELECT pmid, pub_year FROM publications WHERE pmid IN ({placeholders})", tuple(chunk)).fetchall()
                 except sqlite3.OperationalError as e:
                     self.logme(f"DB error: {e}")
                     rows = []
@@ -575,7 +586,7 @@ class TableClass():
         result = []
         if query:
             try:
-                cur = conn_names.execute(
+                cur = get_conn_names().execute(
                     "SELECT name FROM names WHERE name MATCH ? LIMIT 50",
                     (query,)
                 )

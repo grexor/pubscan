@@ -10,7 +10,7 @@ RUN apt-get update && \
         python3-venv && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN a2enmod wsgi rewrite
+RUN a2enmod wsgi rewrite headers
 RUN mkdir -p /var/www/site/logs
 
 COPY site.conf /etc/apache2/sites-available/000-default.conf

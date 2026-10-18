@@ -12,3 +12,4 @@ pubscan/pubscan.egg-info/
 web/.htpasswd
 __pycache__/
 .vscode/
+dbase/logs-backup-*/

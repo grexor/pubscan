@@ -62,3 +62,28 @@ cp openalex/pubscan_slim.db db/pubscan.db.new && mv db/pubscan.db db/pubscan.db.
 cd dbase && ./run.sh            # restart so the container reopens the file and warms the cache
 # after checking the site works: rm ../db/pubscan.db.old
 ```
+
+## Security
+
+The search box is public, so the backend treats every parameter as hostile (see the notes at the top of
+`pubscan/index.py`):
+
+* all parameters come from the query string; request bodies are never read and POST/PUT get `405`
+* actions are dispatched through an explicit table (`version`, `get_update_date`, `get_author_network`,
+  `get_publications`, `author_suggest`); anything else is `404`
+* the search log is written by Python (no shell); the client address is the last `X-Forwarded-For` entry,
+  which the host proxy appends (`RequestHeader unset X-Forwarded-For` in `apache/pubscan.org.ssl.conf` drops
+  client-sent values); it rotates at 20 MB
+* input limits: author parameter 200 chars and must end with an ORCID iD, at most 300 PMIDs per
+  `get_publications` call, autocomplete 100 chars / 8 tokens with every FTS5 token quoted
+* at most 6 network builds run at the same time, 2 per client address; further requests get `503` and the
+  page shows the message (`MAX_CONCURRENT_*` in `pubscan/index.py`)
+* Apache (`site.conf`): no directory listings, only `web/` and `pubscan/index.py` are reachable, request
+  bodies capped at 64 KB, `nosniff` / `X-Frame-Options` / `Referrer-Policy` headers, access and error logs
+  rotated by size (`error.log`, `error.log.1`, ...)
+* the container only listens on `127.0.0.1:8008` (`run.sh`), so every request passes the host proxy
+* the frontend HTML-escapes everything it renders from the server (OpenAlex author names and titles can
+  contain markup, e.g. `<sup>`)
+
+Not covered here: per-IP request rate limiting (use fail2ban or mod_qos on the host proxy if floods become a
+problem) and mounting the repository read-only inside the container.

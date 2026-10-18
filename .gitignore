@@ -1,0 +1,14 @@
+# local data, secrets, logs and build artefacts: never commit
+db/
+dbase/logs/
+dbase/run/
+dbase/venv/
+openalex/openalex-snapshot/
+openalex/*.tab.gz
+openalex/*.db
+pubscan/pubscan.config.yaml
+pubscan/pubscan.log
+pubscan/pubscan.egg-info/
+web/.htpasswd
+__pycache__/
+.vscode/

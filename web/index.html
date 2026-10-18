@@ -166,6 +166,16 @@
 
     <script>
 
+        // HTML-escape text before it goes into innerHTML: author names and titles come from OpenAlex,
+        // search strings from the URL; none of them is trusted markup
+        function esc(text) {
+            return String(text ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        }
+
+        function orcid_link(orcid) { // link only for well-formed ORCID iDs, plain text otherwise
+            return /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(orcid) ? "<a href='https://orcid.org/" + orcid + "' target=_new rel='noopener'>" + orcid + "</a>" : esc(orcid);
+        }
+
         function color_node_single(node_id, color) {
             nodes_dataset.update({ id: node_id, color: color });
 
@@ -515,8 +525,8 @@
                     const node_id = params.nodes[0];
                     const node_data = nodes_dataset.get(node_id);
                     const header = (n) => {
-                        document.getElementById("div_pub").innerHTML = "Publications: <b>" + node_data["label"] + "</b> <a href='https://orcid.org/" + node_data["id"] + "' target=_new>" + node_data["id"] + "</a> " + " (" + n + ")" + year_filter_note() + "<br><br>";
-                        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + node_data["label"] + "</b> (" + n + ")";
+                        document.getElementById("div_pub").innerHTML = "Publications: <b>" + esc(node_data["label"]) + "</b> " + orcid_link(node_data["id"]) + " " + " (" + n + ")" + year_filter_note() + "<br><br>";
+                        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(node_data["label"]) + "</b> (" + n + ")";
                         div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
                     };
                     header(node_data["pmids"].split(",").length);
@@ -528,8 +538,8 @@
                     const edge_id = params.edges[0];
                     const edge_data = edges_dataset.get(edge_id);
                     const header = (n) => {
-                        document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + edge_data["from_label"] + "</b> and <b>" + edge_data["to_label"] + "</b> (" + n + ")" + year_filter_note() + "<br><br>";
-                        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + edge_data["from_label"] + "</b> and <b>" + edge_data["to_label"] + "</b> (" + n + ")";
+                        document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + esc(edge_data["from_label"]) + "</b> and <b>" + esc(edge_data["to_label"]) + "</b> (" + n + ")" + year_filter_note() + "<br><br>";
+                        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(edge_data["from_label"]) + "</b> and <b>" + esc(edge_data["to_label"]) + "</b> (" + n + ")";
                         div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
                     };
                     header(edge_data["pmids"].split(",").length);
@@ -543,8 +553,8 @@
         color_node_single(current_center, 'red');
         const center_data = nodes_dataset.get(current_center);
         const center_header = (n) => {
-            document.getElementById("div_pub").innerHTML = "Publications: <b>" + center_data["label"] + "</b> <a href='https://orcid.org/" + center_data["id"] + "' target=_new>" + center_data["id"] + "</a> (" + n + ")" + year_filter_note() + "<br><br>";
-            document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + center_data["label"] + "</b> (" + n + ")";
+            document.getElementById("div_pub").innerHTML = "Publications: <b>" + esc(center_data["label"]) + "</b> " + orcid_link(center_data["id"]) + " (" + n + ")" + year_filter_note() + "<br><br>";
+            document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(center_data["label"]) + "</b> (" + n + ")";
             div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
         };
         center_header(center_data["pmids"].split(",").length);
@@ -580,7 +590,7 @@
                             try {
                                 console.log(part);
                                 const update_str = part;
-                                document.getElementById("div_update").innerHTML = "(<a href='https://openalex.org/' target=_new>OpenAlex</a> sync: " + update_str + ")";
+                                document.getElementById("div_update").innerHTML = "(<a href='https://openalex.org/' target=_new>OpenAlex</a> sync: " + esc(update_str) + ")";
                             } catch (error) {
                                 console.error("Error getting update date:", error);
                             }
@@ -635,7 +645,9 @@
                                 html_add = "";
                                 html_add += "<table border=10>"
                                 for (const e of sorted_data) {
-                                    html_add += "<tr><td>" + e.pub_year + "&nbsp;&nbsp;</td><td><a href=https://pubmed.ncbi.nlm.nih.gov/" + e.pmid + " target=_" + e.pmid + ">" + e.title + "</a></td></tr>";
+                                    const pmid = /^\d+$/.test(String(e.pmid)) ? String(e.pmid) : "";
+                                    const title_html = pmid ? "<a href='https://pubmed.ncbi.nlm.nih.gov/" + pmid + "' target='_" + pmid + "' rel='noopener'>" + esc(e.title) + "</a>" : esc(e.title);
+                                    html_add += "<tr><td>" + esc(e.pub_year) + "&nbsp;&nbsp;</td><td>" + title_html + "</td></tr>";
                                 }           
                                 html_add += "</table>"
                                 document.getElementById("div_pub").innerHTML += html_add;
@@ -720,7 +732,7 @@
                                 const mydata = JSON.parse(part);
                                 if (mydata["instruction"]=="data") {
                                     if (mydata["nodes_all"].length==0) {
-                                        const no_results = "Search for <b>" + query + "</b> returned no results" + (year_filter_active() ? " for the years " + year_filter_label() : "") + ".";
+                                        const no_results = "Search for <b>" + esc(query) + "</b> returned no results" + (year_filter_active() ? " for the years " + year_filter_label() : "") + ".";
                                         document.getElementById("div_log").innerHTML += no_results;
                                         document.getElementById("div_center_info_content").innerHTML = no_results;
                                         document.getElementById("div_info").innerHTML = no_results;
@@ -742,13 +754,19 @@
                                         window.history.pushState({"search": query, "from": years.from, "to": years.to}, '', new_url);
                                     }
                                     handling_popstate = false;
-                                    document.getElementById("div_graph_title").innerHTML = "Browsing network for: <b>" + query + "</b>" + (year_filter_active() ? " (" + year_filter_label() + ")" : "");
+                                    document.getElementById("div_graph_title").innerHTML = "Browsing network for: <b>" + esc(query) + "</b>" + (year_filter_active() ? " (" + year_filter_label() + ")" : "");
                                 }
                                 if (mydata["instruction"]=="progress") {
                                     document.getElementById("div_info").textContent = mydata["description"];
                                     // append as nodes: innerHTML += re-parses the whole log on every line (quadratic)
                                     div_log.append(mydata["description"], document.createElement("br"));
                                     log_changed = true;
+                                }
+                                if (mydata["instruction"]=="error") { // 400/503 from the server: show it, allow the same search again
+                                    document.getElementById("div_info").textContent = mydata["description"];
+                                    div_log.append(mydata["description"], document.createElement("br"));
+                                    log_changed = true;
+                                    current_network_key = null;
                                 }
 
                             } catch (error) {
@@ -765,7 +783,12 @@
                 
                 return readStream();
             })
-            .catch(error => console.error("Error:", error));
+            .catch(error => {
+                console.error("Error:", error);
+                if (error.name !== "AbortError") { // network failure: allow the same search again
+                    current_network_key = null;
+                }
+            });
 
         }
 
@@ -825,7 +848,7 @@
     threshold: 2,
     debounce: 100,
     searchEngine: (query, record) => {
-        return record;
+        return esc(record); // autoComplete.js inserts the returned string as HTML
     },
     resultItem: {
         highlight: true

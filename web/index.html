@@ -173,7 +173,7 @@
         }
 
         function orcid_link(orcid) { // link only for well-formed ORCID iDs, plain text otherwise
-            return /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(orcid) ? "<a href='https://orcid.org/" + orcid + "' target=_new rel='noopener'>" + orcid + "</a>" : esc(orcid);
+            return /^\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$/.test(orcid) ? "<a href='https://orcid.org/" + orcid + "' target=_new rel='noopener'>" + orcid + "</a>" : esc(orcid);
         }
 
         function color_node_single(node_id, color) {
@@ -1110,9 +1110,12 @@
         const path = window.location.pathname;
         const centerRaw = path.split("/").filter(Boolean).pop();
         if (centerRaw) {
-            const center = centerRaw.replace(/_/g, " ");
-            get_author_network(center);
-
+            let center = centerRaw;
+            try { // the path was built with encodeURIComponent: decode it so names with quotes, commas, slashes etc. show correctly
+                center = decodeURIComponent(centerRaw);
+            } catch (e) {
+            }
+            get_author_network(center.replace(/_/g, " "));
         }
     };
 

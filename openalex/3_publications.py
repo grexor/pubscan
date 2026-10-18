@@ -3,7 +3,7 @@ import json
 import glob
 import csv
 
-input_files = glob.glob('openalex-snapshot/data/works/**/*.gz', recursive=True)
+input_files = glob.glob('openalex-snapshot/data/works/updated_date=*/*.gz')  # only part files; works/ also holds deleted_ids.csv.gz
 output_file = 'publications.tab.gz'
 
 # load author orcid -> name mapping from the authors table

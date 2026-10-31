@@ -450,7 +450,7 @@
                 },            
           },
           edges: {
-            color: '#ff0000',
+            color: { color: '#f5f5f5', highlight: '#FAA0A0' },
             smooth: {
                 enabled: true,
                 type: 'dynamic',   // cheaper than default 'dynamic', looks almost identical
@@ -529,22 +529,24 @@
                         document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(node_data["label"]) + "</b> (" + n + ")";
                         div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
                     };
-                    header(node_data["pmids"].split(",").length);
+                    header(node_data["n"]);
                     document.getElementById("div_pub").scrollTop = 0;
-                    get_publications(node_data["pmids"], header);
+                    get_author_publications(node_data["id"], null, header);
 
                 }
                 else if (params.edges.length > 0) { // edge click
                     const edge_id = params.edges[0];
                     const edge_data = edges_dataset.get(edge_id);
+                    const from_label = (nodes_dataset.get(edge_data["from"]) || {})["label"] ?? edge_data["from"];
+                    const to_label = (nodes_dataset.get(edge_data["to"]) || {})["label"] ?? edge_data["to"];
                     const header = (n) => {
-                        document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + esc(edge_data["from_label"]) + "</b> and <b>" + esc(edge_data["to_label"]) + "</b> (" + n + ")" + year_filter_note() + "<br><br>";
-                        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(edge_data["from_label"]) + "</b> and <b>" + esc(edge_data["to_label"]) + "</b> (" + n + ")";
+                        document.getElementById("div_pub").innerHTML = "Publications co-authored between <b>" + esc(from_label) + "</b> and <b>" + esc(to_label) + "</b> (" + n + ")" + year_filter_note() + "<br><br>";
+                        document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(from_label) + "</b> and <b>" + esc(to_label) + "</b> (" + n + ")";
                         div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
                     };
-                    header(edge_data["pmids"].split(",").length);
+                    header(edge_data["common"]);
                     document.getElementById("div_pub").scrollTop = 0;
-                    get_publications(edge_data["pmids"], header);
+                    get_author_publications(edge_data["from"], edge_data["to"], header);
                 }
             }, 250);
         });
@@ -557,9 +559,9 @@
             document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(center_data["label"]) + "</b> (" + n + ")";
             div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
         };
-        center_header(center_data["pmids"].split(",").length);
+        center_header(center_data["n"]);
 
-        get_publications(center_data["pmids"], center_header);
+        get_author_publications(center_data["id"], null, center_header);
 
         // switch to network view on mobile (in case pub view was open)
         if (isMobile()) {
@@ -603,10 +605,20 @@
             .catch(error => console.error("Error:", error));
         }
 
-        function get_publications(pmids, header) {
-            let encodedQuery = encodeURIComponent(pmids);
-            const datetime = new Date().toISOString();
-            fetch("/gw/index.py?action=get_publications&pmids=" + encodedQuery + "&response_type=json&datetime=" + datetime).then(response =>
+        // publications of one author (coauthor null) or shared by two, looked up by the server on click;
+        // the network response carries only ids and counts
+        function get_author_publications(author, coauthor, header) {
+            const years = get_year_filter();
+            let url = "/gw/index.py?action=get_author_publications&author=" + encodeURIComponent(author)
+                + "&year_from=" + years.from + "&year_to=" + years.to + "&response_type=json";
+            if (coauthor) {
+                url += "&coauthor=" + encodeURIComponent(coauthor);
+            }
+            fetch_publications(url, header);
+        }
+
+        function fetch_publications(url, header) {
+            fetch(url + "&datetime=" + new Date().toISOString()).then(response =>
             {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();

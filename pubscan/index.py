@@ -176,6 +176,7 @@ class TableClass():
         "get_update_date": ("get_update_date", False),
         "get_author_network": ("get_author_network", True),
         "get_publications": ("get_publications", True),
+        "get_author_publications": ("get_author_publications", True),
         "author_suggest": ("author_suggest", True),
     }
 
@@ -438,7 +439,8 @@ class TableClass():
                 if len(author_pmids[author_orcid])>100:
                     author_group = "g3"
                 node_size = 20
-                author_rec = { "id": author_orcid, "label": author_name, "group": author_group, "size": node_size, "pmids":",".join(author_pmids[author_orcid])};
+                # no PMID list in the node: the client fetches publications on click (get_author_publications)
+                author_rec = { "id": author_orcid, "label": author_name, "group": author_group, "size": node_size, "n": len(author_pmids[author_orcid])};
                 db_authors[author_orcid] = author_name
                 if author_orcid not in authors:
                     nodes_all.append(author_rec)
@@ -451,7 +453,7 @@ class TableClass():
             author_pmids[center_id] = center_kept
             for node in nodes_all:
                 if node["id"] == center_id:
-                    node["pmids"] = ",".join(center_kept)
+                    node["n"] = len(center_kept)
 
         authors = set()
         nodes_all_filtered = []
@@ -535,7 +537,7 @@ class TableClass():
         for a1, a2, common in pair_common:
             num_common = len(common)
             edge_width = min(num_common, 15)
-            edge_rec = {"from":a1, "to":a2, "from_label":db_authors[a1], "to_label":db_authors[a2], "width": edge_width, "label": f"{num_common}", "common": num_common, "pmids":",".join(common), "color": {"color": '#f5f5f5', "highlight": '#FAA0A0'} }
+            edge_rec = {"from":a1, "to":a2, "width": edge_width, "label": f"{num_common}", "common": num_common}
             edges_all.append(edge_rec)
 
         yield progress("keeping all edges to centre + 100 others most heavy + sampling randomly others to reach max edges")
@@ -570,6 +572,45 @@ class TableClass():
         author_sets.clear()
         gc.collect()
         malloc_trim()
+
+    def get_author_publications(self):
+        """Publications of one author (author=ORCID) or shared by two (author + coauthor), with the
+        optional year filter; same response format as get_publications. Called when a node or an edge
+        is clicked, so the network response does not have to carry every PMID list."""
+        author = self.parse_orcid("author")
+        coauthor = self.parse_orcid("coauthor") if self.pars.get("coauthor", "") else None
+        year_from = self.parse_year("year_from")
+        year_to = self.parse_year("year_to")
+        if year_from is not None and year_to is not None and year_from > year_to:
+            year_from, year_to = year_to, year_from
+        return self.author_publications_body(author, coauthor, year_from, year_to)
+
+    def parse_orcid(self, key):
+        value = sanitize_value(unidecode(self.pars.get(key, "")[:MAX_AUTHOR_LENGTH])).upper()
+        if not ORCID_RE.match(value):
+            raise BadRequest(f"{key} must be an ORCID iD")
+        return value
+
+    def author_publications_body(self, author, coauthor, year_from, year_to):
+        _, _, pmids = self.author_pmids(author) # newest first, at most MAX_PMIDS_PER_AUTHOR
+        if coauthor is not None:
+            _, _, other = self.author_pmids(coauthor)
+            other = set(other)
+            pmids = [p for p in pmids if p in other] # same intersection as the edge weight in the network
+        publications = self.data_pmids([int(p) for p in pmids])
+        if year_from is not None or year_to is not None:
+            def inside(year):
+                if year is None:
+                    return False
+                if year_from is not None and year < year_from:
+                    return False
+                if year_to is not None and year > year_to:
+                    return False
+                return True
+            publications = {k: v for k, v in publications.items() if inside(v["pub_year"])}
+            if coauthor is None: # the center node of a filtered network keeps at most 200 publications
+                publications = dict(list(publications.items())[:200])
+        yield self.return_string(json.dumps(publications)+"\n")
 
     def get_publications(self):
         raw = self.pars.get("pmids", "")

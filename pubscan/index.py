@@ -24,6 +24,10 @@ from difflib import SequenceMatcher
 from unidecode import unidecode
 import ctypes
 import ctypes.util
+try:
+    from pubscan import graph as graph_module
+except ImportError: # running outside the package (tests): same folder
+    import graph as graph_module
 
 def malloc_trim():
     try:
@@ -53,6 +57,10 @@ CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 # Dockerfile env vars
 DB = os.environ.get("pubscan_DB")
 DB_names = os.environ.get("pubscan_DB_names")
+# memory-mapped graph built by openalex/db_graph.py from the same pubscan.db (default: <db folder>/graph);
+# when the files are missing every lookup goes to SQLite instead
+GRAPH_DIR = os.environ.get("pubscan_GRAPH") or (os.path.join(os.path.dirname(DB), "graph") if DB else None)
+GRAPH = graph_module.load(GRAPH_DIR)
 
 random.seed(42)
 
@@ -366,7 +374,137 @@ class TableClass():
         if year_from is not None and year_to is not None and year_from > year_to:
             year_from, year_to = year_to, year_from
         self.logme(f"pubscan search: {search}")
+        if GRAPH is not None:
+            return self.author_network_graph(search, orcid, year_from, year_to)
         return self.author_network(search, orcid, year_from, year_to)
+
+    def author_network_graph(self, search, center_id, year_from, year_to):
+        """Same algorithm and output as author_network, reading the memory-mapped graph instead of SQLite:
+        PMID lists are int32 slices (newest first), paper author lists are id slices in paper order,
+        names come from the name blob and years from the per-PMID year array."""
+        G = GRAPH
+        year_filter = year_from is not None or year_to is not None
+        def year_ok(year):
+            if not isinstance(year, int):
+                return False
+            if year_from is not None and year < year_from:
+                return False
+            if year_to is not None and year > year_to:
+                return False
+            return True
+        year_label = f"{year_from or ''}-{year_to or ''}"
+
+        def progress(description):
+            return self.return_string(json.dumps({"instruction": "progress", "description": description}) + "\n")
+
+        yield progress(f"download publications PMIDs for {search}")
+
+        center = G.lookup(center_id) if center_id is not None else None
+        if center is None:
+            if center_id is None:
+                yield progress("the search must end with an ORCID iD (select an author from the suggestions)")
+            else:
+                yield progress(f"found 0 publications for {center_id}")
+            yield self.return_string(json.dumps({"nodes_all": [], "edges_all": [], "instruction": "data"}) + "\n")
+            return
+
+        center_id = G.orcid(center) # stored spelling of the ORCID becomes the center id
+        center_pmids = G.pmids(center)[:MAX_PMIDS_PER_AUTHOR].tolist()
+        if not year_filter:
+            center_pmids = center_pmids[:200] # maximum 200 publications for center
+
+        yield progress(f"found {len(center_pmids)} publications for {center_id}")
+
+        capped = {}   # author id -> capped PMID list (newest first), as the SQLite path's author_pmids
+        order = []    # author ids in order of first appearance
+        center_kept = []
+        for index, pmid in enumerate(center_pmids):
+            if len(center_kept) >= 200:
+                break
+            if index % 20 == 0:
+                yield progress(f"obtaining authors for PMID {pmid} ({int(index/len(center_pmids)*100)} % done)")
+            if not G.has_publication(pmid):
+                continue
+            if year_filter and not year_ok(G.year(pmid)):
+                continue
+            center_kept.append(pmid)
+            for aid in G.authors(pmid).tolist():
+                if aid not in capped:
+                    capped[aid] = G.pmids(aid)[:MAX_PMIDS_PER_AUTHOR].tolist()
+                    order.append(aid)
+
+        group_len = {} # the group colour is assigned from the unfiltered list (as the SQLite path does), n from the filtered one
+        if year_filter:
+            yield progress(f"year filter {year_label}: {len(center_kept)} of {len(center_pmids)} center publications kept")
+            if center in capped:
+                group_len[center] = len(capped[center])
+                capped[center] = center_kept
+
+        authors = [aid for aid in order if len(capped[aid]) >= 1]
+
+        yield progress(f"generating network with {len(authors)} authors")
+
+        author_sets = {aid: set(capped[aid]) for aid in authors}
+        center_set = author_sets.get(center, set())
+        nodes_cdegree = {}
+        for aid in authors:
+            if aid == center:
+                continue
+            num_common = len(center_set & author_sets[aid])
+            if num_common > 0:
+                nodes_cdegree[aid] = num_common
+                nodes_cdegree[center] = max(num_common, nodes_cdegree.get(center, 0))
+
+        yield progress("sorting nodes by common publications with center [descending]")
+        temp_sorted = sorted(((nodes_cdegree.get(aid, 0), aid) for aid in authors), key=lambda x: x[0], reverse=True)
+
+        yield progress(f"keeping {max_nodes} most connected nodes to center")
+        kept = []
+        for degree, aid in temp_sorted:
+            if len(kept) < max_nodes and degree > 0:
+                kept.append(aid)
+
+        def node_rec(aid):
+            n = len(capped[aid])
+            g = group_len.get(aid, n)
+            group = "g3" if g > 100 else "g2" if g > 50 else "g1" if g > 10 else "g0"
+            return {"id": G.orcid(aid), "label": G.name(aid), "group": group, "size": 20, "n": n}
+        nodes_all = [node_rec(aid) for aid in kept]
+
+        pair_common = []
+        for a1, a2 in combinations(kept, 2):
+            common = author_sets[a1] & author_sets[a2]
+            if len(common) > 0:
+                pair_common.append((a1, a2, common))
+
+        if year_filter and pair_common:
+            yield progress(f"year filter {year_label}: applying it to the co-author publications")
+            filtered = []
+            for a1, a2, common in pair_common:
+                common = {p for p in common if year_ok(G.year(p))}
+                if common:
+                    filtered.append((a1, a2, common))
+            pair_common = filtered
+
+        edges_all = []
+        for a1, a2, common in pair_common:
+            num_common = len(common)
+            edges_all.append({"from": G.orcid(a1), "to": G.orcid(a2), "width": min(num_common, 15), "label": f"{num_common}", "common": num_common})
+
+        yield progress("keeping all edges to centre + 100 others most heavy + sampling randomly others to reach max edges")
+
+        if len(edges_all) > max_edges:
+            edges_A = [e for e in edges_all if center_id in (e["from"], e["to"])]
+            edges_rest = [e for e in edges_all if center_id not in (e["from"], e["to"])]
+            edges_rest.sort(key=lambda x: x["common"], reverse=True)
+            edges_B = edges_rest[:100]
+            edges_all = edges_A + edges_B
+            edges_C = random.sample(edges_rest[100:], max(max_edges - len(edges_all), 0))
+            edges_all = edges_all + edges_C
+
+        yield progress("network construction on server complete, sending data over")
+        yield self.return_string(json.dumps({"nodes_all": nodes_all, "edges_all": edges_all, "instruction": "data"}) + "\n")
+        yield progress(f"{len(nodes_all)} author nodes and {len(edges_all)} co-author edges")
 
     def author_network(self, search, center_id, year_from, year_to):
         authors = set()
@@ -374,7 +512,7 @@ class TableClass():
 
         year_filter = year_from is not None or year_to is not None
         def year_ok(year):
-            if year is None: # unknown year: cannot be inside the range
+            if not isinstance(year, int): # unknown year (NULL or empty string): cannot be inside the range
                 return False
             if year_from is not None and year < year_from:
                 return False
@@ -591,13 +729,20 @@ class TableClass():
             raise BadRequest(f"{key} must be an ORCID iD")
         return value
 
+    def capped_pmids(self, orcid):
+        """Newest MAX_PMIDS_PER_AUTHOR PMIDs of an author as ints, from the graph or SQLite."""
+        if GRAPH is not None:
+            aid = GRAPH.lookup(orcid)
+            return GRAPH.pmids(aid)[:MAX_PMIDS_PER_AUTHOR].tolist() if aid is not None else []
+        _, _, pmids = self.author_pmids(orcid)
+        return [int(p) for p in pmids]
+
     def author_publications_body(self, author, coauthor, year_from, year_to):
-        _, _, pmids = self.author_pmids(author) # newest first, at most MAX_PMIDS_PER_AUTHOR
+        pmids = self.capped_pmids(author) # newest first, at most MAX_PMIDS_PER_AUTHOR
         if coauthor is not None:
-            _, _, other = self.author_pmids(coauthor)
-            other = set(other)
+            other = set(self.capped_pmids(coauthor))
             pmids = [p for p in pmids if p in other] # same intersection as the edge weight in the network
-        publications = self.data_pmids([int(p) for p in pmids])
+        publications = self.data_pmids(pmids)
         if year_from is not None or year_to is not None:
             def inside(year):
                 if year is None:
@@ -607,7 +752,7 @@ class TableClass():
                 if year_to is not None and year > year_to:
                     return False
                 return True
-            publications = {k: v for k, v in publications.items() if inside(v["pub_year"])}
+            publications = {k: v for k, v in publications.items() if isinstance(v["pub_year"], int) and inside(v["pub_year"])}
             if coauthor is None: # the center node of a filtered network keeps at most 200 publications
                 publications = dict(list(publications.items())[:200])
         yield self.return_string(json.dumps(publications)+"\n")

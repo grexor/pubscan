@@ -40,7 +40,7 @@ tail -f logs/error.log                                   # Python tracebacks fro
 The public site at pubscan.org is a host Apache reverse proxy to port 8008 (`dbase/apache/*.conf`); it needs no change
 when the container is rebuilt.
 
-## Databases
+## Databases and the graph files
 
 The container reads `db/pubscan.db` and `db/names.db` (paths set by `pubscan_DB` and `pubscan_DB_names` in the
 Dockerfile). The databases are built by `openalex/update.sh` into `openalex/`; copy the finished files into `db/`
@@ -87,3 +87,13 @@ The search box is public, so the backend treats every parameter as hostile (see 
 
 Not covered here: per-IP request rate limiting (use fail2ban or mod_qos on the host proxy if floods become a
 problem) and mounting the repository read-only inside the container.
+
+### db/graph/ (memory-mapped co-authorship graph)
+
+`openalex/db_graph.py pubscan.db graph` derives compact arrays from `pubscan.db` (about 1.7 GB: PMIDs per author,
+authors per PMID in paper order, ORCID table, names, years). The server memory-maps them from `db/graph/` (or the
+folder in `pubscan_GRAPH`) and builds networks from them instead of parsing PMID strings out of SQLite; without the
+folder it silently uses SQLite. The files must come from the same `pubscan.db` that is served (`meta.json` records the
+source), so rebuild them whenever the database changes: build into `db/graph.new`, then `mv db/graph db/graph.old &&
+mv db/graph.new db/graph` and restart the container so mod_wsgi reopens the files.
+

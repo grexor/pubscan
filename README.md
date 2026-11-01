@@ -40,3 +40,5 @@ An optional year range (from / to) restricts the network to publications of thos
 
 ## Love it? Want to support the project?
 Star it and spread the word :-) Thanks
+
+Questions, ideas or bug reports: open an issue on GitHub.

@@ -1,5 +1,5 @@
 <picture><img src="web/pubscan_logo.jpg" height="30"/></picture>
-# Welcome to pubScan v3!
+# Welcome to pubScan v3.3!
 
 A public instance of this platform is available at [https://pubscan.org](https://pubscan.org)
 
@@ -17,11 +17,22 @@ Other nodes are colored based on the number of publications for the author in Pu
 ## Are all co-authors shown?
 To keep the network readable and responsive, pubScan displays:
 
-* up to 150 co-authors (ranked by number of shared publications)
-* up to 2,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
+* up to 100 co-authors (ranked by number of shared publications)
+* up to 1,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
+
+An optional year range (from / to) restricts the network to publications of those years. Networks can be shared by URL:
+`https://pubscan.org/<Name>_<ORCID>` or simply `https://pubscan.org/<ORCID>`.
+
+## How it works
+* Data: the quarterly [OpenAlex](https://openalex.org) snapshot, reduced to publications with a PubMed id and authors with an ORCID iD (scripts in `openalex/`, see `openalex/update.sh`).
+* Storage: one SQLite file (`db/pubscan.db`, authors and publications) plus an FTS5 index of author names for the autocomplete (`db/names.db`).
+* Network construction: the server builds the co-authorship graph of the searched author from memory-mapped arrays (`db/graph/`, derived from the SQLite file by `openalex/db_graph.py`): PMIDs per author, authors per PMID, names and years. No database page has to be read to construct a network; SQLite is only used for publication titles when you click a node or an edge, and as a fallback when the graph files are absent.
+* Serving: Apache + mod_wsgi in a Docker container (`dbase/`, see `dbase/README.md` for build, restart and data swaps); the frontend is a single page using vis-network (`web/`).
 
 ## Changelog
 
+* 202611: v3.3, networks are built from an in-memory graph (memory-mapped arrays derived from the database, 1.6 GB instead of touching the 11.6 GB SQLite file; same results, 3x faster when warm and no disk seeks when cold); the network response no longer carries publication lists (publications are fetched when a node or an edge is clicked) and is gzip-compressed (a dense network shrinks from 830 KB to 9 KB on the wire, the browser no longer freezes while receiving it); security hardening of backend, frontend and deployment (query-string only API with explicit action table and input limits, no shell use, HTML escaping of author names and titles, per-client concurrency limits, one SQLite connection per worker thread); author names with any character work in URLs and labels; bare ORCID URLs; download scripts follow the new OpenAlex snapshot layout and refuse to sync against a missing release
+* 202610: v3.2, publication year filter (from / to), wider search box
 * 202610: v3.1, much faster network retrieval: co-author degree to the centre is computed first and the pairwise co-authorship step runs only on the 100 kept nodes (prolific authors: 10-13 s to under 1 s); database files are read into the page cache at container start to avoid slow cold-disk lookups; unused column dropped from the publications table (database 13.7 GB to 9.4 GB); fixed lookups for ORCIDs whose check digit is X
 * 202605: v3, switched from parsing PubMed records to OpenAlex formatted data, with only considering authors ORCID records to result in author name disambiguation
 * 202510: v2, Faster and simpler SQLite backend, mobile friendly

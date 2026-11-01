@@ -260,7 +260,7 @@ class TableClass():
                 network_limiter.release(self.ip)
 
     def version(self):
-        status_string = f"""pubscan v3.1 {datetime.datetime.now()}
+        status_string = f"""pubscan v3.3 {datetime.datetime.now()}
 """
         return [self.return_string(status_string)]
 

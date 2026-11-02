@@ -26,8 +26,10 @@ import ctypes
 import ctypes.util
 try:
     from pubscan import graph as graph_module
+    from pubscan import topics as topics_module
 except ImportError: # running outside the package (tests): same folder
     import graph as graph_module
+    import topics as topics_module
 
 def malloc_trim():
     try:
@@ -47,6 +49,9 @@ MAX_AUTHOR_LENGTH = 200          # "author" parameter ("Name ORCID")
 MAX_PMIDS_PER_AUTHOR = 300       # publications kept per author; a node or edge never carries more than this
 MAX_SUGGEST_LENGTH = 100         # "author_name" parameter
 MAX_SUGGEST_TOKENS = 8           # name/ORCID tokens used in the FTS prefix query
+MAX_TOPIC_AUTHORS = 100          # authors returned for one topic (topic_authors)
+SUGGEST_NAMES = 6                # name matches in the search box suggestions (4 when a topic matches as well)
+SUGGEST_TOPIC_AUTHORS = 5        # authors of the best matching topic in the search box suggestions
 MAX_CONCURRENT_NETWORKS = 6      # network builds running at the same time (server-wide)
 MAX_CONCURRENT_PER_IP = 2        # network builds running at the same time from one client address
 
@@ -61,6 +66,10 @@ DB_names = os.environ.get("pubscan_DB_names")
 # when the files are missing every lookup goes to SQLite instead
 GRAPH_DIR = os.environ.get("pubscan_GRAPH") or (os.path.join(os.path.dirname(DB), "graph") if DB else None)
 GRAPH = graph_module.load(GRAPH_DIR)
+# author-topic table built by openalex/db_topics.py on top of the graph (default: <db folder>/topics);
+# without it the topic search actions answer with an error, everything else is unaffected
+TOPICS_DIR = os.environ.get("pubscan_TOPICS") or (os.path.join(os.path.dirname(DB), "topics") if DB else None)
+TOPICS = topics_module.load(TOPICS_DIR) if GRAPH is not None else None
 
 random.seed(42)
 
@@ -186,6 +195,9 @@ class TableClass():
         "get_publications": ("get_publications", True),
         "get_author_publications": ("get_author_publications", True),
         "author_suggest": ("author_suggest", True),
+        "suggest": ("suggest", True),
+        "topic_suggest": ("topic_suggest", True),
+        "topic_authors": ("topic_authors", True),
     }
 
     def return_string(self, cont):
@@ -260,7 +272,7 @@ class TableClass():
                 network_limiter.release(self.ip)
 
     def version(self):
-        status_string = f"""pubscan v3.3 {datetime.datetime.now()}
+        status_string = f"""pubscan v3.4 {datetime.datetime.now()}
 """
         return [self.return_string(status_string)]
 
@@ -780,6 +792,10 @@ class TableClass():
         return self.suggest_body(query, " ".join(tokens))
 
     def suggest_body(self, query, author_name):
+        yield self.return_string(json.dumps(self.author_suggestions(query, author_name)))
+
+    def author_suggestions(self, query, author_name):
+        """Author names ("Name ORCID") matching the FTS prefix query, most promising first."""
         result = []
         if query:
             try:
@@ -792,7 +808,56 @@ class TableClass():
                 result = []
         result = sorted(result, key=lambda name: name_sort(name, author_name))[:20] # choose 20 most promising ones
         result = sorted(result, key=len) # shorter first
-        yield self.return_string(json.dumps(result))
+        return result
+
+    def suggest(self):
+        """Autocomplete of the search box: author names matching the typed text, and the authors publishing
+        most on the best matching topic/keyword: {"authors": ["Name ORCID", ...], "topic": term or null,
+        "topic_authors": [{"orcid", "name", "n", "year"}, ...]} (no topic when the topic table is absent)."""
+        text = self.pars.get("q", "")[:MAX_SUGGEST_LENGTH]
+        query, tokens = build_match_query(text)
+        authors = self.author_suggestions(query, " ".join(tokens))[:SUGGEST_NAMES]
+        topic, topic_authors = None, []
+        if TOPICS is not None:
+            terms = TOPICS.suggest(text, limit=1, max_tokens=MAX_SUGGEST_TOKENS)
+            if terms:
+                topic = terms[0]
+                authors = authors[:4]
+                ids, counts, years = TOPICS.authors(topic["term"])
+                topic_authors = [{"orcid": GRAPH.orcid(a), "name": GRAPH.name(a), "n": int(c), "year": int(y) if y > 0 else None}
+                                 for a, c, y in zip(ids[:SUGGEST_TOPIC_AUTHORS].tolist(), counts[:SUGGEST_TOPIC_AUTHORS].tolist(), years[:SUGGEST_TOPIC_AUTHORS].tolist())]
+        return [self.return_string(json.dumps({"authors": authors, "topic": topic, "topic_authors": topic_authors}))]
+
+    # ---- topic search: OpenAlex topics / subfields / keywords -> authors (openalex/db_topics.py)
+
+    def topic_suggest(self):
+        """Terms matching the typed text (word prefixes), for the topic autocomplete."""
+        if TOPICS is None:
+            raise BadRequest("topic search is not available on this server")
+        text = self.pars.get("topic", "")[:MAX_SUGGEST_LENGTH]
+        return [self.return_string(json.dumps(TOPICS.suggest(text, limit=20, max_tokens=MAX_SUGGEST_TOKENS)))]
+
+    def topic_authors(self):
+        """Authors publishing on one term (term=<id> from topic_suggest), most publications first:
+        {"term": {...}, "authors": [{"orcid", "name", "n", "year"}, ...]}. year_from keeps only authors
+        whose newest publication on the term is from that year or later."""
+        if TOPICS is None:
+            raise BadRequest("topic search is not available on this server")
+        value = self.pars.get("term", "")
+        if not value.isdigit() or not TOPICS.valid_term(int(value)):
+            raise BadRequest("term must be a term id from topic_suggest")
+        term = int(value)
+        year_from = self.parse_year("year_from")
+        self.logme(f"pubscan topic: {TOPICS.terms[term]['name']} ({term}) year_from={year_from}")
+        ids, counts, years = TOPICS.authors(term)
+        if year_from is not None:
+            keep = years >= year_from                 # keeps the count order (boolean mask)
+            ids, counts, years = ids[keep], counts[keep], years[keep]
+        n_total = int(ids.shape[0])
+        ids, counts, years = ids[:MAX_TOPIC_AUTHORS].tolist(), counts[:MAX_TOPIC_AUTHORS].tolist(), years[:MAX_TOPIC_AUTHORS].tolist()
+        authors = [{"orcid": GRAPH.orcid(a), "name": GRAPH.name(a), "n": int(c), "year": int(y) if y > 0 else None}
+                   for a, c, y in zip(ids, counts, years)]
+        return [self.return_string(json.dumps({"term": TOPICS.term_record(term), "n_total": n_total, "authors": authors}) + "\n")]
 
 def application(environ, start_response):
     return iter(TableClass(environ, start_response))

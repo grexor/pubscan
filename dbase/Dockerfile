@@ -39,7 +39,7 @@ CMD bash -c '\
         /var/www/site/dbase/venv/bin/pip install -e /var/www/site/pubscan; \
     fi; \
     # Warm the OS page cache with the SQLite databases (HDD seeks make cold lookups slow) \
-    (cat /var/www/site/db/*.db /var/www/site/db/graph/*.npy > /dev/null 2>&1 &); \
+    (cat /var/www/site/db/*.db /var/www/site/db/graph/*.npy /var/www/site/db/topics/*.npy > /dev/null 2>&1 &); \
     echo "docker server apache+mod_wsgi is running"; \
     # Start Apache in foreground \
     apache2ctl -D FOREGROUND' \

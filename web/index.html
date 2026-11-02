@@ -1,6 +1,7 @@
 <html>
 
 <head>
+    <base href="/"> <!-- the page is also served under /topic/<name>: relative asset paths must stay at the root -->
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-76DD8WBGLJ"></script>
     <script>
@@ -94,7 +95,7 @@
         
         <div style="text-align: left; padding: 2px; z-index: 1000;">
             <div id="div_search_input" style="padding-left: 0px; z-index: 1000; position: relative;">
-                <input id="autoComplete" placeholder="Type author name..."/>
+                <input id="autoComplete" placeholder="Author name or topic..."/>
                 <button id="btnm_clear" class="hidden" style="position: absolute; right: 23px; top: 9px; cursor: pointer; color: #aaa; font-size: 14px;">
                     <i class="fas fa-times"></i>
                 </button>
@@ -687,6 +688,7 @@
         function get_author_network(query) {
             hide_splash();
             hide_center_info();
+            hide_topics();
             ac_tooltip.hide();
 
             const orcid = query.split(" ").at(-1);
@@ -820,7 +822,7 @@
 
     const autoCompleteJS = new autoComplete({
     selector: "#autoComplete",
-    placeHolder: "Search for author...",
+    placeHolder: "Author name or topic...",
     data: {
         src: async (query) => {
             if (suppressSuggestions) {
@@ -840,12 +842,11 @@
             const autocomplete_signal = autocompleteAbortController.signal;
 
             try {
-                const query_lower = encodeURIComponent(query.toLowerCase());
                 const response = await fetch(
-                    `/gw/index.py?action=author_suggest&author_name=${query_lower}`,
+                    `/gw/index.py?action=suggest&q=${encodeURIComponent(query)}`,
                     { signal: autocomplete_signal }
                 );
-                return await response.json();
+                return suggestion_items(await response.json());
             } catch (err) {
                 if (err.name === 'AbortError') {
                     return [];
@@ -855,32 +856,97 @@
                 }
             }
         },
+        keys: ["label"],
         cache: false
     },
     threshold: 2,
     debounce: 100,
     searchEngine: (query, record) => {
-        return esc(record); // autoComplete.js inserts the returned string as HTML
+        return esc(record); // every server suggestion is kept; autoComplete.js inserts the returned string as HTML
     },
     resultItem: {
-        highlight: true
+        highlight: false,
+        element: (item, data) => {
+            const rec = data.value;
+            if (rec.type === "topic") {
+                item.classList.add("ac_topic");
+                item.innerHTML = '<i class="fas fa-tags"></i>' + esc(rec.term.name) + '<span class="ac_meta">' + esc(topic_kind_label(rec.term)) + ' · '
+                    + format_count(rec.term.n_pubs) + ' publications · show the top authors</span>';
+            } else if (rec.type === "topic_author") {
+                item.classList.add("ac_topic_author");
+                item.innerHTML = esc(rec.label) + '<span class="ac_meta">' + format_count(rec.n) + (rec.n === 1 ? ' publication' : ' publications') + ' on it</span>';
+            } else {
+                item.innerHTML = esc(rec.label);
+            }
+        }
     },
     resultsList: {
-        maxResults: 6
+        maxResults: 12
     },
     events: {
         input: {
             selection: (event) => {
-                const selection = event.detail.selection.value;
-                document.querySelector("#autoComplete").value = selection;
-                $('#mynetwork').focus();
-                get_author_network(selection);
+                const rec = event.detail.selection.value;
                 autoCompleteJS.close();
+                if (rec.type === "topic") {
+                    document.querySelector("#autoComplete").value = rec.term.name;
+                    update_clear_button();
+                    show_topic_authors(rec.term);
+                    return;
+                }
+                document.querySelector("#autoComplete").value = rec.label;
+                $('#mynetwork').focus();
+                get_author_network(rec.label);
                 $('#mynetwork').focus();
             }
         }
     }
     });
+
+    // server answer {"authors": ["Name ORCID", ...], "topic": term|null, "topic_authors": [{orcid, name, n, year}, ...]}
+    // -> one list: name matches, then the topic itself (opens the ranked author list) and its top authors
+    function suggestion_items(data) {
+        const names = [], topic = [];
+        for (const name of (data && data.authors) || []) names.push({ type: "author", label: name });
+        if (data && data.topic) {
+            topic.push({ type: "topic", label: data.topic.name, term: data.topic });
+            for (const a of data.topic_authors || []) topic.push({ type: "topic_author", label: (a.name || a.orcid) + " " + a.orcid, n: a.n, year: a.year });
+        }
+        // the topic and its top authors come first, then the names that happen to match
+        return topic.concat(names);
+    }
+
+    function topic_kind_label(term) {
+        if (term.kind === "topic") return "topic in " + (term.subfield || term.field || "OpenAlex");
+        if (term.kind === "subfield") return "subfield of " + (term.field || "OpenAlex");
+        return "keyword";
+    }
+
+    function format_count(n) {
+        return Number(n).toLocaleString("en-US");
+    }
+
+    // Enter in the search box: "Name ORCID" opens the network as before; other text shows the ranked authors of the
+    // matching topic, or opens the network of the first matching name
+    function search_text(value) {
+        if (/\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$/.test(value) || value.length < 2) {
+            get_author_network(value);
+            return;
+        }
+        fetch("/gw/index.py?action=suggest&q=" + encodeURIComponent(value)).then(r => r.json()).then(data => {
+            if (data.topic) {
+                document.querySelector("#autoComplete").value = data.topic.name;
+                update_clear_button();
+                show_topic_authors(data.topic);
+            } else if (data.authors && data.authors.length > 0) {
+                document.querySelector("#autoComplete").value = data.authors[0];
+                update_clear_button();
+                get_author_network(data.authors[0]);
+            } else {
+                get_author_network(value); // shows "No results found"
+            }
+        }).catch(() => get_author_network(value));
+    }
 
     const ac_search_nodes_js = new autoComplete({
     selector: "#ac_search_nodes",
@@ -932,8 +998,8 @@
         if (e.key === "Enter") {
             suppressSuggestions = true;
             autoCompleteJS.close();        
-            const value = e.target.value;
-            get_author_network(value);
+            const value = e.target.value.trim();
+            search_text(value);
             $('#mynetwork').focus();
             e.preventDefault();
         } else {
@@ -1003,6 +1069,41 @@
         color: #ff8b8b;
     }
 
+
+    /* suggestion list: author name matches, then the best matching topic / keyword and its top authors */
+    .autoComplete_wrapper > ul > li .ac_meta { color: #999999; font-size: 12px; margin-left: 6px; }
+    .autoComplete_wrapper > ul > li.ac_topic { color: #4d7aa8; }
+    .autoComplete_wrapper > ul > li.ac_topic:not(:first-child) { border-top: 1px solid #eeeeee; margin-top: 0.4rem; padding-top: 0.5rem; }
+    .autoComplete_wrapper > ul > li.ac_topic_author + li:not(.ac_topic_author) { border-top: 1px solid #eeeeee; margin-top: 0.4rem; padding-top: 0.5rem; }
+    .autoComplete_wrapper > ul > li.ac_topic i { margin-right: 6px; }
+    .autoComplete_wrapper > ul > li.ac_topic_author { padding-left: 1.6rem; }
+    #div_search_input .autoComplete_wrapper > ul { width: 540px; right: auto; }
+    body.mobile #div_search_input .autoComplete_wrapper > ul { width: auto; right: 0; }
+
+    /* topic results: the authors publishing most on a topic, shown in the network area */
+    .topics_view {   /* same box as #mynetwork (top adjusted at runtime like the network's) */
+        position: fixed; left: 0; right: 0; top: 90px; bottom: 50px; z-index: 12;
+        background-color: #fafafa; overflow-y: auto;
+        font-family: 'Source Sans Pro', sans-serif; color: #666666; font-size: 14px;
+    }
+    .topics_inner { max-width: 900px; width: 92%; margin: 0 auto; padding: 14px 0 30px 0; }
+    .topics_head { font-size: 18px; color: #a63f3b; display: flex; align-items: baseline; }
+    .topics_head .topics_close { margin-left: auto; color: #aaaaaa; cursor: pointer; font-size: 15px; text-decoration: none; }
+    .topics_head .topics_close:hover { color: #525252; }
+    .topics_kind { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 8px; background: #eef3f8; color: #4d7aa8; margin-left: 8px; vertical-align: middle; }
+    .topics_sub { padding: 6px 0 10px 0; color: #888888; font-size: 13px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
+    .topics_since { white-space: nowrap; }
+    .topics_since input { width: 52px; height: 22px; font-size: 13px; padding: 0 6px; border: 1px solid #cccccc; border-radius: 6px; color: #555555; background: #ffffff; }
+    .topics_view table { border-collapse: collapse; width: 100%; background: #ffffff; border: 1px solid #eeeeee; }
+    .topics_view th { text-align: left; font-weight: normal; font-size: 12px; color: #aaaaaa; padding: 6px 8px; border-bottom: 1px solid #eeeeee; }
+    .topics_view td { padding: 4px 8px; border-bottom: 1px solid #f3f3f3; vertical-align: top; white-space: nowrap; }
+    .topics_view td.num { text-align: right; color: #888888; }
+    .topics_view a { color: #4d9aff; text-decoration: none; }
+    .topics_view a:hover { color: #0041a8; }
+    .topics_view .topics_orcid { color: #aaaaaa; font-size: 12px; }
+    .topics_hint { padding: 10px 0 0 0; color: #9a9a9a; font-size: 13px; }
+    body.mobile .topics_view td.topics_orcid, body.mobile .topics_view th:nth-child(3) { display: none; }
+    body.mobile .topics_view td { white-space: normal; }
 </style>
 
 <script>
@@ -1120,6 +1221,16 @@
         }
 
         const path = window.location.pathname;
+        const topic_match = path.match(/^\/topic\/([^/]+)\/?$/);
+        if (topic_match) {
+            let name = topic_match[1];
+            try { name = decodeURIComponent(name); } catch (e) {}
+            const url_params = new URLSearchParams(window.location.search);
+            handling_popstate = true; // the URL is already the right one: replace it instead of pushing a copy
+            window.history.replaceState({"topic": name.replace(/_/g, " "), "since": url_params.get("since") || ""}, '', window.location.pathname + window.location.search);
+            open_topic_by_name(name.replace(/_/g, " "), url_params.get("since"));
+            return;
+        }
         const centerRaw = path.split("/").filter(Boolean).pop();
         if (centerRaw) {
             let center = centerRaw;
@@ -1163,6 +1274,20 @@ function swap_pub_mobile() {
     Here information on authors publications is provided when you click on a node (author) or on an edge between authors (joint publications).
 </div>
 
+<div id="div_topics" class="topics_view hidden">
+    <div class="topics_inner">
+        <div class="topics_head"><span id="topics_title"></span>
+            <a class="topics_close" href="javascript:hide_topics();" title="Close"><i class="fas fa-times"></i></a>
+        </div>
+        <div class="topics_sub"><span id="topics_summary"></span>
+            <span class="topics_since" title="Only authors whose newest publication on the topic is from this year or later">active since
+                <input id="topic_year_from" placeholder="year" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="active since year"></span>
+        </div>
+        <div id="div_topics_results"></div>
+        <div class="topics_hint">Authors are ranked by their number of PubMed publications tagged with this OpenAlex topic or keyword. Click a name to open the co-authorship network.</div>
+    </div>
+</div>
+
 <div id="div_splash" class="splash_div">
     <div style="max-width: 900px; width: 90%; text-align: left; margin: 0 auto; word-wrap: break-word;">
         <div style='font-size: 18px; padding-top: 10px; color: #a63f3b;'>
@@ -1180,6 +1305,7 @@ function swap_pub_mobile() {
         </div>
         <div style='font-size: 16px; color: #9a9a9a'>
             The author you search for in the input box (top-left) will appear at the center of the network, highlighted in red <div style="width:10px; height:10px; background:red; border-radius:50%; display:inline-block;"></div>.
+            The box also takes a research topic or keyword (e.g. <i>RNA splicing</i>): choose the topic from the suggestions to see the authors publishing most on it.
             <br>Other nodes are colored based on the number of publications for the author in PubMed:
             <br><div style="width:10px; height:10px; background:#EBF2F6; border-radius:50%; display:inline-block;"></div> &lt; 10 publications,
             <div style="width:10px; height:10px; background:#C6D6E2; border-radius:50%; display:inline-block;"></div> 10-50 publications,
@@ -1223,8 +1349,118 @@ function swap_pub_mobile() {
 
 <script>
 
+    // ---- topic results view: authors ranked by publications on an OpenAlex topic / keyword (action topic_authors) ----
+
+    let topic_current = null;            // term object shown in the view
+    let topic_abort = null;              // pending topic_authors request
+
+    function topic_year_from() {
+        const value = document.getElementById("topic_year_from").value.trim();
+        return /^\d{4}$/.test(value) ? value : "";
+    }
+
+    function hide_topics() {
+        document.getElementById("div_topics").classList.add("hidden");
+    }
+
+    // shareable URL of a topic list: /topic/<name with _ for spaces>[?since=<year>]
+    function topic_url(name, since) {
+        return "/topic/" + encodeURIComponent(name.replace(/ /g, "_")) + (since ? "?since=" + encodeURIComponent(since) : "");
+    }
+
+    // open the list for a term given by name (the URL form): the term spelled exactly like that, otherwise the best match
+    function open_topic_by_name(name, since) {
+        document.getElementById("topic_year_from").value = /^\d{4}$/.test(since || "") ? since : "";
+        fetch("/gw/index.py?action=topic_suggest&topic=" + encodeURIComponent(name)).then(r => r.json()).then(terms => {
+            if (!Array.isArray(terms) || terms.length === 0) {
+                handling_popstate = false;
+                document.querySelector("#autoComplete").value = name;
+                update_clear_button();
+                show_center_info();
+                return;
+            }
+            const term = terms.find(t => t.exact) || terms[0];
+            document.querySelector("#autoComplete").value = term.name;
+            update_clear_button();
+            show_topic_authors(term);
+        }).catch(() => { handling_popstate = false; });
+    }
+
+    function show_topic_authors(term) {
+        hide_splash();
+        hide_center_info();
+        ac_tooltip.hide();
+        topic_current = term;
+        const view = document.getElementById("div_topics");
+        view.style.top = Math.round(document.getElementById("mynetwork").getBoundingClientRect().top) + "px";
+        document.getElementById("topics_title").innerHTML = esc(term.name) + '<span class="topics_kind">' + esc(topic_kind_label(term)) + '</span>';
+        document.getElementById("topics_summary").innerHTML = "loading authors...";
+        const results = document.getElementById("div_topics_results");
+        results.innerHTML = "";
+        view.classList.remove("hidden");
+        view.scrollTop = 0;
+        try { if (topic_abort) topic_abort.abort(); } catch (e) {}
+        topic_abort = new AbortController();
+        const url = "/gw/index.py?action=topic_authors&term=" + encodeURIComponent(term.term) + "&year_from=" + topic_year_from();
+        fetch(url, { signal: topic_abort.signal }).then(response => response.json()).then(data => {
+            if (topic_current !== term) return;      // a newer selection replaced this one
+            if (data.instruction === "error") {
+                document.getElementById("topics_summary").innerHTML = esc(data.description);
+                return;
+            }
+            const t = data.term;
+            const since = topic_year_from();
+            document.getElementById("topics_summary").innerHTML = format_count(t.n_pubs) + ' PubMed publications, ' + format_count(t.n_authors) + ' authors with an ORCID iD'
+                + (since ? '; ' + format_count(data.n_total) + ' of them with a publication on the topic since ' + esc(since) : '')
+                + (data.authors.length < data.n_total ? '; showing the top ' + data.authors.length : '');
+            if (data.authors.length === 0) {
+                results.innerHTML = '<div class="topics_hint">No authors found.</div>';
+                return;
+            }
+            let html = '<table><tr><th>#</th><th>Author</th><th>ORCID iD</th><th style="text-align: right">Publications</th><th style="text-align: right">Latest</th></tr>';
+            data.authors.forEach((a, i) => {
+                const query = (a.name || a.orcid) + " " + a.orcid;
+                html += '<tr><td class="num">' + (i + 1) + '</td>'
+                    + '<td><a href="javascript:void(0)" class="topics_author" data-query="' + esc(query) + '">' + esc(a.name || a.orcid) + '</a></td>'
+                    + '<td class="topics_orcid">' + esc(a.orcid) + '</td>'
+                    + '<td class="num">' + format_count(a.n) + '</td><td class="num">' + (a.year ? esc(String(a.year)) : "") + '</td></tr>';
+            });
+            results.innerHTML = html + '</table>';
+            document.getElementById("div_graph_title").innerHTML = "Top authors for: <b>" + esc(t.name) + "</b>" + (since ? " (active since " + esc(since) + ")" : "");
+            if (!handling_popstate) {
+                window.history.pushState({"topic": t.name, "since": since}, '', topic_url(t.name, since));
+            }
+            handling_popstate = false;
+        }).catch(error => {
+            if (error.name !== "AbortError" && topic_current === term) {
+                document.getElementById("topics_summary").innerHTML = 'Could not load the authors (' + esc(String(error)) + ').';
+            }
+        });
+    }
+
+    document.getElementById("div_topics_results").addEventListener("click", function (e) {
+        const link = e.target.closest("a.topics_author");
+        if (!link) return;
+        e.preventDefault();
+        const query = link.getAttribute("data-query");
+        suppressSuggestions = true;
+        document.querySelector("#autoComplete").value = query;
+        update_clear_button();
+        get_author_network(query);
+        $('#mynetwork').focus();
+    });
+
+    document.getElementById("topic_year_from").addEventListener("change", function () {
+        if (topic_current) show_topic_authors(topic_current);
+    });
+
     // Listen to back/forward navigation
     window.addEventListener('popstate', function (event) {
+    if (event.state && event.state.topic) {
+        handling_popstate = true;
+        open_topic_by_name(event.state.topic, event.state.since);
+        return;
+    }
     if (!event.state || !event.state.search) {
         return;
     }

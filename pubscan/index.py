@@ -885,6 +885,7 @@ class TableClass():
             if kind and rec["kind"] != kind:
                 continue
             result.append({"term": t, "name": rec["name"], "kind": rec["kind"], "subfield": rec["subfield"], "n": int(c), "year": int(y) if y > 0 else None})
+        result.sort(key=lambda r: (-r["n"], -(r["year"] or 0)))   # most publications first, newest first among equals
         n_total = len(result)
         return [self.return_string(json.dumps({"author": {"orcid": GRAPH.orcid(aid), "name": GRAPH.name(aid)}, "n_total": n_total, "topics": result[:MAX_AUTHOR_TOPICS]}) + "\n")]
 

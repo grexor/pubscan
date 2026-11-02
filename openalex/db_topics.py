@@ -35,8 +35,8 @@ import numpy as np
 
 
 def write_author_layout(out_dir, term_ids, author_ids, counts, years, n_authors):
-    """The same pairs ordered by author, strongest term first: an author's terms are one slice."""
-    order = np.lexsort((-counts.astype(np.int32), author_ids))
+    """The same pairs ordered by author, strongest term first (newest first among equals): an author's terms are one slice."""
+    order = np.lexsort((-years.astype(np.int32), -counts.astype(np.int32), author_ids))
     author_off = np.zeros(n_authors + 1, dtype=np.int64)
     author_off[1:] = np.cumsum(np.bincount(author_ids, minlength=n_authors), dtype=np.int64)
     np.save(os.path.join(out_dir, "author_off.npy"), author_off)

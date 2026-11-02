@@ -22,12 +22,17 @@ def words(text):
 class Topics:
 
     FILES = ("term_off", "term_authors", "term_counts", "term_years")
+    AUTHOR_FILES = ("author_off", "author_terms", "author_counts", "author_years")   # the same pairs by author (optional)
 
     def __init__(self, folder):
         self.folder = folder
         for name in self.FILES:
             setattr(self, name, np.load(os.path.join(folder, name + ".npy"), mmap_mode="r"))
         self.meta = json.load(open(os.path.join(folder, "meta.json")))
+        self.has_author_layout = all(os.path.isfile(os.path.join(folder, name + ".npy")) for name in self.AUTHOR_FILES)
+        if self.has_author_layout:
+            for name in self.AUTHOR_FILES:
+                setattr(self, name, np.load(os.path.join(folder, name + ".npy"), mmap_mode="r"))
         self.terms = json.load(open(os.path.join(folder, "terms.json"), encoding="utf-8"))
         self.n_terms = len(self.terms)
         # word -> term ids, and the sorted word list for prefix ranges
@@ -87,6 +92,15 @@ class Topics:
         """(author ids, publication counts, newest years) of term t, strongest author first (views)."""
         lo, hi = int(self.term_off[t]), int(self.term_off[t + 1])
         return self.term_authors[lo:hi], self.term_counts[lo:hi], self.term_years[lo:hi]
+
+    # ---- terms of an author
+    def author_terms_of(self, a):
+        """(term ids, publication counts, newest years) of author a, strongest term first (views);
+        empty when the author layout was not built."""
+        if not self.has_author_layout or not (0 <= a < self.author_off.shape[0] - 1):
+            return self.term_authors[0:0], self.term_counts[0:0], self.term_years[0:0]
+        lo, hi = int(self.author_off[a]), int(self.author_off[a + 1])
+        return self.author_terms[lo:hi], self.author_counts[lo:hi], self.author_years[lo:hi]
 
 
 def load(folder):

@@ -102,7 +102,9 @@ mv db/graph.new db/graph` and restart the container so mod_wsgi reopens the file
 `openalex/3_publications.py` also writes `topics.tab.gz` (the OpenAlex topics and keywords of every PubMed work) and
 `topics_vocab.tab.gz` (the topic taxonomy). `openalex/db_topics.py topics.tab.gz topics_vocab.tab.gz graph topics`
 aggregates them per author: for every term (topic, subfield or keyword with score >= 0.5) the authors with their
-number of publications on it, strongest first, plus the vocabulary (`terms.json`). The server memory-maps the folder
+number of publications on it, strongest first, the same pairs ordered by author (`author_*.npy`, for the Topics
+panel of a network; `db_topics.py --author-layout <folder>` derives them from an existing table), plus the
+vocabulary (`terms.json`). The server memory-maps the folder
 `db/topics/` (or `pubscan_TOPICS`) for the actions `suggest` (topic part), `topic_suggest` and `topic_authors`; without it the search box only
 suggests names and `topic_authors` answers with an error, everything else works. Author ids refer to `db/graph/orcids.npy`, so
 rebuild the table together with the graph (`db/topics.new`, swap, restart), never with a graph from another build.

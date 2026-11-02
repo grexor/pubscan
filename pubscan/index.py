@@ -50,6 +50,7 @@ MAX_PMIDS_PER_AUTHOR = 300       # publications kept per author; a node or edge 
 MAX_SUGGEST_LENGTH = 100         # "author_name" parameter
 MAX_SUGGEST_TOKENS = 8           # name/ORCID tokens used in the FTS prefix query
 MAX_TOPIC_AUTHORS = 100          # authors returned for one topic (topic_authors)
+MAX_AUTHOR_TOPICS = 100          # terms returned for one author (author_topics)
 SUGGEST_NAMES = 6                # name matches in the search box suggestions (4 when a topic matches as well)
 SUGGEST_TOPIC_AUTHORS = 5        # authors of the best matching topic in the search box suggestions
 MAX_CONCURRENT_NETWORKS = 6      # network builds running at the same time (server-wide)
@@ -198,6 +199,7 @@ class TableClass():
         "suggest": ("suggest", True),
         "topic_suggest": ("topic_suggest", True),
         "topic_authors": ("topic_authors", True),
+        "author_topics": ("author_topics", True),
     }
 
     def return_string(self, cont):
@@ -858,6 +860,33 @@ class TableClass():
         authors = [{"orcid": GRAPH.orcid(a), "name": GRAPH.name(a), "n": int(c), "year": int(y) if y > 0 else None}
                    for a, c, y in zip(ids, counts, years)]
         return [self.return_string(json.dumps({"term": TOPICS.term_record(term), "n_total": n_total, "authors": authors}) + "\n")]
+
+    def author_topics(self):
+        """The terms (topics, subfields, keywords) an author publishes on, most publications first:
+        {"author": {"orcid", "name"}, "n_total", "topics": [{"term", "name", "kind", "subfield", "n", "year"}, ...]}.
+        kind=topic|subfield|keyword restricts the kind; year_from keeps terms with a publication from that year on."""
+        if TOPICS is None or not TOPICS.has_author_layout:
+            raise BadRequest("topics per author are not available on this server")
+        orcid = self.parse_orcid("author")
+        kind = self.pars.get("kind", "")
+        if kind not in ("", "topic", "subfield", "keyword"):
+            raise BadRequest("kind must be topic, subfield or keyword")
+        year_from = self.parse_year("year_from")
+        aid = GRAPH.lookup(orcid)
+        if aid is None:
+            return [self.return_string(json.dumps({"author": {"orcid": orcid, "name": ""}, "n_total": 0, "topics": []}) + "\n")]
+        ids, counts, years = TOPICS.author_terms_of(aid)
+        if year_from is not None:
+            keep = years >= year_from
+            ids, counts, years = ids[keep], counts[keep], years[keep]
+        result = []
+        for t, c, y in zip(ids.tolist(), counts.tolist(), years.tolist()):
+            rec = TOPICS.terms[t]
+            if kind and rec["kind"] != kind:
+                continue
+            result.append({"term": t, "name": rec["name"], "kind": rec["kind"], "subfield": rec["subfield"], "n": int(c), "year": int(y) if y > 0 else None})
+        n_total = len(result)
+        return [self.return_string(json.dumps({"author": {"orcid": GRAPH.orcid(aid), "name": GRAPH.name(aid)}, "n_total": n_total, "topics": result[:MAX_AUTHOR_TOPICS]}) + "\n")]
 
 def application(environ, start_response):
     return iter(TableClass(environ, start_response))

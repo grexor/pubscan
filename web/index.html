@@ -130,6 +130,8 @@
                 <a href='javascript:clear_search_nodes();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 9px; margin-left: -20px; z-index: 100; position: absolute"></i></a>
             </div>
             &nbsp;&nbsp;
+            <a id="btn_author_topics" class="links2" href="javascript:adjust_author_topics();"><i class="fas fa-tags" style="color: inherit !important;"></i>&nbsp;Topics</a>
+            &nbsp;&nbsp;
             <a id="btn_pub" class="links2" href="javascript:adjust_pub();"><i class="fas fa-pen-fancy" style="color: inherit !important;"></i>&nbsp;Publications</a>
             &nbsp;&nbsp;
             <a class="links2" href="javascript:globalThis.my_network.fit();"><i class="fas fa-align-center" style="color: inherit !important;"></i>&nbsp;Center</a>
@@ -219,6 +221,9 @@
             if (document.getElementById("btn_pub").classList.contains("active")) {
                 adjust_pub();
             }
+            if (document.getElementById("btn_author_topics").classList.contains("active")) {
+                adjust_author_topics();
+            }
             const log_btn = document.getElementById("btn_log");
             log_btn.classList.toggle("active");
 
@@ -226,11 +231,28 @@
             document.getElementById("div_log").classList.toggle("hidden");
         }
 
+        function adjust_author_topics() {
+            if (isMobile())
+                return;
+            if (document.getElementById("btn_log").classList.contains("active")) {
+                adjust_log();
+            }
+            if (document.getElementById("btn_pub").classList.contains("active")) {
+                adjust_pub();
+            }
+            document.getElementById("btn_author_topics").classList.toggle("active");
+            document.getElementById("div_author_topics").scrollTop = 0;
+            document.getElementById("div_author_topics").classList.toggle("hidden");
+        }
+
         function adjust_pub() {
             if (isMobile())
                 return;
             if (document.getElementById("btn_log").classList.contains("active")) {
                 adjust_log();
+            }
+            if (document.getElementById("btn_author_topics").classList.contains("active")) {
+                adjust_author_topics();
             }
             const pub_btn = document.getElementById("btn_pub");
             pub_btn.classList.toggle("active");
@@ -533,6 +555,7 @@
                     header(node_data["n"]);
                     document.getElementById("div_pub").scrollTop = 0;
                     get_author_publications(node_data["id"], null, header);
+                    load_author_topics(node_data["id"], node_data["label"]);
 
                 }
                 else if (params.edges.length > 0) { // edge click
@@ -555,6 +578,7 @@
         // color the node red and show publications for the node
         color_node_single(current_center, 'red');
         const center_data = nodes_dataset.get(current_center);
+        load_author_topics(center_data["id"], center_data["label"]);
         const center_header = (n) => {
             document.getElementById("div_pub").innerHTML = "Publications: <b>" + esc(center_data["label"]) + "</b> " + orcid_link(center_data["id"]) + " (" + n + ")" + year_filter_note() + "<br><br>";
             document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(center_data["label"]) + "</b> (" + n + ")";
@@ -705,6 +729,7 @@
             show_log();
             show_graph_info();
             document.getElementById("div_log").innerHTML = "Log of communication of pubScan with the server. Use to follow what's happening.<br><br>";
+            author_topics_current = null;
             let encodedQuery = encodeURIComponent(query);
 
             current_center = orcid;
@@ -1070,6 +1095,15 @@
     }
 
 
+    /* topics panel of an author */
+    #div_author_topics table { border-collapse: collapse; width: 100%; }
+    #div_author_topics td { padding: 2px 6px 2px 0; border-bottom: 1px solid #f3f3f3; vertical-align: top; }
+    #div_author_topics td.num { text-align: right; color: #999999; white-space: nowrap; }
+    #div_author_topics .topics_kind { margin-left: 6px; }
+    #div_author_topics .at_filter { font-size: 12px; color: #999999; margin: 4px 0 8px 0; }
+    #div_author_topics .at_filter a { margin-right: 8px; color: #4d9aff; text-decoration: none; }
+    #div_author_topics .at_filter a.active { color: #525252; font-weight: bold; }
+
     /* suggestion list: author name matches, then the best matching topic / keyword and its top authors */
     .autoComplete_wrapper > ul > li .ac_meta { color: #999999; font-size: 12px; margin-left: 6px; }
     .autoComplete_wrapper > ul > li.ac_topic { color: #4d7aa8; }
@@ -1204,6 +1238,7 @@
             $("#mynetwork").css("top", Math.round(document.getElementById("div_search_bar").getBoundingClientRect().bottom) + "px");
 
             $("#div_pub").attr("style", $("#mynetwork").attr("style"));
+            $("#div_author_topics").hide();
             const divPub = document.getElementById("div_pub");
             divPub.className = "div_pub_mobile";
             $("#div_pub").hide();
@@ -1268,6 +1303,10 @@ function swap_pub_mobile() {
 
 <div id=div_log class="div_log hidden">
     Log of communication of pubScan with the server. Use to follow what's happening.
+</div>
+
+<div id="div_author_topics" class="div_pub hidden">
+    Top topics of the author at the center of the network; click a node to see the topics of that author.
 </div>
 
 <div id=div_pub class="div_pub hidden">
@@ -1348,6 +1387,71 @@ function swap_pub_mobile() {
 </div>
 
 <script>
+
+    // ---- topics panel: the terms an author publishes most on (action author_topics) ----
+
+    let author_topics_kind = "";          // "" (all), "topic", "subfield" or "keyword"
+    let author_topics_current = null;     // {orcid, label} shown in the panel
+    let author_topics_abort = null;
+
+    function set_author_topics_kind(kind) {
+        author_topics_kind = kind;
+        if (author_topics_current) load_author_topics(author_topics_current.orcid, author_topics_current.label);
+    }
+
+    function author_topics_filter_html() {
+        return '<div class="at_filter">' + [["", "all"], ["topic", "topics"], ["subfield", "subfields"], ["keyword", "keywords"]].map(([kind, label]) =>
+            '<a href="javascript:set_author_topics_kind(\'' + kind + '\')"' + (author_topics_kind === kind ? ' class="active"' : '') + '>' + label + '</a>').join("") + '</div>';
+    }
+
+    function load_author_topics(orcid, label) {
+        const panel = document.getElementById("div_author_topics");
+        author_topics_current = { orcid: orcid, label: label };
+        const years = get_year_filter();
+        panel.innerHTML = "Topics: <b>" + esc(label) + "</b> " + orcid_link(orcid) + "<br><br>loading...";
+        panel.scrollTop = 0;
+        try { if (author_topics_abort) author_topics_abort.abort(); } catch (e) {}
+        author_topics_abort = new AbortController();
+        const url = "/gw/index.py?action=author_topics&author=" + encodeURIComponent(orcid) + "&kind=" + author_topics_kind + "&year_from=" + years.from;
+        fetch(url, { signal: author_topics_abort.signal }).then(response => response.json()).then(data => {
+            if (!author_topics_current || author_topics_current.orcid !== orcid) return;
+            if (data.instruction === "error") {
+                panel.innerHTML = "Topics: <b>" + esc(label) + "</b><br><br>" + esc(data.description);
+                return;
+            }
+            let html = "Topics: <b>" + esc(label) + "</b> " + orcid_link(orcid) + " (" + format_count(data.n_total) + (data.topics.length < data.n_total ? ", top " + data.topics.length : "") + ")"
+                + (years.from ? " (publications since " + esc(years.from) + ")" : "") + "<br>" + author_topics_filter_html();
+            if (data.topics.length === 0) {
+                panel.innerHTML = html + "No topics found.";
+                return;
+            }
+            html += '<table><tr><td class="num">#</td><td style="color: #aaaaaa">term (click: who publishes on it)</td><td class="num">publications</td><td class="num">latest</td></tr>';
+            data.topics.forEach((t, i) => {
+                html += '<tr><td class="num">' + (i + 1) + '</td><td><a href="javascript:void(0)" class="author_topic" data-term="' + t.term + '">' + esc(t.name) + '</a>'
+                    + '<span class="topics_kind">' + esc(t.kind === "topic" ? (t.subfield || "topic") : t.kind) + '</span></td>'
+                    + '<td class="num">' + format_count(t.n) + '</td><td class="num">' + (t.year ? esc(String(t.year)) : "") + '</td></tr>';
+            });
+            panel.innerHTML = html + '</table>';
+        }).catch(error => {
+            if (error.name !== "AbortError" && author_topics_current && author_topics_current.orcid === orcid) {
+                panel.innerHTML = "Topics: <b>" + esc(label) + "</b><br><br>Could not load the topics (" + esc(String(error)) + ").";
+            }
+        });
+    }
+
+    // a term in the panel opens the ranked author list of that term
+    document.getElementById("div_author_topics").addEventListener("click", function (e) {
+        const link = e.target.closest("a.author_topic");
+        if (!link) return;
+        e.preventDefault();
+        fetch("/gw/index.py?action=topic_suggest&topic=" + encodeURIComponent(link.textContent)).then(r => r.json()).then(terms => {
+            const term = (Array.isArray(terms) ? terms : []).find(t => String(t.term) === link.getAttribute("data-term")) || (terms && terms[0]);
+            if (!term) return;
+            document.querySelector("#autoComplete").value = term.name;
+            update_clear_button();
+            show_topic_authors(term);
+        }).catch(() => {});
+    });
 
     // ---- topic results view: authors ranked by publications on an OpenAlex topic / keyword (action topic_authors) ----
 

@@ -2,6 +2,7 @@
 
 usage: python db_topics.py <topics.tab.gz> <topics_vocab.tab.gz> <graph dir> <output folder>
        (defaults: topics.tab.gz topics_vocab.tab.gz graph topics)
+       python db_topics.py --author-layout <folder>   only (re)derive the per-author files from the per-term ones
 
 Every PubMed work in OpenAlex carries up to three topics from a fixed taxonomy (each with a subfield,
 field and domain) and about ten scored keywords. This script counts, for every author and every term,
@@ -15,6 +16,10 @@ Files (numpy .npy, little endian) in the output folder:
   term_authors.npy  int32[P]     graph author ids, ordered by publication count (descending) within a term
   term_counts.npy   uint16[P]    the author's number of publications carrying the term
   term_years.npy    int16[P]     year of the author's newest publication carrying the term (0 = unknown)
+  author_off.npy    int64[N+1]   terms of author a = slice off[a]:off[a+1] of the three arrays below (same pairs, by author)
+  author_terms.npy  int32[P]     term ids, ordered by publication count (descending) within an author
+  author_counts.npy uint16[P]
+  author_years.npy  int16[P]
   terms.json        list of T terms: {"name", "kind": "topic"|"subfield"|"keyword", "id", "subfield", "field",
                                       "domain", "n_authors", "n_pubs"}; the list index is the term id
   meta.json         counts, source files and build time
@@ -27,6 +32,31 @@ import json
 import time
 import array
 import numpy as np
+
+
+def write_author_layout(out_dir, term_ids, author_ids, counts, years, n_authors):
+    """The same pairs ordered by author, strongest term first: an author's terms are one slice."""
+    order = np.lexsort((-counts.astype(np.int32), author_ids))
+    author_off = np.zeros(n_authors + 1, dtype=np.int64)
+    author_off[1:] = np.cumsum(np.bincount(author_ids, minlength=n_authors), dtype=np.int64)
+    np.save(os.path.join(out_dir, "author_off.npy"), author_off)
+    np.save(os.path.join(out_dir, "author_terms.npy"), term_ids[order])
+    np.save(os.path.join(out_dir, "author_counts.npy"), counts[order])
+    np.save(os.path.join(out_dir, "author_years.npy"), years[order])
+
+
+if len(sys.argv) > 2 and sys.argv[1] == "--author-layout":
+    folder = sys.argv[2]
+    t0 = time.time()
+    meta = json.load(open(os.path.join(folder, "meta.json")))
+    term_off = np.load(os.path.join(folder, "term_off.npy"))
+    term_ids = np.repeat(np.arange(term_off.shape[0] - 1, dtype=np.int32), np.diff(term_off))
+    write_author_layout(folder, term_ids, np.load(os.path.join(folder, "term_authors.npy")), np.load(os.path.join(folder, "term_counts.npy")),
+                        np.load(os.path.join(folder, "term_years.npy")), meta["authors"])
+    meta["author_layout"] = True
+    json.dump(meta, open(os.path.join(folder, "meta.json"), "w"), indent=1)
+    print(f"author layout written to {folder}: {term_ids.shape[0]:,} pairs, {time.time() - t0:.0f}s")
+    raise SystemExit(0)
 
 topics_path = sys.argv[1] if len(sys.argv) > 1 else "topics.tab.gz"
 vocab_path = sys.argv[2] if len(sys.argv) > 2 else "topics_vocab.tab.gz"
@@ -206,6 +236,7 @@ np.save(os.path.join(out_dir, "term_off.npy"), term_off)
 np.save(os.path.join(out_dir, "term_authors.npy"), author_ids)
 np.save(os.path.join(out_dir, "term_counts.npy"), counts)
 np.save(os.path.join(out_dir, "term_years.npy"), years)
+write_author_layout(out_dir, term_ids, author_ids, counts, years, N)
 n_authors_per_term = np.diff(term_off)
 for t, rec in enumerate(terms):
     rec["n_authors"] = int(n_authors_per_term[t]); rec["n_pubs"] = int(term_pubs[t])
@@ -213,7 +244,7 @@ json.dump(terms, open(os.path.join(out_dir, "terms.json"), "w"), ensure_ascii=Fa
 meta = {"terms": T, "topics": len(topic_term), "subfields": len(subfield_term), "keywords": len(keyword_term), "keyword_min_score": KEYWORD_MIN_SCORE,
         "publications": n_pubs, "author_term_pairs": P, "authors": N, "graph": os.path.abspath(graph_dir),
         "source": os.path.abspath(topics_path), "source_mtime": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getmtime(topics_path))),
-        "built": time.strftime("%Y-%m-%d %H:%M:%S"), "format": 1}
+        "built": time.strftime("%Y-%m-%d %H:%M:%S"), "format": 1, "author_layout": True}
 json.dump(meta, open(os.path.join(out_dir, "meta.json"), "w"), indent=1)
 total = sum(os.path.getsize(os.path.join(out_dir, f)) for f in os.listdir(out_dir))
 print(f"Author-topic table built in {out_dir}: {T:,} terms, {P:,} author-term pairs, {total / 2**30:.2f} GB, {time.time() - t0:.0f}s")

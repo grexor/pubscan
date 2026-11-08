@@ -24,6 +24,7 @@ from difflib import SequenceMatcher
 from unidecode import unidecode
 import ctypes
 import ctypes.util
+import numpy as np
 try:
     from pubscan import graph as graph_module
     from pubscan import topics as topics_module
@@ -863,7 +864,8 @@ class TableClass():
 
     def author_topics(self):
         """The terms (topics, subfields, keywords) an author publishes on, most publications first:
-        {"author": {"orcid", "name"}, "n_total", "topics": [{"term", "name", "kind", "subfield", "n", "year"}, ...]}.
+        {"author": {"orcid", "name"}, "n_total", "topics": [{"term", "name", "kind", "subfield", "n", "year", "rank"}, ...]}.
+        rank is the author's position among the authors of the term when within the first MAX_TOPIC_AUTHORS, else null.
         kind=topic|subfield|keyword restricts the kind; year_from keeps terms with a publication from that year on."""
         if TOPICS is None or not TOPICS.has_author_layout:
             raise BadRequest("topics per author are not available on this server")
@@ -887,7 +889,12 @@ class TableClass():
             result.append({"term": t, "name": rec["name"], "kind": rec["kind"], "subfield": rec["subfield"], "n": int(c), "year": int(y) if y > 0 else None})
         result.sort(key=lambda r: (-r["n"], -(r["year"] or 0)))   # most publications first, newest first among equals
         n_total = len(result)
-        return [self.return_string(json.dumps({"author": {"orcid": GRAPH.orcid(aid), "name": GRAPH.name(aid)}, "n_total": n_total, "topics": result[:MAX_AUTHOR_TOPICS]}) + "\n")]
+        result = result[:MAX_AUTHOR_TOPICS]
+        for rec in result:   # is the author among the top authors of the term (the list topic_authors shows)?
+            lo = int(TOPICS.term_off[rec["term"]]); hi = min(lo + MAX_TOPIC_AUTHORS, int(TOPICS.term_off[rec["term"] + 1]))
+            hit = np.flatnonzero(TOPICS.term_authors[lo:hi] == aid)
+            rec["rank"] = int(hit[0]) + 1 if hit.size else None
+        return [self.return_string(json.dumps({"author": {"orcid": GRAPH.orcid(aid), "name": GRAPH.name(aid)}, "n_total": n_total, "topics": result}) + "\n")]
 
 def application(environ, start_response):
     return iter(TableClass(environ, start_response))

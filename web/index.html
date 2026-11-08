@@ -78,8 +78,8 @@
             </div>
 
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-shrink: 0; overflow: hidden;" id="toptop_right_menu">
-                <div style="color: aliceblue; font-size: 15px; padding-left: 3px; padding-bottom: 2px; white-space: nowrap;">
-                    <span style="position: relative; top: 5px; display:inline-block; transform: scale(1.1);" id="btn_github_stars">
+                <div style="color: aliceblue; font-size: 15px; padding-left: 3px; padding-bottom: 2px; white-space: nowrap; height: 28px; box-sizing: border-box; display: flex; align-items: center; justify-content: flex-end;"> <!-- fixed height and vertical centering: the GitHub star button renders later and must not move anything -->
+                    <span style="display:inline-block; transform: scale(1.1); line-height: 1;" id="btn_github_stars">
                     <a class="github-button" href="https://github.com/grexor/pubscan" data-icon="octicon-star" data-size="medium" data-show-count="true" aria-label="Star pubScan on GitHub">pubScan</a>&nbsp;&nbsp;
 
                     </span>
@@ -343,6 +343,7 @@
     let handling_popstate = false;
     let current_network_key = null; // "<orcid>|<year from>|<year to>" of the network on screen
     let current_query = null; // "Name ORCID" of the network on screen
+    let pub_panel_force = false; // a new network always ends with the publications panel; a node click keeps the panel that is open
 
     // ---- publication year filter (from - to, inclusive) ----
 
@@ -643,6 +644,7 @@
         }
 
         function fetch_publications(url, header) {
+            document.getElementById("div_pub").insertAdjacentHTML("beforeend", '<div id="pub_loading" class="pub_loading"><i class="fas fa-circle-notch fa-spin"></i>&nbsp; Loading publications&hellip;</div>');
             fetch(url + "&datetime=" + new Date().toISOString()).then(response =>
             {
                 const reader = response.body.getReader();
@@ -687,11 +689,16 @@
                                     html_add += "<tr><td>" + esc(e.pub_year) + "&nbsp;&nbsp;</td><td>" + title_html + "</td></tr>";
                                 }           
                                 html_add += "</table>"
+                                const loading = document.getElementById("pub_loading");
+                                if (loading) loading.remove();
                                 document.getElementById("div_pub").innerHTML += html_add;
 
-                                if (!document.getElementById("btn_pub").classList.contains("active")) {
+                                const other_panel_open = document.getElementById("btn_author_topics").classList.contains("active")
+                                    || document.getElementById("btn_log").classList.contains("active");
+                                if ((pub_panel_force || !other_panel_open) && !document.getElementById("btn_pub").classList.contains("active")) {
                                     adjust_pub();
                                 }
+                                pub_panel_force = false;
 
                             } catch (error) {
                                 console.error("Error parsing JSON:", error);
@@ -733,6 +740,7 @@
             let encodedQuery = encodeURIComponent(query);
 
             current_center = orcid;
+            pub_panel_force = true;
             const datetime = new Date().toISOString();
 
             try {
@@ -1095,6 +1103,33 @@
     }
 
 
+    .pub_loading { color: #aaaaaa; padding: 4px 0 8px 0; }
+
+    /* welcome text */
+    /* desktop: the welcome text fills the network area (below the search bar, above the footer) and centers inside it;
+       it scrolls within that box when the window is small */
+    #div_splash.splash_div { position: fixed; top: 90px; bottom: 50px; left: 0; right: 0; width: auto; height: auto; transform: none;
+        display: flex; align-items: center; justify-content: center; overflow-y: auto; }
+    #div_splash.splash_div .splash_inner { margin: auto; position: relative; z-index: 1; }
+    /* the grey textured background fades out from the middle towards the top and the bottom */
+    #div_splash.splash_div { background: none; border: none; }
+    #div_splash.splash_div::before { content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 0; pointer-events: none;
+        background-color: #fafafa; background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
+        -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 40%, #000 60%, rgba(0,0,0,0) 100%);
+        mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 40%, #000 60%, rgba(0,0,0,0) 100%); }
+    .splash_mobile_div { height: auto; }
+    .splash_inner { max-width: 960px; width: 92%; margin: 0 auto; padding: 22px 0 24px 0; text-align: left; color: #9a9a9a; font-size: 15px; line-height: 1.45; }
+    .splash_title { font-size: 20px; color: #a63f3b; }
+    .splash_lead { font-size: 15px; color: #8a8a8a; padding: 6px 0 14px 0; }
+    .splash_grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+    .splash_card { background: rgba(255, 255, 255, 0.75); border: 1px solid #ececec; border-radius: 6px; padding: 10px 14px 12px 14px; font-size: 14px; }
+    .splash_head { font-size: 15px; color: #868686; padding-bottom: 4px; }
+    .splash_head i { color: #4d7aa8; width: 18px; text-align: center; margin-right: 2px; }
+    .splash_inner .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; vertical-align: middle; margin: 0 1px; }
+    .splash_foot { padding-top: 14px; font-size: 14px; color: #9a9a9a; }
+    body.mobile .splash_grid { grid-template-columns: 1fr; }
+    body.mobile .splash_div, body.mobile .splash_mobile_div { max-height: none; }
+
     /* topics panel of an author */
     #div_author_topics table { border-collapse: collapse; width: 100%; }
     #div_author_topics td { padding: 2px 6px 2px 0; border-bottom: 1px solid #f3f3f3; vertical-align: top; }
@@ -1103,6 +1138,9 @@
     #div_author_topics .at_filter { font-size: 12px; color: #999999; margin: 4px 0 8px 0; }
     #div_author_topics .at_filter a { margin-right: 8px; color: #4d9aff; text-decoration: none; }
     #div_author_topics .at_filter a.active { color: #525252; font-weight: bold; }
+    #div_author_topics a.author_topic_top { color: #d9372b; }           /* the author is among the top 100 authors of the term */
+    #div_author_topics a.author_topic_top:hover { color: #a62316; }
+    #div_author_topics .author_topic_rank { color: #d9372b; font-size: 11px; margin-left: 5px; }
 
     /* suggestion list: author name matches, then the best matching topic / keyword and its top authors */
     .autoComplete_wrapper > ul > li .ac_meta { color: #999999; font-size: 12px; margin-left: 6px; }
@@ -1157,7 +1195,7 @@
         theme: 'pubscan_start',
         trigger: 'click',
         placement: 'bottom',
-        content: 'Start here by searching for a fellow scientist!',
+        content: 'Start here by searching for a fellow scientist or research topic!',
         trigger: 'manual',
         interactive: true,
         hideOnClick: false,
@@ -1328,45 +1366,39 @@ function swap_pub_mobile() {
 </div>
 
 <div id="div_splash" class="splash_div">
-    <div style="max-width: 900px; width: 90%; text-align: left; margin: 0 auto; word-wrap: break-word;">
-        <div style='font-size: 18px; padding-top: 10px; color: #a63f3b;'>
-            Welcome to pubScan!
+    <div class="splash_inner">
+        <div class="splash_title">Welcome to pubScan!</div>
+        <div class="splash_lead">An interactive map of PubMed as a co-authorship network: <b>nodes</b> are authors, <b>edges</b> are the publications they wrote together.</div>
+        <div class="splash_grid">
+            <div class="splash_card">
+                <div class="splash_head"><i class="fas fa-user"></i> Search for an author</div>
+                The author you search for appears at the center of the network, highlighted in
+                <span class="dot" style="background:red"></span>. Click a node for publications and topics, click an edge for joint publications,
+                double-click a node to re-center the network on that author.
+            </div>
+            <div class="splash_card">
+                <div class="splash_head"><i class="fas fa-tags"></i> Search for a topic</div>
+                The same box takes a research topic or keyword, e.g. <i>RNA splicing</i> or <i>CRISPR</i>: pick it from the suggestions
+                to see the authors publishing most on it, ranked by number of publications, and open their networks from there.
+            </div>
+            <div class="splash_card">
+                <div class="splash_head"><i class="fas fa-circle"></i> Node colors</div>
+                Publications in PubMed:
+                <span class="dot" style="background:#EBF2F6"></span> &lt; 10,
+                <span class="dot" style="background:#C6D6E2"></span> 10-50,
+                <span class="dot" style="background:#93AEC5"></span> 50-100,
+                <span class="dot" style="background:#293D4D"></span> &gt; 100
+            </div>
+            <div class="splash_card">
+                <div class="splash_head"><i class="fas fa-project-diagram"></i> What is shown</div>
+                To stay readable and fast, a network shows up to 100 co-authors (ranked by shared publications) and up to 1,000 edges:
+                all edges of the central author, the 100 strongest links and a random sample of the rest.
+            </div>
         </div>
-        <div style='font-size: 16px; padding-top: 13px; color: #868686'>
-            What is it?<br>
+        <div class="splash_foot">
+            Love it? <a id="btn_share2" href='javascript:url_to_clip()'>Share pubScan</a> with fellow scientists, and have a look at the
+            source code of <a href='https://github.com/grexor/pubscan' target="_github">pubScan on GitHub</a>.
         </div>
-        <div style='font-size: 15px; color: #9a9a9a'>
-            pubScan is an interactive interface to explore all PubMed articles as a co-authorship network. In this network
-            <b>nodes</b> represent authors, <b>edges</b> represent co-authored publications.
-        </div>
-        <div style='font-size: 16px; padding-top: 13px; color: #868686'>
-            Who appears at the center of the network?<br>
-        </div>
-        <div style='font-size: 16px; color: #9a9a9a'>
-            The author you search for in the input box (top-left) will appear at the center of the network, highlighted in red <div style="width:10px; height:10px; background:red; border-radius:50%; display:inline-block;"></div>.
-            The box also takes a research topic or keyword (e.g. <i>RNA splicing</i>): choose the topic from the suggestions to see the authors publishing most on it.
-            <br>Other nodes are colored based on the number of publications for the author in PubMed:
-            <br><div style="width:10px; height:10px; background:#EBF2F6; border-radius:50%; display:inline-block;"></div> &lt; 10 publications,
-            <div style="width:10px; height:10px; background:#C6D6E2; border-radius:50%; display:inline-block;"></div> 10-50 publications,
-            <div style="width:10px; height:10px; background:#93AEC5; border-radius:50%; display:inline-block;"></div> 50-100 publications,
-            <div style="width:10px; height:10px; background:#293D4D; border-radius:50%; display:inline-block;"></div> &gt; 100 publications
-        </div>
-        <div style='font-size: 16px; padding-top: 13px; color: #868686'>
-            Are all co-authors shown?<br>
-        </div>
-        <div style='font-size: 15px; color: #9a9a9a'>
-            To keep the network readable and responsive, pubScan displays:
-            <ui><br>Up to 100 co-authors (ranked by number of shared publications)
-            <ui><br>Up to 1,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
-        </div>
-        <div style='font-size: 16px; padding-top: 13px; color: #868686'>
-            Love it? Want to support the project?<br>
-        </div>
-        <div style='font-size: 15px; color: #9a9a9a'>
-            Network and <a id="btn_share2" href='javascript:url_to_clip()'>share pubScan </a> with fellow scientists. Check the source code and * <a href='https://github.com/grexor/pubscan' target="_github">pubScan on Github</a>.
-        </div>
-
-
     </div>
 </div>
 
@@ -1427,7 +1459,9 @@ function swap_pub_mobile() {
             }
             html += '<table><tr><td class="num">#</td><td style="color: #aaaaaa">term (click: who publishes on it)</td><td class="num">publications</td><td class="num">latest</td></tr>';
             data.topics.forEach((t, i) => {
-                html += '<tr><td class="num">' + (i + 1) + '</td><td><a href="javascript:void(0)" class="author_topic" data-term="' + t.term + '">' + esc(t.name) + '</a>'
+                const ranked = t.rank ? ' author_topic_top" title="' + esc(label) + ' is #' + t.rank + ' among the authors of this term' : '';
+                html += '<tr><td class="num">' + (i + 1) + '</td><td><a href="javascript:void(0)" class="author_topic' + ranked + '" data-term="' + t.term + '">' + esc(t.name) + '</a>'
+                    + (t.rank ? '<span class="author_topic_rank">#' + t.rank + '</span>' : '')
                     + '<span class="topics_kind">' + esc(t.kind === "topic" ? (t.subfield || "topic") : t.kind) + '</span></td>'
                     + '<td class="num">' + format_count(t.n) + '</td><td class="num">' + (t.year ? esc(String(t.year)) : "") + '</td></tr>';
             });

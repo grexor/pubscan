@@ -1,3 +1,9 @@
+/*
+    pubScan <https://pubscan.org> - Copyright (C) 2025-2026 Gregor Rot
+    Free software under the GNU Affero General Public License, version 3 (LICENCE.md), with the additional
+    attribution terms of NOTICE.md: the pubScan notice with its link stays visible in the user interface.
+*/
+
 .autoComplete_wrapper {
     display: inline-block;
     position: relative;
@@ -140,7 +146,7 @@
         width: 100%;
     }
 
-    /* publication year filter pill (from - to), styled like the search box */
+    /* pills of the search bar (publication years, label size), styled like the search box */
     .year_filter {
         display: inline-flex;
         align-items: center;
@@ -173,35 +179,132 @@
         margin-right: 0.4rem;
     }
 
-    .year_filter .year_label {
-        margin-right: 0.5rem;
+    .year_filter .year_value {           /* first and last year, at the two ends of the year slider */
+        min-width: 2.4em;
         font-size: 0.8rem;
-        letter-spacing: 0.02em;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
     }
 
-    .year_filter input {
-        width: 3.2em;
+    /* slider inside a pill: a thin track with round handles. The year slider has two handles: two range inputs lie
+       on one track, and only their handles take the pointer, so that both stay reachable */
+    .pill_slider {
+        position: relative;
+        display: inline-block;
+        width: 120px;
+        height: 1.1rem;
+        margin: 0 0.35rem;
+    }
+
+    .pill_slider .slider_track,
+    .pill_slider .slider_fill {
+        position: absolute;
+        top: 50%;
+        height: 3px;
+        margin-top: -1.5px;
+        border-radius: 2px;
+    }
+
+    .pill_slider .slider_track {
+        left: 0;
+        right: 0;
+        background-color: #e0e0e0;
+    }
+
+    .pill_slider .slider_fill {
+        background-color: #b9b9b9;
+    }
+
+    .year_filter.active .slider_fill {
+        background-color: #408bed;
+    }
+
+    .pill_slider input[type="range"] {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 100%;
+        height: 12px;
+        margin: -6px 0 0 0;
         padding: 0;
-        margin: 0;
         border: none;
         outline: none;
         background: transparent;
-        font-size: 0.9rem;
-        text-align: center;
-        color: #525252;
+        -webkit-appearance: none;
+        appearance: none;
+        pointer-events: none;
     }
 
-    .year_filter input::placeholder {
-        color: rgba(119, 119, 119, 0.5);
+    .pill_slider input[type="range"]::-webkit-slider-runnable-track {
+        height: 12px;
+        background: transparent;
     }
 
-    .year_filter .year_sep {
-        padding: 0 0.15rem;
-        color: #c0c0c0;
+    .pill_slider input[type="range"]::-moz-range-track {
+        height: 12px;
+        background: transparent;
+    }
+
+    .pill_slider input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        box-sizing: border-box;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #9a9a9a;
+        background-color: #ffffff;
+        cursor: pointer;
+        pointer-events: auto;
+    }
+
+    .pill_slider input[type="range"]::-moz-range-thumb {
+        box-sizing: border-box;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #9a9a9a;
+        background-color: #ffffff;
+        cursor: pointer;
+        pointer-events: auto;
+    }
+
+    .pill_slider input[type="range"]:hover::-webkit-slider-thumb,
+    .pill_slider input[type="range"]:focus-visible::-webkit-slider-thumb {
+        border-color: #525252;
+    }
+
+    .pill_slider input[type="range"]:hover::-moz-range-thumb,
+    .pill_slider input[type="range"]:focus-visible::-moz-range-thumb {
+        border-color: #525252;
+    }
+
+    .year_filter.active .pill_slider input[type="range"]::-webkit-slider-thumb {
+        border-color: #408bed;
+    }
+
+    .year_filter.active .pill_slider input[type="range"]::-moz-range-thumb {
+        border-color: #408bed;
+    }
+
+    /* controls of the network (years, label size, edge labels) while no network is on screen */
+    .network_control_off > * {
+        opacity: 0.45;
+        pointer-events: none;
+    }
+
+    /* a slider with one handle (label size): the whole track takes the pointer */
+    .pill_slider.single {
+        width: 84px;
+    }
+
+    .pill_slider.single input[type="range"] {
+        pointer-events: auto;
+        cursor: pointer;
     }
 
     .year_filter .year_clear {
-        margin-left: 0.45rem;
+        margin-left: 0.3rem;
         color: #aaaaaa;
         font-size: 0.85rem;
         line-height: 0;
@@ -218,31 +321,18 @@
         white-space: nowrap;
     }
 
+    /* the progress text gives way (ellipsis) instead of pushing the menu off screen, at every window width */
     #div_search_label {
-        flex-shrink: 0;
+        flex-shrink: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    @media only screen and (max-width: 1200px) {
-        #ac_search_nodes {
-            width: 160px;
-        }
-        #div_search_label { /* progress text gives way (ellipsis) instead of pushing the menu off screen */
-            flex-shrink: 1;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #div_info {
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-    }
-
-    @media only screen and (max-width: 1000px) {
-        #ac_search_nodes {
-            width: 120px;
-        }
+    #div_info {
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
 #div_bottom {
@@ -618,4 +708,70 @@ a:hover i {
 .vis-navigation .vis-button {
   position: static !important;
   margin: 0 !important;
+}
+
+/* narrower desktop windows: the search boxes and the sliders shrink step by step, so that the whole menu on the
+   right stays on screen (down to windows about 1000 px wide) */
+@media only screen and (max-width: 1450px) {
+    body:not(.mobile) #autoComplete {
+        width: 280px;
+    }
+}
+
+@media only screen and (max-width: 1340px) {
+    body:not(.mobile) #autoComplete {
+        width: 230px;
+    }
+    body:not(.mobile) #ac_search_nodes {
+        width: 100px;
+    }
+    body:not(.mobile) .pill_slider {
+        width: 96px;
+    }
+    body:not(.mobile) .pill_slider.single {
+        width: 60px;
+    }
+}
+
+@media only screen and (max-width: 1180px) {
+    body:not(.mobile) #autoComplete {
+        width: 190px;
+    }
+    body:not(.mobile) #ac_search_nodes {
+        width: 80px;
+    }
+    body:not(.mobile) .pill_slider {
+        width: 72px;
+    }
+    body:not(.mobile) .pill_slider.single {
+        width: 46px;
+    }
+    body:not(.mobile) .year_filter {
+        padding: 0 0.5rem 0 0.6rem;
+    }
+    body:not(.mobile) .edge_labels_toggle {  /* only the checkbox stays; its tooltip says what it is */
+        font-size: 0;
+    }
+    body:not(.mobile) .edge_labels_toggle input {
+        margin-right: 0;
+    }
+}
+
+/* footer: the pubScan notice on the left stays on one line; the disclaimer on the right takes the room that is
+   left (at most 750 px) and gets smaller type in narrower desktop windows, so that both stay inside the bar */
+#div_bottom .bottom_notice {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+#div_bottom .bottom_disclaimer {
+    max-width: 750px;
+    font-size: 13px;
+}
+
+@media only screen and (max-width: 1250px) {
+    #div_bottom .bottom_disclaimer {
+        font-size: 11px;
+        line-height: 13px;
+    }
 }

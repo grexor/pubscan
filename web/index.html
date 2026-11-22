@@ -1,3 +1,8 @@
+<!--
+    pubScan <https://pubscan.org> - Copyright (C) 2025-2026 Gregor Rot
+    Free software under the GNU Affero General Public License, version 3 (LICENCE.md), with the additional
+    attribution terms of NOTICE.md: the pubScan notice with its link stays visible in the user interface.
+-->
 <html>
 
 <head>
@@ -16,12 +21,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
     <meta charset="UTF-8">
 
-    <link rel="stylesheet" href="pubscan.css?v=202611021">
+    <link rel="stylesheet" href="pubscan.css?v=202611224">
     <link rel="stylesheet" href="statics/fa/css/all.min.css">
     <link rel="stylesheet" href="statics/css/tippy.css">
 
     <script src="statics/js/jquery-3.6.0.min.js"></script>
     <script src="statics/js/vis-network.min.js"></script>
+    <script src="statics/js/d3-force-3.js"></script>
+    <script src="pubscan_layout.js?v=202611225"></script>
     <script src="statics/js/tailwindcss-browser-4.js"></script>
     <script src="statics/js/autoComplete.min.js"></script>
     <script src="statics/js/popper-core-2.js"></script>
@@ -95,7 +102,7 @@
         
         <div style="text-align: left; padding: 2px; z-index: 1000;">
             <div id="div_search_input" style="padding-left: 0px; z-index: 1000; position: relative;">
-                <input id="autoComplete" placeholder="Author name or topic..."/>
+                <input id="autoComplete" placeholder="Author name or topic..." autocomplete="off"/>
                 <button id="btnm_clear" class="hidden" style="position: absolute; right: 23px; top: 9px; cursor: pointer; color: #aaa; font-size: 14px;">
                     <i class="fas fa-times"></i>
                 </button>
@@ -108,14 +115,33 @@
             </div>
         </div>
 
-        <div id="div_year_filter_c" style="padding: 2px; padding-left: 6px; z-index: 1000;">
-            <div id="div_year_filter" class="year_filter" title="Only publications from these years (inclusive)">
-                <i class="fas fa-calendar-alt"></i><span class="year_label">Years</span>
-                <input id="year_from" placeholder="from" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="first publication year">
-                <span class="year_sep">&ndash;</span>
-                <input id="year_to" placeholder="to" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="last publication year">
-                <a href="javascript:clear_year_filter();" id="btn_clear_years" class="year_clear hidden" title="Remove year filter"><i class="fas fa-times"></i></a>
+        <!-- the three controls of the network are switched off until a network is on screen (update_network_controls()) -->
+        <div id="div_year_filter_c" class="network_control_off" title="Available when a network is shown" style="padding: 2px; padding-left: 6px; z-index: 1000;">
+            <div id="div_year_filter" class="year_filter" title="Publication years: drag the two handles to keep only the publications from these years (both ends included)">
+                <i class="fas fa-calendar-alt"></i>
+                <span id="year_from_text" class="year_value"></span>
+                <span class="pill_slider">
+                    <span class="slider_track"></span><span id="year_slider_fill" class="slider_fill"></span>
+                    <input type="range" id="year_from" step="1" aria-label="first publication year" disabled>
+                    <input type="range" id="year_to" step="1" aria-label="last publication year" disabled>
+                </span>
+                <span id="year_to_text" class="year_value"></span>
+                <a href="javascript:clear_year_filter();" id="btn_clear_years" class="year_clear" style="visibility: hidden;" title="Remove year filter"><i class="fas fa-times"></i></a>
             </div>
+        </div>
+
+        <div id="div_label_size_c" class="network_control_off" title="Available when a network is shown" style="padding: 2px; padding-left: 6px;">
+            <div class="year_filter" title="Size of the node labels (double-click to reset)" ondblclick="reset_label_size()">
+                <i class="fas fa-text-height"></i>
+                <span class="pill_slider single">
+                    <span class="slider_track"></span>
+                    <input type="range" id="label_size" min="50" max="200" step="5" value="100" aria-label="size of the node labels" disabled>
+                </span>
+            </div>
+        </div>
+
+        <div id="div_edge_labels_c" class="network_control_off" title="Available when a network is shown" style="padding: 2px; padding-left: 8px; padding-top: 8px; font-size: 14px; flex-shrink: 0;">
+            <label class="links2 edge_labels_toggle" title="Show the number of shared publications on every edge"><input type="checkbox" id="chk_edge_labels" onchange="set_edge_labels(this.checked)" disabled>Edge labels</label>
         </div>
 
         <div style="text-align: left; padding: 2px; padding-top: 9px;" id="div_search_label">
@@ -134,7 +160,7 @@
             &nbsp;&nbsp;
             <a id="btn_pub" class="links2" href="javascript:adjust_pub();"><i class="fas fa-pen-fancy" style="color: inherit !important;"></i>&nbsp;Publications</a>
             &nbsp;&nbsp;
-            <a class="links2" href="javascript:globalThis.my_network.fit();"><i class="fas fa-align-center" style="color: inherit !important;"></i>&nbsp;Center</a>
+            <a class="links2" href="javascript:fit_network();"><i class="fas fa-align-center" style="color: inherit !important;"></i>&nbsp;Center</a>
             &nbsp;&nbsp;
             <a id="btn_log" class="links2" href="javascript:adjust_log();"><i class="fas fa-book" style="color: inherit !important;"></i>&nbsp;Log</a>
         </div>
@@ -145,12 +171,13 @@
 
     <div id="div_bottom">
         <div style="display: flex; width: 100%;">
-            <div style="text-align: left; padding: 2px;">
-                Developed by <a href='https://grexor.github.io' target=_grexor>Gregor Rot</a>, Open Source at <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub</a><br>
-                <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a></div>
+            <div class="bottom_notice" style="text-align: left; padding: 2px;">
+                <!-- the pubScan notice: it must stay visible in every copy and modified version (NOTICE.md) -->
+                <a href='https://pubscan.org'>pubScan</a> v3.5 &copy; 2025&ndash;2026 <a href='https://grexor.github.io' target=_grexor>Gregor Rot</a>, Open Source (<a href='https://www.gnu.org/licenses/agpl-3.0.html' target='_agpl' title='Free software under the GNU Affero General Public License, version 3, without any warranty'>AGPL-3.0</a>) at <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub</a><br>
+                <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a>, Star the <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub repository</a></div>
             </div>
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; font-size: 12px; padding-top: 8px;">
-                <table border="0" style='font-size: 13px; width: 750px; margin-left: auto; text-align: right; color: #aaaaaa;'>
+                <table border="0" class="bottom_disclaimer" style='margin-left: auto; text-align: right; color: #aaaaaa;'>
                     <tr><td>
                         This site parses data from <a href="https://openalex.org" target=_new>OpenAlex</a>. The authors of pubScan make no guarantees regarding the accuracy, completeness, or timeliness of the data and accept no liability for any errors, omissions, or outcomes resulting from its use.
                     </td></tr>
@@ -162,7 +189,7 @@
     <div id="div_bottom_mobile" style="display:none" onclick="swap_pub_mobile()">
         <div style="display: flex; width: 100%;">
             <div style="text-align: left; padding: 2px; padding-top: 10px;" id="div_bottom_mobile_label">
-                Developed by <b><a href='https://grexor.github.io' target='_new'>Gregor Rot</a></b>, Open Source at <b><a href='https://github.com/grexor/pubscan' target='_new'>GitHub</a></b>
+                pubScan &copy; 2025&ndash;2026 <b><a href='https://grexor.github.io' target='_new'>Gregor Rot</a></b>, Open Source at <b><a href='https://github.com/grexor/pubscan' target='_new'>GitHub</a></b>
             </div>
         </div>
     </div>
@@ -179,40 +206,46 @@
             return /^\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$/.test(orcid) ? "<a href='https://orcid.org/" + orcid + "' target=_new rel='noopener'>" + orcid + "</a>" : esc(orcid);
         }
 
-        function color_node_single(node_id, color) {
-            nodes_dataset.update({ id: node_id, color: color });
-
+        // Colors of a node as vis-network draws it, taken from network_layout() (pubscan_layout.js): every node is a
+        // disc in the pastel color of its cluster with a thin outline in the strong tone of the same hue (gray for
+        // co-authors outside the largest clusters, red for the central author). A selected node gets a dark outline.
+        function node_style(layout_node) {
+            return { color: { background: layout_node.color, border: layout_node.outline, highlight: { background: layout_node.color, border: "#222222" } }, borderWidth: 1.5 };
         }
 
-        let original_colors = {};
+        let node_styles = {};       // node id -> style of the node in the network on screen (set by draw())
+        let original_colors = {};   // ids of the nodes highlighted by the node search
+
+        // A style update of a node must carry its position: the data set holds the positions the network was drawn
+        // with, and vis-network would put a node that has been moved since back there
+        function restyle_nodes(styles) {
+            const positions = globalThis.my_network ? globalThis.my_network.getPositions() : {};
+            nodes_dataset.update(styles.map(style => (positions[style.id] ? { ...style, x: positions[style.id].x, y: positions[style.id].y } : style)));
+        }
 
         function color_node_clear() {
-            Object.entries(original_colors).forEach(([id, color_code]) => {
-            const node = nodes_dataset.get(id);
-            if (node && node.color) {
-                delete node.color;
-                nodes_dataset.update(node);
+            const ids = Object.keys(original_colors).filter(id => node_styles[id]);
+            if (ids.length > 0 && nodes_dataset.update) {
+                restyle_nodes(ids.map(id => ({ id: id, ...node_styles[id] })));
             }
-            });
-            original_colors = {}; // Clear the original_colors object
+            original_colors = {};
         }
 
         function color_node(search) {
             color_node_clear();
-            new_color = "#00FF00";
+            if (!nodes_dataset.get) { // no network on screen yet
+                return;
+            }
             search = search.toLowerCase();
             const matching_nodes = nodes_dataset.get({
                 filter: (node) => node.label.toString().toLowerCase().includes(search)
             });
-            
             matching_nodes.forEach(node => {
-                if (!original_colors[node.id]) {
-                    if (node.color!="#00FF00") {
-                        original_colors[node.id] = 1;
-                    }
-                }
-                nodes_dataset.update({ id: node.id, color: new_color });
+                original_colors[node.id] = 1;
             });
+            // found nodes: bright green with a black outline, which no cluster color has
+            restyle_nodes(matching_nodes.map(node => (
+                { id: node.id, color: { background: "#00FF00", border: "#000000", highlight: { background: "#00FF00", border: "#000000" } }, borderWidth: 2 })));
         }
 
         function adjust_log() {
@@ -345,12 +378,16 @@
     let current_query = null; // "Name ORCID" of the network on screen
     let pub_panel_force = false; // a new network always ends with the publications panel; a node click keeps the panel that is open
 
-    // ---- publication year filter (from - to, inclusive) ----
+    // ---- publication year filter: a slider with two handles (from - to, both included) ----
+    // The chosen years are kept as strings; "" is an open end (the filter does not cut there). The slider runs over
+    // the publication years of the central author, which arrive with the network, widened to the chosen years.
+
+    let year_filter = { from: "", to: "" };
+    let year_span = { min: 1970, max: new Date().getFullYear() };   // until a network tells the years of its central author
+    let year_apply_timer = null;
 
     function get_year_filter() {
-        const from = document.getElementById("year_from").value.trim();
-        const to = document.getElementById("year_to").value.trim();
-        return { from: /^\d{4}$/.test(from) ? from : "", to: /^\d{4}$/.test(to) ? to : "" };
+        return { from: year_filter.from, to: year_filter.to };
     }
 
     function year_filter_active() {
@@ -389,23 +426,67 @@
     }
 
     function set_year_filter(from, to) {
-        document.getElementById("year_from").value = /^\d{4}$/.test(from || "") ? from : "";
-        document.getElementById("year_to").value = /^\d{4}$/.test(to || "") ? to : "";
-        update_year_filter_style();
+        from = /^\d{4}$/.test(from || "") ? from : "";
+        to = /^\d{4}$/.test(to || "") ? to : "";
+        if (from != "" && to != "" && parseInt(from, 10) > parseInt(to, 10)) {
+            [from, to] = [to, from]; // reversed range
+        }
+        year_filter = { from: from, to: to };
+        show_year_filter();
     }
 
-    function update_year_filter_style() {
-        const active = year_filter_active();
+    // the publication years of the central author become the ends of the slider (unknown: a wide default)
+    function set_year_span(first, last) {
+        const known = Number.isInteger(first) && Number.isInteger(last) && first <= last;
+        year_span = known ? { min: first, max: last } : { min: 1970, max: new Date().getFullYear() };
+        show_year_filter();
+    }
+
+    function year_slider_ends() {
+        return {
+            min: Math.min(year_span.min, year_filter.from != "" ? parseInt(year_filter.from, 10) : Infinity),
+            max: Math.max(year_span.max, year_filter.to != "" ? parseInt(year_filter.to, 10) : -Infinity),
+        };
+    }
+
+    // put both handles where the filter is (an open end is the end of the slider)
+    function show_year_filter() {
+        const ends = year_slider_ends();
+        const from = document.getElementById("year_from"), to = document.getElementById("year_to");
+        for (const input of [from, to]) {
+            input.min = ends.min;
+            input.max = ends.max;
+        }
+        from.value = year_filter.from != "" ? year_filter.from : ends.min;
+        to.value = year_filter.to != "" ? year_filter.to : ends.max;
+        paint_year_slider();
+        // a chosen year that lies at the end of the slider is still a filter
+        document.getElementById("div_year_filter").classList.toggle("active", year_filter_active());
+        document.getElementById("btn_clear_years").style.visibility = year_filter_active() ? "visible" : "hidden";
+        document.getElementById("div_year_filter").title = "Publication years (the slider runs from " + ends.min + " to " + ends.max
+            + "): drag the two handles to keep only the publications from these years, both ends included";
+    }
+
+    // the two year numbers, the colored part of the track and the "filter is on" look, from where the handles are
+    function paint_year_slider() {
+        const from = document.getElementById("year_from"), to = document.getElementById("year_to");
+        const min = parseInt(from.min, 10), max = parseInt(from.max, 10);
+        const first = parseInt(from.value, 10), last = parseInt(to.value, 10);
+        const share = (year) => max > min ? (year - min) / (max - min) : 0;
+        document.getElementById("year_from_text").textContent = first;
+        document.getElementById("year_to_text").textContent = last;
+        const fill = document.getElementById("year_slider_fill"); // between the middles of the two 12 px handles
+        fill.style.left = "calc(6px + " + share(first) + " * (100% - 12px))";
+        fill.style.width = "calc(" + (max > min ? share(last) - share(first) : 1) + " * (100% - 12px))";
+        const active = first > min || last < max;
         document.getElementById("div_year_filter").classList.toggle("active", active);
-        document.getElementById("btn_clear_years").classList.toggle("hidden", !active);
+        document.getElementById("btn_clear_years").style.visibility = active ? "visible" : "hidden";
+        // when both handles sit at the right end, the "from" handle must be on top to be movable at all
+        from.style.zIndex = share(first) > 0.5 ? 3 : 2;
+        to.style.zIndex = share(first) > 0.5 ? 2 : 3;
     }
 
     function apply_year_filter() {
-        let years = get_year_filter();
-        if (years.from != "" && years.to != "" && parseInt(years.from, 10) > parseInt(years.to, 10)) {
-            set_year_filter(years.to, years.from); // swap reversed ranges
-        }
-        update_year_filter_style();
         if (current_query) { // a network is on screen: rebuild it with the new filter
             get_author_network(current_query);
         }
@@ -418,15 +499,160 @@
 
     for (const id of ["year_from", "year_to"]) {
         const input = document.getElementById(id);
-        input.addEventListener("input", function() {
-            this.value = this.value.replace(/\D/g, "").slice(0, 4); // digits only
-            update_year_filter_style();
-        });
-        input.addEventListener("change", apply_year_filter);
-        input.addEventListener("keydown", function(e) {
-            if (e.key == "Enter") {
-                this.blur(); // fires change
+        input.addEventListener("input", function() { // while a handle moves: the handles cannot pass each other
+            const from = document.getElementById("year_from"), to = document.getElementById("year_to");
+            if (parseInt(from.value, 10) > parseInt(to.value, 10)) {
+                this.value = this === from ? to.value : from.value;
             }
+            paint_year_slider();
+        });
+        input.addEventListener("change", function() { // handle released (or moved with the keyboard): this is the filter now
+            const from = document.getElementById("year_from"), to = document.getElementById("year_to");
+            year_filter = {
+                from: parseInt(from.value, 10) > parseInt(from.min, 10) ? from.value : "",
+                to: parseInt(to.value, 10) < parseInt(to.max, 10) ? to.value : "",
+            };
+            show_year_filter();
+            clearTimeout(year_apply_timer); // one request for a run of keyboard steps
+            year_apply_timer = setTimeout(apply_year_filter, 300);
+        });
+    }
+    show_year_filter();
+
+    // ---- node label size: a slider that scales the labels of the network on screen while it is moved ----
+
+    let label_size_factor = 1;  // 1 = the size the layout was made for; remembered in the browser
+    let node_fonts = {};        // node id -> label size at factor 1 (set by draw())
+    let label_size_frame = null;
+
+    function set_label_size(percent) {
+        label_size_factor = Math.max(50, Math.min(200, parseInt(percent, 10) || 100)) / 100;
+        try {
+            localStorage.setItem("pubscan_label_size", String(Math.round(label_size_factor * 100)));
+        } catch (e) { // storage blocked: the choice lasts until the page is closed
+        }
+        if (label_size_frame === null) { // at most one update of the network per frame while the slider moves
+            label_size_frame = requestAnimationFrame(() => {
+                label_size_frame = null;
+                if (globalThis.my_network && nodes_dataset.update) {
+                    restyle_nodes(Object.keys(node_fonts).map(id => ({ id: id, font: { size: Math.round(node_fonts[id] * label_size_factor) } })));
+                }
+            });
+        }
+    }
+
+    function reset_label_size() {
+        document.getElementById("label_size").value = 100;
+        set_label_size(100);
+    }
+
+    document.getElementById("label_size").addEventListener("input", function() {
+        set_label_size(this.value);
+    });
+    try {
+        const stored = parseInt(localStorage.getItem("pubscan_label_size"), 10);
+        if (stored >= 50 && stored <= 200) {
+            document.getElementById("label_size").value = stored;
+            label_size_factor = stored / 100;
+        }
+    } catch (e) {
+    }
+
+    // The part of the network canvas that no side panel (publications, topics, log) covers; the panels are on the right
+    function network_area() {
+        const container = document.getElementById("mynetwork");
+        let width = container.clientWidth;
+        if (!isMobile()) {
+            for (const id of ["div_pub", "div_author_topics", "div_log"]) {
+                const panel = document.getElementById(id);
+                if (panel && !panel.classList.contains("hidden")) {
+                    width -= panel.offsetWidth;
+                    break;
+                }
+            }
+        }
+        return { width: Math.max(width, 200), height: Math.max(container.clientHeight, 200) };
+    }
+
+    // Edge labels (the number of shared publications) are off unless the "Edge labels" checkbox of the menu is ticked;
+    // the choice is remembered in the browser. A label of size 0 is not drawn.
+    const EDGE_LABEL_SIZE = 25;
+
+    function edge_labels_shown() {
+        return document.getElementById("chk_edge_labels").checked;
+    }
+
+    function set_edge_labels(shown) {
+        try {
+            localStorage.setItem("pubscan_edge_labels", shown ? "1" : "0");
+        } catch (e) { // storage blocked: the choice lasts until the page is closed
+        }
+        if (globalThis.my_network) {
+            globalThis.my_network.setOptions({ edges: { font: { size: shown ? EDGE_LABEL_SIZE : 0 } } });
+        }
+    }
+
+    try {
+        document.getElementById("chk_edge_labels").checked = localStorage.getItem("pubscan_edge_labels") === "1";
+    } catch (e) {
+    }
+
+    // The year slider, the label size slider and the "Edge labels" checkbox act on the network: they are switched off
+    // while no network is on screen (start page, a topic list, a search without results before any network)
+    function update_network_controls() {
+        const shown = !!globalThis.my_network && document.getElementById("div_topics").classList.contains("hidden");
+        for (const id of ["year_from", "year_to", "label_size", "chk_edge_labels"]) {
+            document.getElementById(id).disabled = !shown;
+        }
+        for (const id of ["div_year_filter_c", "div_label_size_c", "div_edge_labels_c"]) {
+            const control = document.getElementById(id);
+            control.classList.toggle("network_control_off", !shown);
+            control.title = shown ? "" : "Available when a network is shown";
+        }
+    }
+
+    let node_extents = {};      // node id -> size of the disc and of its label at label size 1 (set by draw())
+
+    // room a node takes with its label (drawn centered below the disc) around its middle
+    function node_extent(id) {
+        const extent = node_extents[id];
+        return extent ? {
+            half_width: Math.max(extent.size, extent.label_width * label_size_factor / 2),
+            above: extent.size,
+            below: extent.size + extent.label_height * label_size_factor,
+        } : null;
+    }
+    let current_layout = null;  // layout of the network on screen (network_layout()), with its simulation for dragging
+
+    // Show the whole network, labels included, in the free part of the canvas
+    function fit_network() {
+        if (!globalThis.my_network) {
+            return;
+        }
+        const positions = globalThis.my_network.getPositions();
+        let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+        for (const id in positions) {
+            const extent = node_extent(id);
+            if (extent) {
+                left = Math.min(left, positions[id].x - extent.half_width);
+                right = Math.max(right, positions[id].x + extent.half_width);
+                top = Math.min(top, positions[id].y - extent.above);
+                bottom = Math.max(bottom, positions[id].y + extent.below);
+            }
+        }
+        if (left > right) { // no node with known extent
+            globalThis.my_network.fit();
+            return;
+        }
+        // the network is centered in the free part of the canvas, which is its left part when a side panel is open
+        // (the help text in the top left corner lies under the canvas and is not kept free)
+        const area = network_area();
+        const covered = document.getElementById("mynetwork").clientWidth - area.width;
+        globalThis.my_network.moveTo({
+            position: { x: (left + right) / 2, y: (top + bottom) / 2 },
+            scale: Math.min(1, 0.95 * Math.min(area.width / (right - left), area.height / (bottom - top))),
+            offset: { x: -covered / 2, y: 0 },
+            animation: false,
         });
     }
 
@@ -438,8 +664,29 @@
             globalThis.my_network = null;
         }
 
-        nodes_dataset = new vis.DataSet(nodes_all);
-        edges_dataset = new vis.DataSet(edges_all);
+        // node sizes, clusters with their colors and the node positions are computed here, before the network is
+        // drawn (pubscan_layout.js): it appears in place and stays where it is, vis-network only draws it
+        if (current_layout) {
+            current_layout.stop();
+        }
+        const area = network_area();
+        const layout = network_layout(nodes_all, edges_all, current_center, area.width / area.height);
+        current_layout = layout;
+        node_styles = {};
+        node_extents = {};
+        node_fonts = {};
+        original_colors = {};
+        nodes_dataset = new vis.DataSet(nodes_all.map(node => {
+            const l = layout.nodes[node.id];
+            node_styles[node.id] = node_style(l);
+            node_extents[node.id] = { size: l.size, label_width: l.label_width, label_height: l.label_height };
+            node_fonts[node.id] = l.font;
+            return { id: node.id, label: node.label, n: node.n, x: l.x, y: l.y, size: l.size, font: { size: Math.round(l.font * label_size_factor) }, ...node_styles[node.id] };
+        }));
+        // edges of the central author are full lines, edges between two co-authors are dashed (longer dashes on wider edges)
+        edges_dataset = new vis.DataSet(edges_all.map(edge => (
+            edge.from === layout.center || edge.to === layout.center ? edge
+                : { ...edge, dashes: [Math.max(12, 2.5 * edge.width), Math.max(10, 2 * edge.width)] })));
         var data = {
           nodes: nodes_dataset,
           edges: edges_dataset,
@@ -447,82 +694,77 @@
         var options = {
             autoResize: true,
             height: '100%',
-            width: '100%',            
-          groups : {
-        'g0': { color: {background:'#EBF2F6', highlight: { background: '#EBF2F6'} } },
-        'g1': { color: {background:'#C6D6E2', highlight: { background: '#C6D6E2'} } },
-        'g2': { color: {background:'#93AEC5', highlight: { background: '#93AEC5'} } },
-        'g3': { color: {background:'#293D4D', highlight: { background: '#293D4D'} } },
-        'g4': { color: {background:'#CCEEFA', highlight: { background: '#C3EEFA'} } },
-        'g5': { color: {background:'#FFEEFA', highlight: { background: '#C3EEFA'} } },
-        'g6': { color: {background:'#B37676', highlight: { background: '#B37676'} } },
-        'g7': { color: {background:'#C37676', highlight: { background: '#C37676'} } },
-        'g8': { color: {background:'#D37676', highlight: { background: '#D37676'} } },
-        },
+            width: '100%',
         interaction: {
             zoomSpeed: 0.1,  // Slow down zooming (default is 1)
             navigationButtons: true,  // Optionally add navigation buttons (optional)
             keyboard: false
-        },        
+        },
         nodes: {
             shape: "dot",
             size: 18,
+            borderWidth: 1.5,
+            borderWidthSelected: 3,
                 font: {
                     size: 35, // Adjust the font size here
                     color: '#454545',
                     face: 'arial',
-                },            
+                },
           },
           edges: {
-            color: { color: '#f5f5f5', highlight: '#FAA0A0' },
-            smooth: {
-                enabled: true,
-                type: 'dynamic',   // cheaper than default 'dynamic', looks almost identical
-                roundness: 1        // subtle curve, less extreme than default
-            },
+            color: { color: '#e6e6e6', highlight: '#FAA0A0' },  // light, but dark enough to tell dashed from full lines
+            smooth: false,  // straight edges: curved "dynamic" edges need the physics simulation, which is off
             font: {
-              size: 25,
+              size: edge_labels_shown() ? EDGE_LABEL_SIZE : 0,  // the labels (shared publications) are drawn only when switched on
               face: 'arial',
               color: '#a1a1a1',
             },
             //selectionWidth: 1,
           },
           layout: {
-            improvedLayout: true,
-            randomSeed: 42,
+            improvedLayout: false,  // the positions are given
           },
-          physics: {
-            stabilization: {
-                enabled: true,
-                iterations: 200,
-                updateInterval: 20,
-                fit: true,
-            },
-            barnesHut: {
-                gravitationalConstant: -4000, // Strength of attraction (-ve pulls nodes together)
-                centralGravity: 0.3,         // Pull towards center
-                springLength: 200,            // Edge length
-                springConstant: 0.01,        // Strength of spring force
-                damping: 0.1,               // Slow down movement over time
-                avoidOverlap: 1              // Avoid node overlap (0 = disabled)
-            },
-            forceAtlas2Based: {
-              gravitationalConstant: -20,
-              centralGravity: 0.001,
-              springConstant: 0.03, // how much attraction between nodes
-              damping: 0.9,
-              avoidOverlap: 1,
-            },
-            maxVelocity: 100,
-            solver: "forceAtlas2Based",
-            timestep: 0.3,
-            adaptiveTimestep: true,
-          },
+          physics: false,  // nothing moves by itself; dragging is handled by the simulation of the layout (see below)
         };
 
         let my_network = new vis.Network(container, data, options);
 
         globalThis.my_network = my_network;
+        fit_network();
+        update_network_controls();
+
+        // the round button at the bottom left does what "Center" in the menu does. (It is vis-network's "zoom extends"
+        // button, whose own handler fits the network into the whole canvas, also under an open side panel; a copy
+        // of the button does not carry that handler.)
+        const zoom_extends = container.querySelector(".vis-navigation .vis-zoomExtends");
+        if (zoom_extends) {
+            const center_button = zoom_extends.cloneNode(true);
+            center_button.title = "Center";
+            center_button.addEventListener("click", fit_network);
+            zoom_extends.replaceWith(center_button);
+        }
+
+        // the network is elastic: while a node is dragged, the nodes linked to it follow (pubscan_layout.js);
+        // vis-network moves the dragged node with the pointer, the simulation moves the others
+        layout.position_of = (id) => my_network.getPositions([id])[id];
+        layout.on_move = (positions) => {
+            for (const id in positions) {
+                const node = my_network.body.nodes[id];
+                if (node) {
+                    node.x = positions[id].x;
+                    node.y = positions[id].y;
+                }
+            }
+            my_network.redraw();
+        };
+        my_network.on("dragStart", function (params) {
+            if (params.nodes.length > 0) {
+                layout.drag_start(params.nodes[0]);
+            }
+        });
+        my_network.on("dragEnd", function () {
+            layout.drag_end();
+        });
 
         globalThis.my_network.on("doubleClick", function (params) {
             console.log("double click");
@@ -576,8 +818,7 @@
             }, 250);
         });
 
-        // color the node red and show publications for the node
-        color_node_single(current_center, 'red');
+        // show publications for the central author (drawn in red, see network_layout())
         const center_data = nodes_dataset.get(current_center);
         load_author_topics(center_data["id"], center_data["label"]);
         const center_header = (n) => {
@@ -790,6 +1031,8 @@
                                     }
                                     nodes_all = mydata["nodes_all"];
                                     edges_all = mydata["edges_all"];
+                                    const years_span = Array.isArray(mydata["years"]) ? mydata["years"] : []; // publication years of the central author
+                                    set_year_span(years_span[0], years_span[1]);                              // become the ends of the year slider
                                     current_query = query;
                                     draw();
                                     document.querySelector("#autoComplete").value = query;
@@ -1059,6 +1302,32 @@
         ac_tooltip.hide();
     });
 
+    // A click that brings the focus into the search field selects its text, so that typing replaces the last search.
+    // A click into the field that already has the focus places the cursor as usual, and text selected by dragging
+    // or by a double click stays selected.
+    let search_select_on_click = false;     // the mouse button went down while the field had no focus
+    let search_selected_by_click = false;   // the last click selected the whole text
+
+    document.querySelector("#autoComplete").addEventListener("mousedown", function(e) {
+        const input = e.target;
+        search_select_on_click = document.activeElement !== input;   // the focus arrives after this event
+        // second press of a double click: browsers leave an existing selection alone, so the one made by the first
+        // click is dropped and the double click selects the word under the pointer as it does everywhere else
+        if (search_selected_by_click && e.detail > 1) {
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
+        search_selected_by_click = false;
+    });
+
+    document.querySelector("#autoComplete").addEventListener("click", function(e) {
+        const input = e.target;
+        if (search_select_on_click && input.selectionStart === input.selectionEnd) {
+            input.setSelectionRange(0, input.value.length);
+            search_selected_by_click = true;
+        }
+        search_select_on_click = false;
+    });
+
     document.querySelector("#ac_search_nodes").addEventListener("input", function(e) {
         update_nodes_clear_button();
         const value = e.target.value.toLowerCase();
@@ -1104,6 +1373,17 @@
 
 
     .pub_loading { color: #aaaaaa; padding: 4px 0 8px 0; }
+
+    /* "Edge labels" checkbox in the menu: looks like the menu links next to it, dark while switched on */
+    .edge_labels_toggle { cursor: pointer; user-select: none; }
+    .edge_labels_toggle:has(input:checked) { color: #525252; }
+    .edge_labels_toggle input { appearance: none; -webkit-appearance: none; position: relative; display: inline-block; width: 14px; height: 14px;
+        margin: 0 5px 0 0; vertical-align: -2px; border: 1px solid #c1c1c1; border-radius: 4px; background-color: #f7f7f7; cursor: pointer; }
+    .edge_labels_toggle:hover input { border-color: #525252; }
+    .edge_labels_toggle input:checked { background-color: #4d83e7; border-color: #4d83e7; }
+    .edge_labels_toggle input:checked::after { content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+        border: solid #ffffff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+    .edge_labels_toggle input:focus-visible { outline: 2px solid #9dbcf3; outline-offset: 1px; }
 
     /* welcome text */
     /* desktop: the welcome text fills the network area (below the search bar, above the footer) and centers inside it;
@@ -1233,7 +1513,9 @@
 
             mobile_view = "network";
             document.body.classList.add("mobile");
-            $("#div_year_filter_c").hide(); // year filter is desktop only
+            $("#div_year_filter_c").hide(); // year filter, label size and edge labels are desktop only
+            $("#div_label_size_c").hide();
+            $("#div_edge_labels_c").hide();
 
             document.getElementById('mene_right_2').style.display = 'none';
             $("#div_bottom").hide();
@@ -1287,6 +1569,7 @@
         }
 
         get_update_date();
+        update_network_controls(); // no network yet
 
         if (!isMobile()) { // year filter is desktop only
             const url_params = new URLSearchParams(window.location.search);
@@ -1316,7 +1599,7 @@
     };
 
 function swap_pub_mobile() {
-    if (document.getElementById("div_bottom_mobile_label").innerHTML.indexOf("Developed by")>0)
+    if (document.getElementById("div_bottom_mobile_label").innerHTML.indexOf("Open Source at")>0) // still the pubScan notice: no network yet
         return;
     if (mobile_view=="network")
     {
@@ -1382,19 +1665,20 @@ function swap_pub_mobile() {
                 to see the authors publishing most on it, ranked by number of publications, and open their networks from there.
             </div>
             <div class="splash_card">
-                <div class="splash_head"><i class="fas fa-circle"></i> Node colors</div>
-                Publications in PubMed:
-                <span class="dot" style="background:#EBF2F6"></span> &lt; 10,
-                <span class="dot" style="background:#C6D6E2"></span> 10-50,
-                <span class="dot" style="background:#93AEC5"></span> 50-100,
-                <span class="dot" style="background:#293D4D"></span> &gt; 100
+                <div class="splash_head"><i class="fas fa-circle"></i> Node size and color</div>
+                The area of a node is proportional to the number of publications the co-author shares with the central author.
+                Co-authors who also publish with each other form a cluster and share a color:
+                <span class="dot" style="background:#95bceb; box-shadow: inset 0 0 0 1.5px #2a78d6"></span><span class="dot" style="background:#f6d080; box-shadow: inset 0 0 0 1.5px #eda100"></span><span class="dot" style="background:#f4bdd2; box-shadow: inset 0 0 0 1.5px #e87ba4"></span><span class="dot" style="background:#91c499; box-shadow: inset 0 0 0 1.5px #228833"></span><span class="dot" style="background:#9991c4; box-shadow: inset 0 0 0 1.5px #332288"></span><span class="dot" style="background:#b3e6f7; box-shadow: inset 0 0 0 1.5px #66ccee"></span><span class="dot" style="background:#d599bb; box-shadow: inset 0 0 0 1.5px #aa3377"></span>
+                the seven largest clusters,
+                <span class="dot" style="background:#e3e4e7; box-shadow: inset 0 0 0 1.5px #a9adb3"></span> smaller groups and co-authors without a cluster.
             </div>
             <div class="splash_card">
                 <div class="splash_head"><i class="fas fa-project-diagram"></i> What is shown</div>
                 To stay readable and fast, a network shows up to 100 co-authors and up to 1,000 edges: all edges of the central author,
                 the 100 strongest links and a random sample of the rest. Co-authors and edges are ranked by co-authorship weight:
                 a shared publication with <i>n</i> authors counts 1/(<i>n</i>&minus;1), so papers written in small teams weigh more than
-                consortium papers with hundreds of authors. Edge labels show the number of shared publications.
+                consortium papers with hundreds of authors. Edges of the central author are full lines, edges between two co-authors
+                are dashed; tick <i>Edge labels</i> in the menu to see the number of shared publications on every edge.
             </div>
         </div>
         <div class="splash_foot">
@@ -1417,6 +1701,8 @@ function swap_pub_mobile() {
     Click node to show publications.<br>
     Click edge to show co-authored publications.<br>
     Double-click node to re-center network to clicked author.<br>
+    Node size: proportional to the publications shared with the central author.<br>
+    Node color: cluster of co-authors who publish together.<br>
 
 </div>
 
@@ -1501,6 +1787,7 @@ function swap_pub_mobile() {
 
     function hide_topics() {
         document.getElementById("div_topics").classList.add("hidden");
+        update_network_controls(); // the network below the list, if there is one, is on screen again
     }
 
     // shareable URL of a topic list: /topic/<name with _ for spaces>[?since=<year>]
@@ -1539,6 +1826,7 @@ function swap_pub_mobile() {
         results.innerHTML = "";
         view.classList.remove("hidden");
         view.scrollTop = 0;
+        update_network_controls(); // the list covers the network
         try { if (topic_abort) topic_abort.abort(); } catch (e) {}
         topic_abort = new AbortController();
         const url = "/gw/index.py?action=topic_authors&term=" + encodeURIComponent(term.term) + "&year_from=" + topic_year_from();

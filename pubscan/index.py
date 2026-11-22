@@ -1,5 +1,9 @@
 """pubScan WSGI backend: co-authorship networks from the OpenAlex-derived SQLite databases.
 
+pubScan <https://pubscan.org> - Copyright (C) 2025-2026 Gregor Rot
+Free software under the GNU Affero General Public License, version 3 (LICENCE.md), with the additional
+attribution terms of NOTICE.md: the pubScan notice with its link stays visible in the user interface.
+
 Security notes
 - every parameter travels in the query string; request bodies are never read (POST/PUT are rejected)
 - actions are dispatched through an explicit table, never through attribute lookup
@@ -50,8 +54,8 @@ def paper_weight(n_authors):
     return 1.0 / max(n_authors - 1, 1)
 
 def edge_width(weight):
-    """Drawn edge width from the fractional weight: 1 px for consortium-only links, 15 px at most."""
-    return round(min(15.0, 1.0 + 3.0 * weight), 1)
+    """Drawn edge width from the fractional weight: 1 px for consortium-only links, 7.5 px at most."""
+    return round(min(7.5, 1.0 + 1.5 * weight), 1)
 
 # request limits
 MAX_PARAM_LENGTH = 5000          # longest accepted value of any query-string parameter
@@ -83,7 +87,16 @@ GRAPH = graph_module.load(GRAPH_DIR)
 TOPICS_DIR = os.environ.get("pubscan_TOPICS") or (os.path.join(os.path.dirname(DB), "topics") if DB else None)
 TOPICS = topics_module.load(TOPICS_DIR) if GRAPH is not None else None
 
-random.seed(42)
+def sample_edges(edges, count, center_id):
+    """Random sample of edges that is the same whenever the same network is requested: the generator is seeded
+    with the ORCID of the central author. (A generator seeded once per process would hand every request different
+    edges, and with them different clusters, colours and positions in the browser at every reload.)"""
+    return random.Random(center_id).sample(edges, count)
+
+def year_span(years):
+    """[first, last] of the given publication years (unknown years are skipped), or None when no year is known."""
+    known = [year for year in years if isinstance(year, int) and year > 0]
+    return [min(known), max(known)] if known else None
 
 def open_db(path):
     c = sqlite3.connect(f"file:{path}?immutable=1", uri=True)
@@ -285,7 +298,7 @@ class TableClass():
                 network_limiter.release(self.ip)
 
     def version(self):
-        status_string = f"""pubscan v3.4 {datetime.datetime.now()}
+        status_string = f"""pubscan v3.5 {datetime.datetime.now()}
 """
         return [self.return_string(status_string)]
 
@@ -435,6 +448,7 @@ class TableClass():
 
         center_id = G.orcid(center) # stored spelling of the ORCID becomes the center id
         center_pmids = G.pmids(center)[:MAX_PMIDS_PER_AUTHOR].tolist()
+        center_years = year_span(G.year(pmid) for pmid in center_pmids) # the years a year filter can choose from (ends of the year slider)
         if not year_filter:
             center_pmids = center_pmids[:200] # maximum 200 publications for center
 
@@ -531,11 +545,11 @@ class TableClass():
             edges_rest.sort(key=lambda x: (x["weight"], x["common"]), reverse=True)
             edges_B = edges_rest[:100]
             edges_all = edges_A + edges_B
-            edges_C = random.sample(edges_rest[100:], max(max_edges - len(edges_all), 0))
+            edges_C = sample_edges(edges_rest[100:], max(max_edges - len(edges_all), 0), center_id)
             edges_all = edges_all + edges_C
 
         yield progress("network construction on server complete, sending data over")
-        yield self.return_string(json.dumps({"nodes_all": nodes_all, "edges_all": edges_all, "instruction": "data"}) + "\n")
+        yield self.return_string(json.dumps({"nodes_all": nodes_all, "edges_all": edges_all, "years": center_years, "instruction": "data"}) + "\n")
         yield progress(f"{len(nodes_all)} author nodes and {len(edges_all)} co-author edges")
 
     def author_network(self, search, center_id, year_from, year_to):
@@ -566,6 +580,7 @@ class TableClass():
         # the stored spelling of the ORCID becomes the center id (a few records keep a lowercase check
         # digit, and the publication author lists use the same spelling)
         center_id, _, pmids = self.author_pmids(center_id)
+        center_years = year_span(record["pub_year"] for record in self.data_pmids(pmids).values()) # ends of the year slider
         if not year_filter:
             pmids = pmids[:200] # maximum 200 publications for center
         # with a year filter all (up to 300) publications are scanned and the first 200 inside the range are kept
@@ -728,7 +743,7 @@ class TableClass():
             edges_rest.sort(key=lambda x: (x["weight"], x["common"]), reverse=True)
             edges_B = edges_rest[:100] # take 100 most connected
             edges_all = edges_A + edges_B
-            edges_C = random.sample(edges_rest[100:], max(max_edges-len(edges_all), 0))
+            edges_C = sample_edges(edges_rest[100:], max(max_edges-len(edges_all), 0), center_id)
             edges_all = edges_all + edges_C
 
         yield progress("network construction on server complete, sending data over")
@@ -736,6 +751,7 @@ class TableClass():
         results = {}
         results["nodes_all"] = nodes_all
         results["edges_all"] = edges_all
+        results["years"] = center_years
         results["instruction"] = "data"
 
         yield self.return_string(json.dumps(results)+"\n")

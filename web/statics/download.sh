@@ -6,6 +6,10 @@ wget -q -O js/jquery-3.6.0.min.js \
 wget -q -O js/vis-network.min.js \
   https://unpkg.com/vis-network/standalone/umd/vis-network.min.js
 
+# d3-force with the three modules it needs, in one file (layout of the network, see ../pubscan_layout.js)
+wget -q -O js/d3-force-3.js \
+  "https://cdn.jsdelivr.net/combine/npm/d3-dispatch@3.0.1/dist/d3-dispatch.min.js,npm/d3-quadtree@3.0.1/dist/d3-quadtree.min.js,npm/d3-timer@3.0.1/dist/d3-timer.min.js,npm/d3-force@3.0.0/dist/d3-force.min.js"
+
 wget -q -O js/tailwindcss-browser-4.js \
   https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4
 

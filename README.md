@@ -17,8 +17,8 @@ Other nodes are colored based on the number of publications for the author in Pu
 ## Are all co-authors shown?
 To keep the network readable and responsive, pubScan displays:
 
-* up to 100 co-authors (ranked by number of shared publications)
-* up to 1,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links, and a random sample of the remaining edges
+* up to 100 co-authors, ranked by co-authorship weight: every shared publication counts 1/(number of authors − 1), so a two-author paper counts 1 and a 300-author consortium paper 0.003; real collaborators therefore rank above co-signers of large consortium papers (edge labels still show the number of shared publications)
+* up to 1,000 edges: this includes all edges between the central author and their co-authors, the 100 strongest co-authorship links (by the same weight), and a random sample of the remaining edges
 
 An optional year range (from / to) restricts the network to publications of those years. Networks can be shared by URL:
 `https://pubscan.org/<Name>_<ORCID>` or simply `https://pubscan.org/<ORCID>`.
@@ -32,6 +32,7 @@ An optional year range (from / to) restricts the network to publications of thos
 
 ## Changelog
 
+* 202611: co-authors and edges are ranked by fractional co-authorship weight (a shared publication with n authors counts 1/(n−1)) instead of the raw number of shared publications; networks of authors on large consortium papers show their actual collaborators instead of a clique of consortium co-signers; edge width follows the weight, the label still shows the number of shared publications
 * 202611: v3.4, find authors by topic: the search box also takes OpenAlex topics, subfields and keywords of PubMed articles (e.g. "RNA splicing"); the suggestions show the matching term with its top authors, choosing the term lists the top 100 authors ranked by their number of publications on it (with an "active since" year filter), a click opens their network; the Topics panel of a network lists an author's top 100 terms; new API actions `suggest` (names and topic in one answer) and `author_topics`; new pipeline outputs `topics.tab.gz` and `topics_vocab.tab.gz`, new build script `openalex/db_topics.py`, new API actions `topic_suggest` and `topic_authors`; the works extraction runs in parallel over the snapshot files and only parses records with a PubMed id
 * 202611: v3.3, networks are built from an in-memory graph (memory-mapped arrays derived from the database, 1.6 GB instead of touching the 11.6 GB SQLite file; same results, 3x faster when warm and no disk seeks when cold); the network response no longer carries publication lists (publications are fetched when a node or an edge is clicked) and is gzip-compressed (a dense network shrinks from 830 KB to 9 KB on the wire, the browser no longer freezes while receiving it); security hardening of backend, frontend and deployment (query-string only API with explicit action table and input limits, no shell use, HTML escaping of author names and titles, per-client concurrency limits, one SQLite connection per worker thread); author names with any character work in URLs and labels; bare ORCID URLs; download scripts follow the new OpenAlex snapshot layout and refuse to sync against a missing release
 * 202610: v3.2, publication year filter (from / to), wider search box

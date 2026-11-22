@@ -59,6 +59,12 @@ class Graph:
             return self.pmid_authors[0:0]
         return self.pmid_authors[self.pmid_authors_off[pmid]:self.pmid_authors_off[pmid + 1]]
 
+    def authors_count(self, pmid):
+        """Number of authors of a PMID known to the graph (authors with an ORCID); 0 if unknown."""
+        if not (0 <= pmid <= self.max_pmid):
+            return 0
+        return int(self.pmid_authors_off[pmid + 1] - self.pmid_authors_off[pmid])
+
     def year(self, pmid):
         """Publication year or None when unknown / no publications row."""
         if not (0 <= pmid <= self.max_pmid):

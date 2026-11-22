@@ -43,6 +43,16 @@ def malloc_trim():
 max_nodes = 100
 max_edges = 1000
 
+def paper_weight(n_authors):
+    """Fractional co-authorship: a publication shared by n authors counts 1/(n-1) for each pair of them
+    (a two-author paper counts 1, a 10-author paper 0.11, a 300-author consortium paper 0.003), so that
+    real collaborators rank above co-signers of large consortium papers."""
+    return 1.0 / max(n_authors - 1, 1)
+
+def edge_width(weight):
+    """Drawn edge width from the fractional weight: 1 px for consortium-only links, 15 px at most."""
+    return round(min(15.0, 1.0 + 3.0 * weight), 1)
+
 # request limits
 MAX_PARAM_LENGTH = 5000          # longest accepted value of any query-string parameter
 MAX_QUERY_FIELDS = 20            # parameters per request
@@ -461,21 +471,27 @@ class TableClass():
 
         author_sets = {aid: set(capped[aid]) for aid in authors}
         center_set = author_sets.get(center, set())
-        nodes_cdegree = {}
+
+        def pair_weight(common):
+            return sum(paper_weight(G.authors_count(p)) for p in common)
+
+        nodes_cdegree = {}   # shared publications with the center
+        nodes_weight = {}    # their fractional weight (see paper_weight)
         for aid in authors:
             if aid == center:
                 continue
-            num_common = len(center_set & author_sets[aid])
-            if num_common > 0:
-                nodes_cdegree[aid] = num_common
-                nodes_cdegree[center] = max(num_common, nodes_cdegree.get(center, 0))
+            common = center_set & author_sets[aid]
+            if common:
+                nodes_cdegree[aid] = len(common)
+                nodes_weight[aid] = pair_weight(common)
 
-        yield progress("sorting nodes by common publications with center [descending]")
-        temp_sorted = sorted(((nodes_cdegree.get(aid, 0), aid) for aid in authors), key=lambda x: x[0], reverse=True)
+        yield progress("sorting nodes by co-authorship weight with center (shared publications, each weighted by 1/(authors-1)) [descending]")
+        temp_sorted = sorted(((nodes_weight.get(aid, 0.0), nodes_cdegree.get(aid, 0), aid) for aid in authors if aid != center),
+                             key=lambda x: (x[0], x[1]), reverse=True)   # stable: ties keep first-appearance order
 
         yield progress(f"keeping {max_nodes} most connected nodes to center")
-        kept = []
-        for degree, aid in temp_sorted:
+        kept = [center] if center in author_sets else []
+        for weight, degree, aid in temp_sorted:
             if len(kept) < max_nodes and degree > 0:
                 kept.append(aid)
 
@@ -504,14 +520,15 @@ class TableClass():
         edges_all = []
         for a1, a2, common in pair_common:
             num_common = len(common)
-            edges_all.append({"from": G.orcid(a1), "to": G.orcid(a2), "width": min(num_common, 15), "label": f"{num_common}", "common": num_common})
+            weight = pair_weight(common)
+            edges_all.append({"from": G.orcid(a1), "to": G.orcid(a2), "width": edge_width(weight), "label": f"{num_common}", "common": num_common, "weight": round(weight, 3)})
 
         yield progress("keeping all edges to centre + 100 others most heavy + sampling randomly others to reach max edges")
 
         if len(edges_all) > max_edges:
             edges_A = [e for e in edges_all if center_id in (e["from"], e["to"])]
             edges_rest = [e for e in edges_all if center_id not in (e["from"], e["to"])]
-            edges_rest.sort(key=lambda x: x["common"], reverse=True)
+            edges_rest.sort(key=lambda x: (x["weight"], x["common"]), reverse=True)
             edges_B = edges_rest[:100]
             edges_all = edges_A + edges_B
             edges_C = random.sample(edges_rest[100:], max(max_edges - len(edges_all), 0))
@@ -560,6 +577,7 @@ class TableClass():
         nodes_all = []
         edges_all = []
         pmid_year = {} # years of publications looked up so far (center publications + edge publications)
+        pmid_nauthors = {} # number of authors (with an ORCID) of publications looked up so far
         center_kept = [] # center publications inside the year range (all of them when no filter)
 
         for index, pmid in enumerate(pmids):
@@ -574,6 +592,7 @@ class TableClass():
             if pmid_data is None:
                 continue
             pmid_year[pmid] = pmid_data["pub_year"]
+            pmid_nauthors[pmid] = len(pmid_orcids)
             if year_filter and not year_ok(pmid_data["pub_year"]):
                 continue
             center_kept.append(pmid)
@@ -623,35 +642,34 @@ class TableClass():
 
         # degree of each node to the center node: one intersection per author
         # (the all-pairs loop is only needed among the nodes we keep, see below)
-        nodes_cdegree = {}
+        def pair_weight(common):
+            return sum(paper_weight(pmid_nauthors.get(p, 2)) for p in common)
+
+        nodes_cdegree = {}   # shared publications with the center
+        nodes_weight = {}    # their fractional weight (see paper_weight); center publications' author counts are known
         center_set = author_sets.get(center_id, set())
         for a in authors:
             if a == center_id:
                 continue
-            num_common = len(center_set & author_sets[a])
-            if num_common > 0:
-                nodes_cdegree[a] = num_common
-                nodes_cdegree[center_id] = max(num_common, nodes_cdegree.get(center_id, 0))
+            common = center_set & author_sets[a]
+            if common:
+                nodes_cdegree[a] = len(common)
+                nodes_weight[a] = pair_weight(common)
 
-        yield progress("sorting nodes by common publications with center [descending]")
+        yield progress("sorting nodes by co-authorship weight with center (shared publications, each weighted by 1/(authors-1)) [descending]")
 
-        # sort nodes by degree to center (stable sort: ties keep first-appearance order)
-        temp = []
-        for node in nodes_all:
-            node_id = node["id"]
-            dg = nodes_cdegree.get(node_id, 0)
-            temp.append((dg, node))
-        temp_sorted = sorted(temp, key=lambda x: x[0], reverse=True)
+        # sort nodes by weight, then shared publications (stable sort: ties keep first-appearance order); the center comes first
+        center_nodes = [node for node in nodes_all if node["id"] == center_id]
+        temp = [(nodes_weight.get(node["id"], 0.0), nodes_cdegree.get(node["id"], 0), node) for node in nodes_all if node["id"] != center_id]
+        temp_sorted = sorted(temp, key=lambda x: (x[0], x[1]), reverse=True)
 
         yield progress(f"keeping {max_nodes} most connected nodes to center")
 
         # filter nodes: <max_nodes nodes, each node must share a publication with the center (degree>0)
-        authors_all = set()
-        nodes_all_filtered = []
-        for (degree, node) in temp_sorted:
+        nodes_all_filtered = list(center_nodes)
+        for (weight, degree, node) in temp_sorted:
             if len(nodes_all_filtered)<max_nodes and degree>0:
                 nodes_all_filtered.append(node)
-                authors_all.add(node["id"])
         nodes_all = nodes_all_filtered
 
         # edges only among kept nodes: all pairs of at most max_nodes nodes
@@ -662,24 +680,28 @@ class TableClass():
             if len(common)>0:
                 pair_common.append((a1, a2, common))
 
+        # publications shared by two co-authors (not involving the center) have unknown years and author
+        # counts: look them up in batches
+        need = set()
+        for _, _, common in pair_common:
+            need.update(common)
+        need = [p for p in need if p not in pmid_nauthors]
+        if need:
+            yield progress(f"looking up {len(need)} co-author publications")
+        for start in range(0, len(need), 500):
+            chunk = need[start:start+500]
+            placeholders = ",".join("?" for _ in chunk)
+            try:
+                rows = get_conn().execute(f"SELECT pmid, pub_year, authors_orcid FROM publications WHERE pmid IN ({placeholders})", tuple(chunk)).fetchall()
+            except sqlite3.OperationalError as e:
+                self.logme(f"DB error: {e}")
+                rows = []
+            for pmid_val, pub_year, authors_orcid_str in rows:
+                pmid_year[str(pmid_val)] = pub_year
+                pmid_nauthors[str(pmid_val)] = len([a for a in (authors_orcid_str or "").split(",") if a.strip()])
+
         if year_filter and pair_common:
-            # publications shared by two co-authors (not involving the center) have unknown years:
-            # look them up in batches, then drop the ones outside the range from every edge
-            need = set()
-            for _, _, common in pair_common:
-                need.update(common)
-            need = [p for p in need if p not in pmid_year]
-            yield progress(f"year filter {year_label}: looking up years of {len(need)} co-author publications")
-            for start in range(0, len(need), 500):
-                chunk = need[start:start+500]
-                placeholders = ",".join("?" for _ in chunk)
-                try:
-                    rows = get_conn().execute(f"SELECT pmid, pub_year FROM publications WHERE pmid IN ({placeholders})", tuple(chunk)).fetchall()
-                except sqlite3.OperationalError as e:
-                    self.logme(f"DB error: {e}")
-                    rows = []
-                for pmid_val, pub_year in rows:
-                    pmid_year[str(pmid_val)] = pub_year
+            # drop the publications outside the range from every edge
             filtered = []
             for a1, a2, common in pair_common:
                 common = {p for p in common if year_ok(pmid_year.get(p))}
@@ -689,8 +711,8 @@ class TableClass():
 
         for a1, a2, common in pair_common:
             num_common = len(common)
-            edge_width = min(num_common, 15)
-            edge_rec = {"from":a1, "to":a2, "width": edge_width, "label": f"{num_common}", "common": num_common}
+            weight = pair_weight(common)
+            edge_rec = {"from":a1, "to":a2, "width": edge_width(weight), "label": f"{num_common}", "common": num_common, "weight": round(weight, 3)}
             edges_all.append(edge_rec)
 
         yield progress("keeping all edges to centre + 100 others most heavy + sampling randomly others to reach max edges")
@@ -703,7 +725,7 @@ class TableClass():
                     edges_A.append(edge)
                 else:
                     edges_rest.append(edge)
-            edges_rest.sort(key=lambda x: x["common"], reverse=True)
+            edges_rest.sort(key=lambda x: (x["weight"], x["common"]), reverse=True)
             edges_B = edges_rest[:100] # take 100 most connected
             edges_all = edges_A + edges_B
             edges_C = random.sample(edges_rest[100:], max(max_edges-len(edges_all), 0))

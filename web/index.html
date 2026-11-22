@@ -1391,8 +1391,10 @@ function swap_pub_mobile() {
             </div>
             <div class="splash_card">
                 <div class="splash_head"><i class="fas fa-project-diagram"></i> What is shown</div>
-                To stay readable and fast, a network shows up to 100 co-authors (ranked by shared publications) and up to 1,000 edges:
-                all edges of the central author, the 100 strongest links and a random sample of the rest.
+                To stay readable and fast, a network shows up to 100 co-authors and up to 1,000 edges: all edges of the central author,
+                the 100 strongest links and a random sample of the rest. Co-authors and edges are ranked by co-authorship weight:
+                a shared publication with <i>n</i> authors counts 1/(<i>n</i>&minus;1), so papers written in small teams weigh more than
+                consortium papers with hundreds of authors. Edge labels show the number of shared publications.
             </div>
         </div>
         <div class="splash_foot">

@@ -37,11 +37,11 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 
-    <meta name="description" content="pubScan lets you explore your scientific co-authorship network. Visualize collaborations across PubMed publications — fast, open-source, and mobile-friendly.">
-    <meta name="keywords" content="pubScan, co-authorship network, PubMed, scientific collaboration, research visualization, academic graph, open science, papers network, science network, scientists network">
+    <meta name="description" content="pubScan lets you explore your scientific co-authorship network. Visualize collaborations across scientific publications — fast, open-source, and mobile-friendly.">
+    <meta name="keywords" content="pubScan, co-authorship network, PubMed, OpenAlex, ORCID, scientific collaboration, research visualization, academic graph, open science, papers network, science network, scientists network">
     <meta name="robots" content="index, follow">
     <meta property="og:title" content="pubScan: Explore your scientific co-authorship network">
-    <meta property="og:description" content="Visualize your co-authorship network from PubMed data — fast, interactive, and open source.">
+    <meta property="og:description" content="Visualize your co-authorship network from OpenAlex data — fast, interactive, and open source.">
     <meta property="og:image" content="https://raw.githubusercontent.com/grexor/pubscan/main/web/pubscan_splash.jpg">
     <meta property="og:url" content="https://pubscan.org">
     <meta name="twitter:card" content="summary_large_image">
@@ -52,7 +52,7 @@
     "@type": "WebApplication",
     "name": "pubScan",
     "url": "https://pubscan.org",
-    "description": "Explore and visualize scientific co-authorship networks using PubMed data.",
+    "description": "Explore and visualize scientific co-authorship networks using OpenAlex data.",
     "applicationCategory": "Science",
     "operatingSystem": "All",
     "creator": {
@@ -884,6 +884,17 @@
             fetch_publications(url, header);
         }
 
+        // Title of a publication as a link: to PubMed when it has a PubMed id, else to its DOI, else to its OpenAlex page
+        function publication_link(e) {
+            const title = esc(e.title || "(no title)");
+            const id = /^W\d+$/.test(String(e.id)) ? String(e.id) : "";
+            let url = "";
+            if (/^\d+$/.test(String(e.pmid))) url = "https://pubmed.ncbi.nlm.nih.gov/" + e.pmid;
+            else if (e.doi) url = "https://doi.org/" + encodeURIComponent(e.doi).replace(/%2F/g, "/");
+            else if (id) url = "https://openalex.org/" + id;
+            return url ? "<a href='" + esc(url) + "' target='_" + (id || "blank") + "' rel='noopener'>" + title + "</a>" : title;
+        }
+
         function fetch_publications(url, header) {
             document.getElementById("div_pub").insertAdjacentHTML("beforeend", '<div id="pub_loading" class="pub_loading"><i class="fas fa-circle-notch fa-spin"></i>&nbsp; Loading publications&hellip;</div>');
             fetch(url + "&datetime=" + new Date().toISOString()).then(response =>
@@ -912,22 +923,12 @@
                                         header(pub_list.length);
                                     }
                                 }
-                                const sorted_data = pub_list.sort((a, b) => {
-                                const yearA = parseInt(a.pub_year, 10);
-                                const yearB = parseInt(b.pub_year, 10);
-
-                                if (yearB !== yearA) {
-                                    return yearB - yearA; // Sort by pub_year descending
-                                }
-
-                                return parseInt(b.pmid, 10) - parseInt(a.pmid, 10); // Then by pmid descending
-                                });
+                                // newest year first; within a year the order of the server stays (newest first), the sort is stable
+                                const sorted_data = pub_list.sort((a, b) => (parseInt(b.pub_year, 10) || 0) - (parseInt(a.pub_year, 10) || 0));
                                 html_add = "";
                                 html_add += "<table border=10>"
                                 for (const e of sorted_data) {
-                                    const pmid = /^\d+$/.test(String(e.pmid)) ? String(e.pmid) : "";
-                                    const title_html = pmid ? "<a href='https://pubmed.ncbi.nlm.nih.gov/" + pmid + "' target='_" + pmid + "' rel='noopener'>" + esc(e.title) + "</a>" : esc(e.title);
-                                    html_add += "<tr><td>" + esc(e.pub_year) + "&nbsp;&nbsp;</td><td>" + title_html + "</td></tr>";
+                                    html_add += "<tr><td>" + esc(e.pub_year) + "&nbsp;&nbsp;</td><td>" + publication_link(e) + "</td></tr>";
                                 }           
                                 html_add += "</table>"
                                 const loading = document.getElementById("pub_loading");
@@ -1644,14 +1645,14 @@ function swap_pub_mobile() {
                 <input id="topic_year_from" placeholder="year" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="active since year"></span>
         </div>
         <div id="div_topics_results"></div>
-        <div class="topics_hint">Authors are ranked by their number of PubMed publications tagged with this OpenAlex topic or keyword. Click a name to open the co-authorship network.</div>
+        <div class="topics_hint">Authors are ranked by their number of publications tagged with this OpenAlex topic or keyword. Click a name to open the co-authorship network.</div>
     </div>
 </div>
 
 <div id="div_splash" class="splash_div">
     <div class="splash_inner">
         <div class="splash_title">Welcome to pubScan!</div>
-        <div class="splash_lead">An interactive map of PubMed as a co-authorship network: <b>nodes</b> are authors, <b>edges</b> are the publications they wrote together.</div>
+        <div class="splash_lead">An interactive map of scientific publications as a co-authorship network: <b>nodes</b> are authors, <b>edges</b> are the publications they wrote together.</div>
         <div class="splash_grid">
             <div class="splash_card">
                 <div class="splash_head"><i class="fas fa-user"></i> Search for an author</div>
@@ -1838,7 +1839,7 @@ function swap_pub_mobile() {
             }
             const t = data.term;
             const since = topic_year_from();
-            document.getElementById("topics_summary").innerHTML = format_count(t.n_pubs) + ' PubMed publications, ' + format_count(t.n_authors) + ' authors with an ORCID iD'
+            document.getElementById("topics_summary").innerHTML = format_count(t.n_pubs) + ' publications, ' + format_count(t.n_authors) + ' authors with an ORCID iD'
                 + (since ? '; ' + format_count(data.n_total) + ' of them with a publication on the topic since ' + esc(since) : '')
                 + (data.authors.length < data.n_total ? '; showing the top ' + data.authors.length : '');
             if (data.authors.length === 0) {

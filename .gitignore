@@ -5,6 +5,9 @@ dbase/run/
 dbase/venv/
 openalex/openalex-snapshot/
 openalex/*.tab.gz
+openalex/parts_works/
+openalex/parts_authors/
+openalex/*.log
 openalex/*.db
 pubscan/pubscan.config.yaml
 pubscan/pubscan.log
@@ -13,3 +16,4 @@ web/.htpasswd
 __pycache__/
 .vscode/
 dbase/logs-backup-*/
+openalex/orcid/

@@ -1,0 +1,6 @@
+# Author-publication pairs of OpenAlex that are known to be wrong: the author named by the ORCID iD is not an
+# author of the work. OpenAlex attaches publications to authors partly by matching names, so a list can hold a
+# paper of a namesake. The server (pubscan/graph.py) leaves these pairs out and reads this file again when it
+# changes, so a new line takes effect within seconds; openalex/db_graph.py leaves them out of the next build.
+# One pair per line: OpenAlex work id, ORCID iD, and a note (tab or blank separated). # starts a comment.
+W1993511373	0009-0001-7888-6687	the 1997 X-ray paper lists "G. Z. Rot", another person

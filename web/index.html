@@ -1096,6 +1096,23 @@
 
     let suppressSuggestions;
     let autocompleteAbortController;
+    let suggestions_shown_for = null;   // the text whose suggestions are in the list
+    let suggestion_selections = 0;      // counts selections: an answer that arrives after one is dropped
+
+    // Phone keyboards send an "input" event without any change of the text, e.g. when they commit the word being
+    // typed at the moment the finger touches a suggestion. Building the list again would replace the item under the
+    // finger, and a tap on a replaced item is lost: such an event does not reach the suggestion code (this listener
+    // runs before the ones on the field), so the list for an unchanged text stays as it is.
+    document.addEventListener("input", function (e) {
+        if (e.target && e.target.id === "autoComplete" && e.target.value === suggestions_shown_for && suggestions_open()) {
+            e.stopPropagation();
+        }
+    }, true);
+
+    function suggestions_open() {
+        const list = document.querySelector("#div_search_input .autoComplete_wrapper > ul");
+        return !!list && !list.hasAttribute("hidden") && list.children.length > 0;
+    }
 
     const autoCompleteJS = new autoComplete({
     selector: "#autoComplete",
@@ -1117,13 +1134,17 @@
 
             autocompleteAbortController = new AbortController();
             const autocomplete_signal = autocompleteAbortController.signal;
+            const selections_before = suggestion_selections;
 
             try {
                 const response = await fetch(
                     `/gw/index.py?action=suggest&q=${encodeURIComponent(query)}`,
                     { signal: autocomplete_signal }
                 );
-                return suggestion_items(await response.json());
+                const items = suggestion_items(await response.json());
+                if (suggestion_selections !== selections_before) return [];   // something was selected meanwhile
+                suggestions_shown_for = query;
+                return items;
             } catch (err) {
                 if (err.name === 'AbortError') {
                     return [];
@@ -1164,8 +1185,14 @@
         input: {
             selection: (event) => {
                 const rec = event.detail.selection.value;
+                suggestion_selections++;
                 autoCompleteJS.close();
                 if (rec.type === "topic") {
+                    // leave the search field first, as for an author: on a phone the keyboard closes, and a word the
+                    // keyboard is still composing is committed now instead of reopening the suggestions over the list
+                    suppressSuggestions = true;
+                    document.querySelector("#autoComplete").blur();
+                    $('#mynetwork').focus();
                     document.querySelector("#autoComplete").value = rec.term.name;
                     update_clear_button();
                     show_topic_authors(rec.term);
@@ -1179,6 +1206,53 @@
         }
     }
     });
+
+    // Touch screens: a tap on a suggestion selects it at the moment the finger lifts. Browsers turn a tap into a click
+    // only under conditions of their own (no movement they take for scrolling the list, no change of the page while
+    // the item is highlighted), so a tap could leave the item highlighted and nothing selected.
+    let suggestion_touch = null;
+    document.addEventListener("touchstart", function (e) {
+        const item = e.touches.length === 1 && e.target instanceof Element ? e.target.closest(".autoComplete_wrapper > ul > li") : null;
+        suggestion_touch = item ? { item: item, x: e.touches[0].clientX, y: e.touches[0].clientY, top: item.parentNode.scrollTop, time: Date.now() } : null;
+    }, { passive: true });
+    document.addEventListener("touchend", function (e) {
+        const touch = suggestion_touch;
+        suggestion_touch = null;
+        if (!touch || e.changedTouches.length !== 1) return;
+        const end = e.changedTouches[0];
+        if (Math.hypot(end.clientX - touch.x, end.clientY - touch.y) > 12 || Date.now() - touch.time > 800) return;   // a scroll or a long press
+        let item = touch.item;
+        if (!item.isConnected) {     // the list was built again under the finger: take the item that is there now
+            const now = document.elementFromPoint(end.clientX, end.clientY);
+            item = now ? now.closest(".autoComplete_wrapper > ul > li") : null;
+            if (!item || item.textContent !== touch.item.textContent) return;
+        } else if (item.parentNode.scrollTop !== touch.top) {
+            return;                  // the list scrolled
+        }
+        e.preventDefault();          // no click follows: the selection happens here, once
+        item.click();
+    }, { passive: false });
+    document.addEventListener("touchcancel", function () { suggestion_touch = null; });
+    // Seen on an iPhone (Chrome, iOS 27) for the item right below the search field: the browser reports the touch,
+    // then "mousedown" and "mouseup" on the item, but neither the end of the touch nor a click, and the item stays
+    // highlighted. The mouseup of a touch that is still open therefore selects as well. (A scroll of the list
+    // produces no mouse events.) A click the browser may still send afterwards is swallowed.
+    let suggestion_click_swallow_until = 0;
+    document.addEventListener("mouseup", function (e) {
+        const touch = suggestion_touch;
+        if (!touch || !(e.target instanceof Element)) return;
+        const item = e.target.closest(".autoComplete_wrapper > ul > li");
+        if (!item || item.textContent !== touch.item.textContent) return;
+        suggestion_touch = null;
+        suggestion_click_swallow_until = Date.now() + 700;
+        item.click();
+    }, true);
+    document.addEventListener("click", function (e) {
+        if (e.isTrusted && Date.now() < suggestion_click_swallow_until && e.target instanceof Element && e.target.closest(".autoComplete_wrapper > ul > li")) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    }, true);
 
     // server answer {"authors": ["Name ORCID", ...], "topic": term|null, "topic_authors": [{orcid, name, n, year}, ...]}
     // -> one list: name matches, then the topic itself (opens the ranked author list) and its top authors
@@ -1406,6 +1480,13 @@
     .splash_card { background: rgba(255, 255, 255, 0.75); border: 1px solid #ececec; border-radius: 6px; padding: 10px 14px 12px 14px; font-size: 14px; }
     .splash_head { font-size: 15px; color: #868686; padding-bottom: 4px; }
     .splash_head i { color: #4d7aa8; width: 18px; text-align: center; margin-right: 2px; }
+    /* example topics inside the "Search for a topic" card */
+    .splash_examples { padding-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 7px 8px; }
+    .splash_examples_label { color: #868686; white-space: nowrap; }
+    a.splash_topic { display: inline-block; padding: 3px 11px; border-radius: 14px; background: #eef4fb; border: 1px solid #d3e0f0; color: #2f6096; font-size: 13px; text-decoration: none; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease; }
+    a.splash_topic:hover { background: #dce9f8; border-color: #b3cbe8; color: #1f4f80; }
+    a.splash_topic i { font-size: 11px; margin-right: 6px; color: #6f9be8; }
+    body.mobile .splash_examples_label { flex-basis: 100%; }
     .splash_inner .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; vertical-align: middle; margin: 0 1px; }
     .splash_foot { padding-top: 14px; font-size: 14px; color: #9a9a9a; }
     body.mobile .splash_grid { grid-template-columns: 1fr; }
@@ -1424,6 +1505,7 @@
     #div_author_topics .author_topic_rank { color: #d9372b; font-size: 11px; margin-left: 5px; }
 
     /* suggestion list: author name matches, then the best matching topic / keyword and its top authors */
+    .autoComplete_wrapper > ul > li { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     .autoComplete_wrapper > ul > li .ac_meta { color: #999999; font-size: 12px; margin-left: 6px; }
     .autoComplete_wrapper > ul > li.ac_topic { color: #4d7aa8; }
     .autoComplete_wrapper > ul > li.ac_topic:not(:first-child) { border-top: 1px solid #eeeeee; margin-top: 0.4rem; padding-top: 0.5rem; }
@@ -1447,16 +1529,37 @@
     .topics_sub { padding: 6px 0 10px 0; color: #888888; font-size: 13px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
     .topics_since { white-space: nowrap; }
     .topics_since input { width: 52px; height: 22px; font-size: 13px; padding: 0 6px; border: 1px solid #cccccc; border-radius: 6px; color: #555555; background: #ffffff; }
-    .topics_view table { border-collapse: collapse; width: 100%; background: #ffffff; border: 1px solid #eeeeee; }
-    .topics_view th { text-align: left; font-weight: normal; font-size: 12px; color: #aaaaaa; padding: 6px 8px; border-bottom: 1px solid #eeeeee; }
-    .topics_view td { padding: 4px 8px; border-bottom: 1px solid #f3f3f3; vertical-align: top; white-space: nowrap; }
-    .topics_view td.num { text-align: right; color: #888888; }
-    .topics_view a { color: #4d9aff; text-decoration: none; }
+    .topics_view table { border-collapse: separate; border-spacing: 0; width: 100%; background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; box-shadow: 0 1px 4px rgba(40, 60, 90, 0.06); overflow: hidden; }
+    .topics_view th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #8a94a3; background: #f6f8fb; padding: 9px 14px; border-bottom: 1px solid #e6e9ee; white-space: nowrap; }
+    .topics_view th.num { text-align: right; }
+    .topics_view td { padding: 7px 14px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .topics_view tr:last-child td { border-bottom: none; }
+    .topics_view tr.topics_row { cursor: pointer; }
+    .topics_view tr.topics_row:hover td { background: #f4f8ff; }
+    .topics_view td.num { text-align: right; color: #666666; }
+    .topics_view td.topics_rank { width: 34px; text-align: right; color: #b0b7c2; font-size: 13px; padding-right: 4px; }
+    .topics_view a { color: #2f6fd0; text-decoration: none; }
     .topics_view a:hover { color: #0041a8; }
-    .topics_view .topics_orcid { color: #aaaaaa; font-size: 12px; }
-    .topics_hint { padding: 10px 0 0 0; color: #9a9a9a; font-size: 13px; }
-    body.mobile .topics_view td.topics_orcid, body.mobile .topics_view th:nth-child(3) { display: none; }
-    body.mobile .topics_view td { white-space: normal; }
+    .topics_view a.topics_author { font-size: 15px; }
+    .topics_view tr.topics_row:hover a.topics_author { color: #0041a8; }
+    .topics_view td.topics_orcid a { color: #a3abb7; font-size: 12px; }
+    .topics_view td.topics_orcid a:hover { color: #7fa900; }
+    .topics_view td.topics_pubs { width: 230px; }
+    .topics_bar { display: inline-block; vertical-align: middle; width: 150px; height: 6px; border-radius: 3px; background: #eef1f5; margin-right: 10px; overflow: hidden; }
+    .topics_bar > span { display: block; height: 100%; border-radius: 3px; background: #6f9be8; }
+    .topics_n { display: inline-block; min-width: 40px; text-align: right; color: #444444; font-weight: 600; vertical-align: middle; }
+    .topics_view td.topics_year { width: 60px; }
+    .topics_view td.topics_year.old { color: #b0b7c2; }
+    .topics_hint { padding: 12px 2px 0 2px; color: #9a9a9a; font-size: 13px; }
+    body.mobile .topics_view td.topics_orcid, body.mobile .topics_view th.topics_orcid { display: none; }
+    body.mobile .topics_view td, body.mobile .topics_view th { padding-left: 8px; padding-right: 8px; }
+    body.mobile .topics_view td.topics_author_cell { white-space: normal; }
+    body.mobile .topics_view td.topics_pubs { width: auto; }
+    body.mobile .topics_bar { display: none; }
+    body.mobile .topics_n { min-width: 0; }
+    body.mobile .topics_view th { letter-spacing: 0; font-size: 10px; }
+    body.mobile .topics_view td.topics_rank { width: 22px; padding-left: 6px; }
+    body.mobile .topics_view td.topics_year { width: auto; }
 </style>
 
 <script>
@@ -1638,7 +1741,7 @@ function swap_pub_mobile() {
 <div id="div_topics" class="topics_view hidden">
     <div class="topics_inner">
         <div class="topics_head"><span id="topics_title"></span>
-            <a class="topics_close" href="javascript:hide_topics();" title="Close"><i class="fas fa-times"></i></a>
+            <a class="topics_close" href="javascript:hide_topics();back_to_start_if_empty();" title="Close"><i class="fas fa-times"></i></a>
         </div>
         <div class="topics_sub"><span id="topics_summary"></span>
             <span class="topics_since" title="Only authors whose newest publication on the topic is from this year or later">active since
@@ -1664,6 +1767,9 @@ function swap_pub_mobile() {
                 <div class="splash_head"><i class="fas fa-tags"></i> Search for a topic</div>
                 The same box takes a research topic or keyword, e.g. <i>RNA splicing</i> or <i>CRISPR</i>: pick it from the suggestions
                 to see the authors publishing most on it, ranked by number of publications, and open their networks from there.
+                <div class="splash_examples"><span class="splash_examples_label">Example topic:</span>
+                    <a class="splash_topic" href="/topic/RNA_Research_and_Splicing" data-topic="RNA Research and Splicing"><i class="fas fa-tags"></i>RNA Research and Splicing</a>
+                </div>
             </div>
             <div class="splash_card">
                 <div class="splash_head"><i class="fas fa-circle"></i> Node size and color</div>
@@ -1791,6 +1897,16 @@ function swap_pub_mobile() {
         update_network_controls(); // the network below the list, if there is one, is on screen again
     }
 
+    // closing a topic list (its x, or Back to the start address) while no network was ever drawn: the start page
+    // with its explanations and example topics is shown again instead of an empty area
+    function back_to_start_if_empty() {
+        if (globalThis.my_network) return;
+        document.querySelector("#autoComplete").value = "";
+        update_clear_button();
+        document.getElementById("div_graph_title").innerHTML = "";
+        document.getElementById("div_splash").classList.remove("hidden");
+    }
+
     // shareable URL of a topic list: /topic/<name with _ for spaces>[?since=<year>]
     function topic_url(name, since) {
         return "/topic/" + encodeURIComponent(name.replace(/ /g, "_")) + (since ? "?since=" + encodeURIComponent(since) : "");
@@ -1846,13 +1962,16 @@ function swap_pub_mobile() {
                 results.innerHTML = '<div class="topics_hint">No authors found.</div>';
                 return;
             }
-            let html = '<table><tr><th>#</th><th>Author</th><th>ORCID iD</th><th style="text-align: right">Publications</th><th style="text-align: right">Latest</th></tr>';
+            let html = '<table><tr><th class="num">#</th><th>Author</th><th class="topics_orcid">ORCID iD</th><th class="num">Publications</th><th class="num">Latest</th></tr>';
+            const most = Math.max(1, ...data.authors.map(a => a.n));          // the bars compare the listed authors
+            const recent = new Date().getFullYear() - 5;                      // an older newest publication is shown paler
             data.authors.forEach((a, i) => {
                 const query = (a.name || a.orcid) + " " + a.orcid;
-                html += '<tr><td class="num">' + (i + 1) + '</td>'
-                    + '<td><a href="javascript:void(0)" class="topics_author" data-query="' + esc(query) + '">' + esc(a.name || a.orcid) + '</a></td>'
-                    + '<td class="topics_orcid">' + esc(a.orcid) + '</td>'
-                    + '<td class="num">' + format_count(a.n) + '</td><td class="num">' + (a.year ? esc(String(a.year)) : "") + '</td></tr>';
+                html += '<tr class="topics_row" data-query="' + esc(query) + '"><td class="topics_rank">' + (i + 1) + '</td>'
+                    + '<td class="topics_author_cell"><a href="javascript:void(0)" class="topics_author">' + esc(a.name || a.orcid) + '</a></td>'
+                    + '<td class="topics_orcid"><a href="https://orcid.org/' + esc(a.orcid) + '" target="_blank" rel="noopener" title="ORCID record">' + esc(a.orcid) + '</a></td>'
+                    + '<td class="num topics_pubs"><span class="topics_bar"><span style="width: ' + Math.max(2, Math.round(100 * a.n / most)) + '%"></span></span><span class="topics_n">' + format_count(a.n) + '</span></td>'
+                    + '<td class="num topics_year' + (a.year && a.year < recent ? ' old' : '') + '">' + (a.year ? esc(String(a.year)) : "") + '</td></tr>';
             });
             results.innerHTML = html + '</table>';
             document.getElementById("div_graph_title").innerHTML = "Top authors for: <b>" + esc(t.name) + "</b>" + (since ? " (active since " + esc(since) + ")" : "");
@@ -1868,15 +1987,24 @@ function swap_pub_mobile() {
     }
 
     document.getElementById("div_topics_results").addEventListener("click", function (e) {
-        const link = e.target.closest("a.topics_author");
-        if (!link) return;
+        if (e.target.closest("td.topics_orcid a")) return;   // the ORCID record opens in a new tab
+        const row = e.target.closest("tr.topics_row");       // anywhere else on the row opens the network
+        if (!row) return;
         e.preventDefault();
-        const query = link.getAttribute("data-query");
+        const query = row.getAttribute("data-query");
         suppressSuggestions = true;
         document.querySelector("#autoComplete").value = query;
         update_clear_button();
         get_author_network(query);
         $('#mynetwork').focus();
+    });
+
+    // example topics on the start page: open the list in place (the link itself is the same address, for a new tab)
+    document.getElementById("div_splash").addEventListener("click", function (e) {
+        const link = e.target.closest("a.splash_topic");
+        if (!link || e.metaKey || e.ctrlKey || e.shiftKey) return;
+        e.preventDefault();
+        open_topic_by_name(link.getAttribute("data-topic"), "");
     });
 
     document.getElementById("topic_year_from").addEventListener("change", function () {
@@ -1891,6 +2019,10 @@ function swap_pub_mobile() {
         return;
     }
     if (!event.state || !event.state.search) {
+        if (!document.getElementById("div_topics").classList.contains("hidden")) {   // Back from a topic list to the start address
+            hide_topics();
+            back_to_start_if_empty();
+        }
         return;
     }
     handling_popstate = true;
@@ -1901,5 +2033,6 @@ function swap_pub_mobile() {
 </script>
 
 
-    </body>
+    
+</body>
 </html>

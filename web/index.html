@@ -173,7 +173,7 @@
         <div style="display: flex; width: 100%;">
             <div class="bottom_notice" style="text-align: left; padding: 2px;">
                 <!-- the pubScan notice: it must stay visible in every copy and modified version (NOTICE.md) -->
-                <a href='https://pubscan.org'>pubScan</a> v3.5 &copy; 2025&ndash;2026 <a href='https://grexor.github.io' target=_grexor>Gregor Rot</a>, Open Source (<a href='https://www.gnu.org/licenses/agpl-3.0.html' target='_agpl' title='Free software under the GNU Affero General Public License, version 3, without any warranty'>AGPL-3.0</a>) at <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub</a><br>
+                <a href='https://pubscan.org' id="link_changelog" title="What's new: the change log" onclick="return open_changelog();">pubScan v3.5</a> &copy; 2025&ndash;2026 <a href='https://grexor.github.io' target=_grexor>Gregor Rot</a>, Open Source (<a href='https://www.gnu.org/licenses/agpl-3.0.html' target='_agpl' title='Free software under the GNU Affero General Public License, version 3, without any warranty'>AGPL-3.0</a>) at <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub</a><br>
                 <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a>, Star the <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub repository</a></div>
             </div>
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; font-size: 12px; padding-top: 8px;">
@@ -1522,6 +1522,29 @@
     .pub_affiliation i { color: #9aa7b8; font-size: 12px; width: 16px; margin-right: 4px; text-align: center; }
     .pub_affiliation_year { color: #a8a8a8; }
 
+    /* change log window */
+    .changelog_modal { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 9000; background: rgba(0, 0, 0, 0.35); display: flex; align-items: center; justify-content: center; }
+    .changelog_modal.hidden { display: none; }
+    .changelog_box { background: #ffffff; border-radius: 10px; padding: 22px 28px 20px 28px; max-width: 680px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18); font-family: 'Source Sans Pro', sans-serif; color: #666666; font-size: 14px; line-height: 1.45; text-align: left; }
+    .changelog_head { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; font-size: 18px; color: #a63f3b; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0; }
+    .changelog_head i.fa-history { color: #4d7aa8; margin-right: 9px; font-size: 15px; }
+    .changelog_close { color: #aaaaaa; font-size: 16px; text-decoration: none; padding: 2px 4px; }
+    .changelog_close:hover { color: #525252; }
+    .changelog_body { overflow-y: auto; padding: 14px 6px 0 0; }
+    .changelog_entry { padding: 0 0 14px 14px; margin-left: 4px; border-left: 2px solid #e3ebf5; position: relative; }
+    .changelog_entry::before { content: ""; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #6f9be8; border: 2px solid #ffffff; box-sizing: border-box; }
+    .changelog_date { font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: #8a94a3; }
+    .changelog_title { font-size: 15.5px; color: #444444; padding: 1px 0 4px 0; }
+    .changelog_entry ul { margin: 0; padding-left: 18px; list-style: disc; }
+    .changelog_entry li { padding: 2px 0; }
+    .changelog_entry li b { color: #555555; font-weight: 600; }
+    .changelog_foot { color: #9a9a9a; font-size: 13px; padding: 2px 0 2px 4px; }
+    .changelog_box a { color: #2f6fd0; text-decoration: none; }
+    .changelog_box a:hover { color: #0041a8; }
+    .changelog_box a.changelog_close, .changelog_box a.changelog_close:hover { color: #aaaaaa; }
+    #link_changelog { cursor: pointer; }
+
     /* topics panel of an author */
     #div_author_topics table { border-collapse: collapse; width: 100%; }
     #div_author_topics td { padding: 2px 6px 2px 0; border-bottom: 1px solid #f3f3f3; vertical-align: top; }
@@ -2064,5 +2087,86 @@ function swap_pub_mobile() {
 
 
     
+
+<!-- change log: opened by a click on "pubScan v3.5" in the footer (the footer is only shown on desktop) -->
+<div id="changelog_modal" class="changelog_modal hidden" onclick="if (event.target === this) close_changelog();">
+    <div class="changelog_box" role="dialog" aria-modal="true" aria-label="pubScan change log">
+        <div class="changelog_head">
+            <div><i class="fas fa-history"></i>What's new in pubScan</div>
+            <a class="changelog_close" href="#" onclick="close_changelog(); return false;" title="Close"><i class="fas fa-times"></i></a>
+        </div>
+        <div class="changelog_body">
+
+            <div class="changelog_entry">
+                <div class="changelog_date">November 2026</div>
+                <div class="changelog_title">All publications, topics, affiliations and a new network view</div>
+                <ul>
+                    <li><b>Beyond PubMed</b> &mdash; every publication of an author with an ORCID iD that OpenAlex knows, not only those in PubMed: 132 million publications and 10.3 million authors, up from 30.6 and 6.1 million. A title links to PubMed, else to its DOI, else to its OpenAlex page.</li>
+                    <li><b>Find authors by topic</b> &mdash; the search box also takes a research topic or keyword (e.g. <i>RNA splicing</i>) and lists the authors publishing most on it; the Topics panel shows what an author publishes on.</li>
+                    <li><b>Full names</b> &mdash; authors are shown and found under the name of their ORCID record (&ldquo;Andrej Seljak&rdquo; instead of &ldquo;A. Seljak&rdquo;); other spellings stay searchable.</li>
+                    <li><b>Affiliations</b> &mdash; the publication list of an author shows the main affiliation: the institution on the author's most recent publications.</li>
+                    <li><b>Networks that stay still</b> &mdash; the layout is computed before the network is drawn; node size shows the number of publications shared with the central author, and co-authors who publish with each other form colored clusters.</li>
+                    <li><b>Small teams count more</b> &mdash; co-authors and edges are ranked by co-authorship weight: a shared publication with <i>n</i> authors counts 1/(<i>n</i>&minus;1).</li>
+                    <li><b>Controls</b> &mdash; a year slider with two handles, a slider for the label size and a switch for the number of shared publications on every edge.</li>
+                    <li><b>Faster</b> &mdash; networks and publication lists come from data held in memory instead of a database.</li>
+                    <li><b>Open source licence</b> &mdash; pubScan is free software under the AGPL-3.0.</li>
+                </ul>
+            </div>
+
+            <div class="changelog_entry">
+                <div class="changelog_date">October 2026</div>
+                <div class="changelog_title">Year filter and faster networks</div>
+                <ul>
+                    <li><b>Publication years</b> &mdash; a network can be restricted to the publications of a range of years.</li>
+                    <li><b>Speed</b> &mdash; networks of prolific authors load in under a second instead of 10 to 13 seconds.</li>
+                    <li><b>Search box</b> &mdash; wide enough to show a name with its ORCID iD.</li>
+                </ul>
+            </div>
+
+            <div class="changelog_entry">
+                <div class="changelog_date">May 2026</div>
+                <div class="changelog_title">Version 3: OpenAlex and ORCID</div>
+                <ul>
+                    <li>The data comes from OpenAlex instead of parsed PubMed records, and only authors with an ORCID iD are included, which tells authors of the same name apart.</li>
+                </ul>
+            </div>
+
+            <div class="changelog_entry">
+                <div class="changelog_date">October 2025</div>
+                <div class="changelog_title">Version 2: faster and mobile friendly</div>
+                <ul>
+                    <li>A faster and simpler backend, and a page that works on phones.</li>
+                </ul>
+            </div>
+
+            <div class="changelog_entry">
+                <div class="changelog_date">December 2024</div>
+                <div class="changelog_title">Version 1</div>
+                <ul>
+                    <li>The first interface to explore PubMed as a co-authorship network.</li>
+                </ul>
+            </div>
+
+            <div class="changelog_foot">The detailed list of changes is in the <a href="https://github.com/grexor/pubscan#changelog" target="_pubscan_github" rel="noopener">README on GitHub</a>.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function open_changelog() {
+        if (isMobile()) return true;                  // phones: the link stays a link
+        const modal = document.getElementById("changelog_modal");
+        modal.classList.remove("hidden");
+        modal.querySelector(".changelog_body").scrollTop = 0;
+        return false;                                 // no navigation
+    }
+    function close_changelog() {
+        document.getElementById("changelog_modal").classList.add("hidden");
+    }
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && !document.getElementById("changelog_modal").classList.contains("hidden")) close_changelog();
+    });
+</script>
+
 </body>
 </html>

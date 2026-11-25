@@ -202,6 +202,31 @@
             return String(text ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
         }
 
+        // Main affiliation of an author, shown under the header of the publication list. It comes with the node in
+        // the network response (aff = institution, cc = country code, aff_year = newest year in which a publication
+        // of the author named it); the name is OpenAlex text and not trusted markup. The year is shown when it lies
+        // more than two years back: the author may have moved since.
+        let region_names = null;
+        try { region_names = new Intl.DisplayNames(["en"], { type: "region" }); } catch (e) {}
+        function country_name(code) {
+            if (!/^[A-Z]{2}$/.test(code || "")) return "";
+            try { return (region_names && region_names.of(code)) || code; } catch (e) { return code; }
+        }
+        function affiliation_html(node) {
+            if (!node || !node.aff) return "";
+            const country = country_name(node.cc);
+            const place = country && !node.aff.includes("(" + country + ")") ? ", " + country : "";   // "Toshiba (Japan)" needs no ", Japan"
+            const old = node.aff_year && node.aff_year < new Date().getFullYear() - 2;
+            return '<div class="pub_affiliation" title="Main affiliation: the institution named on the most recent publications of the author in OpenAlex'
+                + (node.aff_year ? ' (' + esc(node.aff_year) + ')' : '') + '"><i class="fas fa-university"></i>' + esc(node.aff + place)
+                + (old ? ' <span class="pub_affiliation_year">(' + esc(node.aff_year) + ')</span>' : '') + '</div>';
+        }
+        // end of the header of an author's publication list: the affiliation line, when there is one, and a blank line
+        function author_header_end(node) {
+            const affiliation = affiliation_html(node);
+            return affiliation ? affiliation + "<br>" : "<br><br>";
+        }
+
         function orcid_link(orcid) { // link only for well-formed ORCID iDs, plain text otherwise
             return /^\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$/.test(orcid) ? "<a href='https://orcid.org/" + orcid + "' target=_new rel='noopener'>" + orcid + "</a>" : esc(orcid);
         }
@@ -681,7 +706,7 @@
             node_styles[node.id] = node_style(l);
             node_extents[node.id] = { size: l.size, label_width: l.label_width, label_height: l.label_height };
             node_fonts[node.id] = l.font;
-            return { id: node.id, label: node.label, n: node.n, x: l.x, y: l.y, size: l.size, font: { size: Math.round(l.font * label_size_factor) }, ...node_styles[node.id] };
+            return { id: node.id, label: node.label, n: node.n, aff: node.aff, cc: node.cc, aff_year: node.aff_year, x: l.x, y: l.y, size: l.size, font: { size: Math.round(l.font * label_size_factor) }, ...node_styles[node.id] };
         }));
         // edges of the central author are full lines, edges between two co-authors are dashed (longer dashes on wider edges)
         edges_dataset = new vis.DataSet(edges_all.map(edge => (
@@ -791,7 +816,7 @@
                     const node_id = params.nodes[0];
                     const node_data = nodes_dataset.get(node_id);
                     const header = (n) => {
-                        document.getElementById("div_pub").innerHTML = "Publications: <b>" + esc(node_data["label"]) + "</b> " + orcid_link(node_data["id"]) + " " + " (" + n + ")" + year_filter_note() + "<br><br>";
+                        document.getElementById("div_pub").innerHTML = "Publications: <b>" + esc(node_data["label"]) + "</b> " + orcid_link(node_data["id"]) + " " + " (" + n + ")" + year_filter_note() + author_header_end(node_data);
                         document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(node_data["label"]) + "</b> (" + n + ")";
                         div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
                     };
@@ -822,7 +847,7 @@
         const center_data = nodes_dataset.get(current_center);
         load_author_topics(center_data["id"], center_data["label"]);
         const center_header = (n) => {
-            document.getElementById("div_pub").innerHTML = "Publications: <b>" + esc(center_data["label"]) + "</b> " + orcid_link(center_data["id"]) + " (" + n + ")" + year_filter_note() + "<br><br>";
+            document.getElementById("div_pub").innerHTML = "Publications: <b>" + esc(center_data["label"]) + "</b> " + orcid_link(center_data["id"]) + " (" + n + ")" + year_filter_note() + author_header_end(center_data);
             document.getElementById("div_bottom_mobile_label").innerHTML = "Publications: <b>" + esc(center_data["label"]) + "</b> (" + n + ")";
             div_pub_text = document.getElementById("div_bottom_mobile_label").innerHTML;
         };
@@ -1491,6 +1516,11 @@
     .splash_foot { padding-top: 14px; font-size: 14px; color: #9a9a9a; }
     body.mobile .splash_grid { grid-template-columns: 1fr; }
     body.mobile .splash_div, body.mobile .splash_mobile_div { max-height: none; }
+
+    /* main affiliation under the header of an author's publication list */
+    .pub_affiliation { margin-top: 4px; color: #7c7c7c; }
+    .pub_affiliation i { color: #9aa7b8; font-size: 12px; width: 16px; margin-right: 4px; text-align: center; }
+    .pub_affiliation_year { color: #a8a8a8; }
 
     /* topics panel of an author */
     #div_author_topics table { border-collapse: collapse; width: 100%; }

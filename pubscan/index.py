@@ -72,7 +72,8 @@ DATA_DIR = os.path.dirname(os.environ.get("pubscan_DB") or DB_names or "")
 # memory-mapped graph and title file built by openalex/db_graph.py (default: <data folder>/graph): authors,
 # publications, who wrote what, years, ids and titles. Without it no network can be built.
 GRAPH_DIR = os.environ.get("pubscan_GRAPH") or (os.path.join(DATA_DIR, "graph") if DATA_DIR else None)
-GRAPH = graph_module.load(GRAPH_DIR, os.environ.get("pubscan_EXCLUSIONS") or graph_module.EXCLUSIONS)
+GRAPH = graph_module.load(GRAPH_DIR, os.environ.get("pubscan_EXCLUSIONS") or graph_module.EXCLUSIONS,
+                          os.environ.get("pubscan_HIDDEN") or graph_module.HIDDEN)
 # author-topic table built by openalex/db_topics.py on top of the graph (default: <data folder>/topics);
 # without it the topic search actions answer with an error, everything else is unaffected
 TOPICS_DIR = os.environ.get("pubscan_TOPICS") or (os.path.join(DATA_DIR, "topics") if DATA_DIR else None)
@@ -421,7 +422,11 @@ class TableClass():
             n = len(capped[aid])
             g = group_len.get(aid, n)
             group = "g3" if g > 100 else "g2" if g > 50 else "g1" if g > 10 else "g0"
-            return {"id": G.orcid(aid), "label": G.name(aid), "group": group, "size": 20, "n": n}
+            rec = {"id": G.orcid(aid), "label": G.name(aid), "group": group, "size": 20, "n": n}
+            affiliation = G.affiliation(aid)   # main affiliation (db_affiliations.py): shown with the publication list
+            if affiliation:
+                rec["aff"], rec["cc"], rec["aff_year"] = affiliation
+            return rec
         nodes_all = [node_rec(aid) for aid in kept]
 
         pair_common = []
@@ -526,16 +531,20 @@ class TableClass():
             names = sorted(names, key=lambda name: name_sort(name, author_name))[:20] # choose 20 most promising ones
             return sorted(names, key=len) # shorter first
         direct, others = [], []
+        hidden = GRAPH.hidden_orcids if GRAPH is not None else ()   # openalex/hidden_authors.tab
+        def shown_names(rows):
+            names = [row[0] for row in rows]
+            return [name for name in names if name[-19:].upper() not in hidden] if hidden else names
         if query:
             try:
-                direct = [row[0] for row in get_conn_names().execute("SELECT name FROM names WHERE name MATCH ? LIMIT 50", (query,))]
+                direct = shown_names(get_conn_names().execute("SELECT name FROM names WHERE name MATCH ? LIMIT 50", (query,)))
             except sqlite3.OperationalError:
                 direct = []
             if len(direct) < 20:
                 try:   # every column of the index: the name and the other spellings
                     shown = set(direct)
-                    others = [row[0] for row in get_conn_names().execute("SELECT name FROM names WHERE names MATCH ? LIMIT 50", (query,))
-                              if row[0] not in shown]
+                    others = [name for name in shown_names(get_conn_names().execute("SELECT name FROM names WHERE names MATCH ? LIMIT 50", (query,)))
+                              if name not in shown]
                 except sqlite3.OperationalError:
                     others = []
         return (best(direct) + best(others))[:20]
@@ -545,6 +554,8 @@ class TableClass():
         most on the best matching topic/keyword: {"authors": ["Name ORCID", ...], "topic": term or null,
         "topic_authors": [{"orcid", "name", "n", "year"}, ...]} (no topic when the topic table is absent)."""
         text = self.pars.get("q", "")[:MAX_SUGGEST_LENGTH]
+        if GRAPH is not None:
+            GRAPH.refresh_exclusions()
         query, tokens = build_match_query(text)
         authors = self.author_suggestions(query, " ".join(tokens))[:SUGGEST_NAMES]
         topic, topic_authors = None, []
@@ -553,12 +564,24 @@ class TableClass():
             if terms:
                 topic = terms[0]
                 authors = authors[:4]
-                ids, counts, years = TOPICS.authors(topic["term"])
+                ids, counts, years = self.without_hidden(*TOPICS.authors(topic["term"]), SUGGEST_TOPIC_AUTHORS)
                 topic_authors = [{"orcid": GRAPH.orcid(a), "name": GRAPH.name(a), "n": int(c), "year": int(y) if y > 0 else None}
                                  for a, c, y in zip(ids[:SUGGEST_TOPIC_AUTHORS].tolist(), counts[:SUGGEST_TOPIC_AUTHORS].tolist(), years[:SUGGEST_TOPIC_AUTHORS].tolist())]
         return [self.return_string(json.dumps({"authors": authors, "topic": topic, "topic_authors": topic_authors}))]
 
     # ---- topic search: OpenAlex topics / subfields / keywords -> authors (openalex/db_topics.py)
+
+    def without_hidden(self, ids, counts, years, limit=None):
+        """The authors of a term without the hidden ones (openalex/hidden_authors.tab). With a limit only the
+        start of the list is looked at: enough to fill the limit after leaving the hidden authors out."""
+        hidden = GRAPH.hidden
+        if not hidden:
+            return ids, counts, years
+        if limit is not None:
+            n = limit + len(hidden)
+            ids, counts, years = ids[:n], counts[:n], years[:n]
+        keep = ~np.isin(ids, np.fromiter(hidden, dtype=np.int64, count=len(hidden)))
+        return ids[keep], counts[keep], years[keep]
 
     def topic_suggest(self):
         """Terms matching the typed text (word prefixes), for the topic autocomplete."""
@@ -579,7 +602,8 @@ class TableClass():
         term = int(value)
         year_from = self.parse_year("year_from")
         self.logme(f"pubscan topic: {TOPICS.terms[term]['name']} ({term}) year_from={year_from}")
-        ids, counts, years = TOPICS.authors(term)
+        GRAPH.refresh_exclusions()
+        ids, counts, years = self.without_hidden(*TOPICS.authors(term))
         if year_from is not None:
             keep = years >= year_from                 # keeps the count order (boolean mask)
             ids, counts, years = ids[keep], counts[keep], years[keep]
@@ -602,7 +626,7 @@ class TableClass():
             raise BadRequest("kind must be topic, subfield or keyword")
         year_from = self.parse_year("year_from")
         aid = GRAPH.lookup(orcid)
-        if aid is None:
+        if aid is None or aid in GRAPH.hidden:
             return [self.return_string(json.dumps({"author": {"orcid": orcid, "name": ""}, "n_total": 0, "topics": []}) + "\n")]
         ids, counts, years = TOPICS.author_terms_of(aid)
         if year_from is not None:

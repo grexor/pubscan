@@ -1,0 +1,6 @@
+# Authors that pubScan does not show: OpenAlex author records that mix the papers of several people under an
+# ORCID iD whose owner claims none of them. The server (pubscan/graph.py) reads this file again when it changes and
+# from then on shows no network, no co-author node, no name suggestion and no topic entry for these ORCID iDs;
+# openalex/db_graph.py leaves them out of the next build.
+# One ORCID iD per line, followed by a note (tab or blank separated). # starts a comment.
+0000-0002-8619-4576	Mark D. Robinson: empty ORCID record; OpenAlex attached 14 works of several namesakes to it

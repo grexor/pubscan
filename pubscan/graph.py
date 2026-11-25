@@ -11,6 +11,15 @@ Exclusions. OpenAlex attaches publications to authors partly by matching names, 
 a paper of a namesake. openalex/exclusions.tab names such pairs (OpenAlex work id, ORCID iD); the
 graph answers as if the author were not on the publication. The file is read again when it has
 changed, so a new line takes effect within seconds, without building anything.
+
+Hidden authors. OpenAlex sometimes keeps an author record that mixes the papers of several people under an
+ORCID iD whose owner claims none of them. openalex/hidden_authors.tab names such ORCID iDs; the graph answers as
+if the author had no publications (no network, not a co-author of anybody), and the server leaves the author out
+of the name suggestions and the topic lists (Graph.hidden, Graph.hidden_orcids). Read again like the exclusions.
+
+Affiliations. openalex/db_affiliations.py adds the main affiliation of every author to the folder (the institution
+on the author's most recent works in OpenAlex). The files are optional: without them, or when they were built for
+another set of authors, Graph.affiliation() answers None.
 """
 import os
 import json
@@ -21,6 +30,22 @@ import numpy as np
 
 # next to the pipeline that also reads it: <repository>/openalex/exclusions.tab
 EXCLUSIONS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "openalex", "exclusions.tab")
+HIDDEN = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "openalex", "hidden_authors.tab")
+
+
+def read_hidden(path):
+    """ORCID iDs (upper case) of the hidden authors file: one per line, with or without the orcid.org address,
+    anything after it is a note; # starts a comment."""
+    orcids = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                cells = line.split("#")[0].split()
+                if cells and len(cells[0].rsplit("/", 1)[-1]) == 19:
+                    orcids.append(cells[0].rsplit("/", 1)[-1].upper())
+    except OSError:
+        pass
+    return orcids
 
 
 def read_exclusions(path):
@@ -48,9 +73,14 @@ class Graph:
     FILES = ("orcids", "names_blob", "names_off", "author_pubs", "author_pubs_off", "pub_authors", "pub_authors_off",
              "pub_year", "pub_pmid", "pub_work", "titles_blob", "titles_off", "titles_dict")
 
-    def __init__(self, folder, exclusions=EXCLUSIONS):
+    AFFILIATION_FILES = ("institutions_blob", "institutions_off", "author_institution", "author_institution_year")   # optional
+
+    def __init__(self, folder, exclusions=EXCLUSIONS, hidden=HIDDEN):
         self.folder = folder
         self.exclusions_path = exclusions
+        self.hidden_path = hidden
+        self.hidden = frozenset()       # author ids of the hidden authors
+        self.hidden_orcids = frozenset()    # their ORCID iDs, upper case
         self.excluded_pubs = {}         # author id -> publications that do not count for the author (int32 array)
         self.excluded_authors = {}      # publication -> authors that do not count on it (int32 array)
         self.exclusions = []            # the pairs in force: (work id, ORCID iD)
@@ -66,26 +96,42 @@ class Graph:
         self.n_pubs = int(self.pub_year.shape[0])
         self.title_block = int(self.meta["title_block"])
         self.dictionary = self.titles_dict.tobytes()
+        self.has_affiliations = all(os.path.isfile(os.path.join(folder, name + ".npy")) for name in self.AFFILIATION_FILES)
+        if self.has_affiliations:
+            for name in self.AFFILIATION_FILES:
+                setattr(self, name, np.load(os.path.join(folder, name + ".npy"), mmap_mode="r"))
+            self.has_affiliations = int(self.author_institution.shape[0]) == self.n_authors    # built for these authors
         self.refresh_exclusions(every=0)
 
     # ---- exclusions
     def refresh_exclusions(self, every=10.0):
-        """Read the exclusion file again if it has changed. Called with every request; looks at the file at most
-        once in `every` seconds, and only one thread at a time does the reading."""
+        """Read the exclusion file and the hidden authors file again if one has changed. Called with every request;
+        looks at the files at most once in `every` seconds, and only one thread at a time does the reading."""
         now = time.monotonic()
         if now - self._exclusions_looked < every or not self._exclusions_lock.acquire(blocking=False):
             return
         try:
             self._exclusions_looked = now
-            try:
-                st = os.stat(self.exclusions_path)
-                seen = (st.st_mtime_ns, st.st_size)
-            except (OSError, TypeError):
-                seen = None
+            seen = []
+            for path in (self.exclusions_path, self.hidden_path):
+                try:
+                    st = os.stat(path)
+                    seen.append((st.st_mtime_ns, st.st_size))
+                except (OSError, TypeError):
+                    seen.append(None)
+            seen = tuple(seen)
             if seen == self._exclusions_file:
                 return
-            pairs = read_exclusions(self.exclusions_path) if seen else []
+            pairs = read_exclusions(self.exclusions_path) if seen[0] else []
             pubs, authors, found = {}, {}, []
+            hidden = {}
+            for orcid in (read_hidden(self.hidden_path) if seen[1] else []):
+                a = self.lookup(orcid)
+                if a is not None:                    # a hidden author: every publication is one the author is not on
+                    hidden[a] = self.orcid(a).upper()
+                    for p in self.author_pubs[self.author_pubs_off[a]:self.author_pubs_off[a + 1]].tolist():
+                        pubs.setdefault(a, set()).add(p)
+                        authors.setdefault(p, set()).add(a)
             if pairs:
                 works = np.array(sorted({w for w, _ in pairs}), dtype=np.int64)
                 where = np.flatnonzero(np.isin(self.pub_work, works))          # one pass over the publications
@@ -100,6 +146,8 @@ class Graph:
             self.excluded_pubs = {a: np.array(sorted(s), dtype=np.int32) for a, s in pubs.items()}
             self.excluded_authors = {p: np.array(sorted(s), dtype=np.int32) for p, s in authors.items()}
             self.exclusions = found
+            self.hidden = frozenset(hidden)
+            self.hidden_orcids = frozenset(hidden.values())
             self._exclusions_file = seen
         finally:
             self._exclusions_lock.release()
@@ -126,6 +174,19 @@ class Graph:
 
     def name(self, i):
         return self.names_blob[self.names_off[i]:self.names_off[i + 1]].tobytes().decode("utf-8", "replace")
+
+    def affiliation(self, i):
+        """Main affiliation of author i: (institution name, two-letter country code or "", newest year in which a
+        work of the author named it or None), or None when none is known."""
+        if not self.has_affiliations:
+            return None
+        k = int(self.author_institution[i])
+        if k < 0:
+            return None
+        text = self.institutions_blob[self.institutions_off[k]:self.institutions_off[k + 1]].tobytes().decode("utf-8", "replace")
+        name, _, country = text.partition("\t")
+        year = int(self.author_institution_year[i])
+        return name, country, year if year > 0 else None
 
     def pubs(self, i):
         """Publications of author i, newest first (int32)."""
@@ -170,8 +231,8 @@ class Graph:
         return out
 
 
-def load(folder, exclusions=EXCLUSIONS):
+def load(folder, exclusions=EXCLUSIONS, hidden=HIDDEN):
     """Graph for the folder, or None when the files are not there."""
     if not folder or not os.path.isfile(os.path.join(folder, "meta.json")):
         return None
-    return Graph(folder, exclusions)
+    return Graph(folder, exclusions, hidden)

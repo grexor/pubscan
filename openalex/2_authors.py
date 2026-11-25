@@ -9,6 +9,12 @@ Writes authors.tab.gz (tab separated, csv quoting), one row per OpenAlex author 
   alternatives   the other spellings OpenAlex knows for the author (full name, name alternatives), joined by "|";
                  db_names.py makes them searchable, so that an author is found under any of them
   works_count    number of works of the record
+  affiliation    the main affiliation of the record: of the institutions OpenAlex has seen on the author's works,
+                 the one of the newest year (among several of that year the one with the most years); empty when
+                 OpenAlex knows none. The page shows it with the publications of an author (db_affiliations.py)
+  affiliation_country   its country, as a two-letter code
+  affiliation_year      the newest year in which a work of the author named the institution
+  affiliation_id        its OpenAlex id (I...)
 
 Several records can carry the same ORCID (db_graph.py then takes the name of the one with the most works). The
 snapshot files are processed by WORKERS processes in parallel and read with direct I/O (dd), so that reading
@@ -40,6 +46,33 @@ def clean(text):
     return ' '.join(str(text or '').translate(BLANKS).split())
 
 
+def main_affiliation(author):
+    """(name, country code, newest year, OpenAlex id) of the institution the author is at now, as far as the works
+    tell: the affiliation with the newest year, among several of that year the one with the most years (the first
+    listed among equals). Without dated affiliations the first "last known" institution, with no year."""
+    best = None
+    for affiliation in author.get('affiliations') or []:
+        institution = affiliation.get('institution') or {}
+        name = clean(institution.get('display_name'))
+        years = [y for y in affiliation.get('years') or [] if isinstance(y, int)]
+        if not name or not years:
+            continue
+        key = (max(years), len(years))
+        if best is None or key > best[0]:
+            best = (key, name, institution)
+    if best is None:
+        for institution in author.get('last_known_institutions') or []:
+            name = clean((institution or {}).get('display_name'))
+            if name:
+                best = ((0, 0), name, institution)
+                break
+    if best is None:
+        return '', '', '', ''
+    (year, _), name, institution = best
+    return (name, clean(institution.get('country_code')).upper()[:2], year or '',
+            str(institution.get('id') or '').rsplit('/', 1)[-1])
+
+
 def process_file(index_path):
     """One snapshot file -> parts_authors/<index>.gz; returns (index, file, rows)."""
     index, filepath = index_path
@@ -67,7 +100,7 @@ def process_file(index_path):
                     alternatives.append(other)
             works_count = author.get('works_count')
             writer.writerow([author.get('id'), name, orcid, '|'.join(alternatives[:MAX_ALTERNATIVES]),
-                             works_count if isinstance(works_count, int) else 0])
+                             works_count if isinstance(works_count, int) else 0, *main_affiliation(author)])
             n_rows += 1
         if zcat.wait() != 0 or dd.wait() != 0:
             raise RuntimeError(f'reading {filepath} failed')
@@ -87,7 +120,8 @@ if __name__ == '__main__':
             print(f'[{done}/{len(input_files)}] {filepath}: {n_rows:,} rows ({total:,} total, {time.time() - t0:.0f}s)', flush=True)
     with open(OUTPUT + '.tmp', 'wb') as out:    # gzip members: the header, then every part in file order
         header = io.StringIO()
-        csv.writer(header, delimiter='\t').writerow(['openalex_id', 'name', 'orcid', 'alternatives', 'works_count'])
+        csv.writer(header, delimiter='\t').writerow(['openalex_id', 'name', 'orcid', 'alternatives', 'works_count',
+                                                          'affiliation', 'affiliation_country', 'affiliation_year', 'affiliation_id'])
         out.write(gzip.compress(header.getvalue().encode('utf-8')))
         for name in sorted(os.listdir(PARTS)):
             with open(os.path.join(PARTS, name), 'rb') as part:

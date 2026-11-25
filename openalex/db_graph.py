@@ -28,6 +28,10 @@ Exclusions. exclusions.tab (next to this script, or the file named by the enviro
 lists author-publication pairs of OpenAlex that are known to be wrong; those authors are left off those works.
 The server reads the same file and leaves the pairs out at once; here they are left out of the build.
 
+Hidden authors. hidden_authors.tab (next to this script, or the file named by the environment variable HIDDEN)
+lists ORCID iDs that are left out altogether: OpenAlex author records that mix the papers of several people
+under an ORCID iD whose owner claims none of them. The server hides them at once; here they do not enter the build.
+
 Authors. Every ORCID of authors.tab.gz that has a name and at least one publication, numbered 0..N-1 in sorted
 ORCID order (the author id). Who wrote what is taken from OpenAlex as it is (exclusions.tab aside). The name is
 the one the person states in the ORCID record (given names and family name; orcid_records.tab.gz, written by
@@ -97,6 +101,7 @@ PUBMED_ONLY = "--pubmed-only" in flags
 ORDER_BY_PMID = "--order-by-pmid" in flags
 works_path = args[0] if len(args) > 0 else "works.tab.gz"
 EXCLUSIONS = os.environ.get("EXCLUSIONS") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "exclusions.tab")
+HIDDEN = os.environ.get("HIDDEN") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "hidden_authors.tab")
 authors_path = args[1] if len(args) > 1 else "authors.tab.gz"
 out_dir = args[2] if len(args) > 2 else "graph"
 orcid_path = args[3] if len(args) > 3 else "orcid_records.tab.gz"
@@ -253,6 +258,19 @@ def title_key(title):
     return (hash(letters) or 1) if len(letters) >= SAME_PAPER_TITLE else 0
 
 
+def load_hidden(path):
+    """ORCID iDs (upper case) of the authors to leave out altogether (hidden_authors.tab): one per line, with or
+    without the orcid.org address, anything after it is a note; # starts a comment."""
+    hidden = set()
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                cells = line.split("#")[0].split()
+                if cells and len(cells[0].rsplit("/", 1)[-1]) == 19:
+                    hidden.add(cells[0].rsplit("/", 1)[-1].upper())
+    return hidden
+
+
 def load_exclusions(path):
     """Wrong author-publication pairs of OpenAlex (exclusions.tab): work id (digits) -> set of ORCID iDs (upper
     case) that are not authors of that work. One pair per line, tab or blank separated: work id with or without
@@ -370,6 +388,8 @@ if __name__ == "__main__":
     exclusions = {work.encode(): {o.encode() for o in orcids} for work, orcids in load_exclusions(EXCLUSIONS).items()}
     print(f"  {sum(map(len, exclusions.values())):,} wrong author-publication pairs to leave out ({EXCLUSIONS})", flush=True)
     wrong_of = exclusions.get
+    hidden = {o.encode() for o in load_hidden(HIDDEN)}
+    print(f"  {len(hidden):,} hidden authors to leave out ({HIDDEN})", flush=True)
     seen_pmid = np.zeros(1 << 26, dtype=bool)
     row_title = array.array("q")          # per chosen row: title hash, rank of the record, year, PubMed id
     row_rank = array.array("b")
@@ -420,6 +440,9 @@ if __name__ == "__main__":
             o = o[:19].upper()
             if wrong and o in wrong:                          # exclusions.tab: not an author of this work
                 stats["author entries left out by the exclusion file"] += 1
+                continue
+            if o in hidden:                                   # hidden_authors.tab: the author is left out altogether
+                stats["author entries of hidden authors"] += 1
                 continue
             i = lookup(o)
             if i is None:
@@ -662,7 +685,7 @@ if __name__ == "__main__":
             "dropped": dict(dropped_types.most_common()), "notes": dict(stats),
             "works_rows": n_rows,
             "source": os.path.abspath(works_path), "source_mtime": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getmtime(works_path))),
-            "authors_source": os.path.abspath(authors_path), "exclusions": sum(map(len, exclusions.values())), "built": time.strftime("%Y-%m-%d %H:%M:%S")}
+            "authors_source": os.path.abspath(authors_path), "exclusions": sum(map(len, exclusions.values())), "hidden_authors": len(hidden), "built": time.strftime("%Y-%m-%d %H:%M:%S")}
     json.dump(meta, open(os.path.join(out_dir, "meta.json"), "w"), indent=1)
     total = sum(os.path.getsize(os.path.join(out_dir, f)) for f in os.listdir(out_dir))
     print(f"Graph built in {out_dir}: {N:,} authors, {M:,} publications ({n_pmid:,} with a PubMed id), {total / 2**30:.2f} GB, {time.time() - t0:.0f}s")

@@ -47,7 +47,7 @@ The server reads three things from `db/`, all built by `openalex/update.sh` (int
 
 | Path | Size | Content | Built by |
 |---|---|---|---|
-| `db/graph/` | 12.4 GB | authors, who wrote what, years, ids and the compressed titles (memory-mapped arrays) | `openalex/db_graph.py` |
+| `db/graph/` | 12.4 GB | authors, who wrote what, years, ids and the compressed titles (memory-mapped arrays) | `openalex/db_graph.py`; the main affiliation of every author (four small files, 62 MB) is added by `openalex/db_affiliations.py` |
 | `db/topics/` | 18.3 GB | publications per author and topic, in both directions (memory-mapped arrays) | `openalex/db_topics.py` |
 | `db/names.db` | 1.8 GB | SQLite FTS5 index of the author names for the search box | `openalex/db_names.py` |
 
@@ -68,6 +68,14 @@ the OpenAlex work id, the ORCID iD and a note, separated by tabs or blanks. The 
 the next request (at most every ten seconds) and from then on answers as if the author were not on that
 publication: no restart and no rebuild. `openalex/db_graph.py` reads the same file, so the next build is clean too
 (until then the topic counts of the author still include the publication).
+
+### Hiding an author
+
+OpenAlex sometimes keeps an author record that mixes the papers of several people under an ORCID iD whose owner
+claims none of them. Add the ORCID iD and a note to `openalex/hidden_authors.tab`. The server reads the file like
+the exclusions and from then on shows no network, no co-author node, no name suggestion and no topic entry for
+that ORCID iD; `openalex/db_graph.py` leaves the author out of the next build (until then the publication counts
+of a topic still include the author's papers).
 
 ### Putting a new build into service
 

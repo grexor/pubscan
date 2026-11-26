@@ -24,6 +24,9 @@ cd dbase
 
 `run.sh` deletes `logs/` (including `search.log`) and `run/` before starting. Copy `logs/search.log` elsewhere first if you want to keep it.
 
+The container runs on the time zone of the host: `run.sh` reads it and passes it as `TZ`, so the times in `logs/`
+(`search.log`, `access.log`) are local time. Without it the container would run on UTC.
+
 Startup sequence inside the container (see the `CMD` in the Dockerfile): create the venv if missing, install
 `requirements.txt`, install `../pubscan` in editable mode, start a background `cat` of `db/*.db`, `db/graph/*.npy`
 and `db/topics/*.npy` to warm the OS page cache (a few minutes for 33 GB on this host), then start Apache in the foreground.

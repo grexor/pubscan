@@ -1,11 +1,13 @@
+<!DOCTYPE html>
 <!--
     pubScan <https://pubscan.org> - Copyright (C) 2025-2026 Gregor Rot
     Free software under the GNU Affero General Public License, version 3 (LICENCE.md), with the additional
     attribution terms of NOTICE.md: the pubScan notice with its link stays visible in the user interface.
 -->
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
     <base href="/"> <!-- the page is also served under /topic/<name>: relative asset paths must stay at the root -->
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-76DD8WBGLJ"></script>
@@ -18,8 +20,12 @@
     </script>
 
     <title>pubScan – Scientific Publication &amp; Co-Authorship Network Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-    <meta charset="UTF-8">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
     <link rel="stylesheet" href="pubscan.css?v=202611224">
     <link rel="stylesheet" href="statics/fa/css/all.min.css">
@@ -50,57 +56,92 @@
     <script type="application/ld+json">
     {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "pubScan",
-    "url": "https://pubscan.org",
-    "description": "Explore and visualize scientific co-authorship networks using OpenAlex data.",
-    "applicationCategory": "Science",
-    "operatingSystem": "All",
-    "creator": {
-        "@type": "Organization",
-        "name": "pubScan Project"
+    "@graph": [
+        { "@type": "WebSite", "@id": "https://pubscan.org/#website", "name": "pubScan", "alternateName": "pubscan.org", "url": "https://pubscan.org/" },
+        { "@type": "WebApplication", "name": "pubScan", "url": "https://pubscan.org/",
+          "description": "Explore and visualize scientific co-authorship networks: the publications, co-authors and topics of 10 million researchers, from OpenAlex and ORCID data.",
+          "applicationCategory": "Science", "operatingSystem": "All", "isAccessibleForFree": true,
+          "license": "https://www.gnu.org/licenses/agpl-3.0.html", "codeRepository": "https://github.com/grexor/pubscan",
+          "creator": { "@type": "Person", "name": "Gregor Rot", "url": "https://grexor.github.io" } }
+    ]
     }
-    }
-    </script>    
-
-    <!-- start page on a desktop: known before anything is drawn, so that the bar with the network controls does not
-         flash up and the search field has its room in the middle of the page from the first moment -->
-    <script>
-        if (/^\/(index\.html)?$/.test(window.location.pathname) && !/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            document.documentElement.classList.add("start_page");
-        }
     </script>
-    <!-- known before the body is drawn (the other styles of the page come further down) -->
-    <style>html.start_page #div_search_bar { display: none; }</style>
+    <!-- ssr:ld --><!-- /ssr:ld -->    
+
+    <!-- Known before anything is drawn: a phone gets the arrangement for small screens (made by a script when the
+         page has been read; nothing is shown before that, at the latest after 3 s), and on the start page the bar
+         with the network controls is not there and the search field has its room in the page itself. -->
+    <script>
+        (function () {
+            var root = document.documentElement;
+            if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) root.classList.add("phone");
+            if (/^\/(index\.html)?$/.test(window.location.pathname)) root.classList.add("start_page");
+        })();
+    </script>
+    <!-- (the other styles of the page come further down) -->
+    <style>
+        /* The page was written without a document type. With one, tables take font size, line height and alignment
+           from their surroundings; this rule keeps the lists as they were drawn before (rules for a list still win). */
+        table { font-size: initial; font-weight: initial; font-style: initial; font-variant: initial; line-height: initial; white-space: initial; text-align: initial; }
+        html.start_page #div_search_bar { display: none; }
+        /* header: what the page shows (author of the network, topic of the list) */
+        .graph_title { flex-grow: 1; min-width: 0; margin: 0; padding: 2px 20px 0 20px; text-align: center; font-size: 13px; line-height: 20px; font-weight: normal; color: #d6e4fb;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header_tagline { text-align: left; padding: 2px; flex-shrink: 0; min-width: 0; }
+        #toptop_right_menu { margin-left: auto; }     /* at the right edge, also when nothing between it and the tagline grows */
+        /* right side of the header: star button, Feedback, Share Network at equal distances */
+        .header_actions { display: flex; align-items: center; justify-content: flex-end; gap: 22px; height: 28px; box-sizing: border-box; padding-left: 3px;
+            color: aliceblue; font-size: 15px; white-space: nowrap; }
+        .header_actions a.links { display: inline-flex; align-items: center; line-height: 1; }
+        .header_actions a.links i { margin-right: 7px; font-size: 14px; }
+        /* the star button is drawn a tenth larger; it grows to the left, so its right edge keeps the distance */
+        #btn_github_stars { display: inline-flex; align-items: center; line-height: 1; transform: scale(1.1); transform-origin: right center; }
+        /* menu of the network bar: with less room first "Center" and "Log", then all buttons show their icon only */
+        @media (max-width: 1509px) { #mene_right_2 .menu_label_last { display: none; } }
+        @media (max-width: 1365px) { #mene_right_2 .menu_label { display: none; } #mene_right_2 .links2 { padding-left: 2px; padding-right: 2px; } }
+        /* phones: the tagline gives way, and makes room for the name of the author or the topic when there is one */
+        html.phone .header_tagline { flex-shrink: 1; }
+        html.phone .graph_title { display: block; text-align: left; padding: 0 8px 0 6px; font-size: 14.5px; line-height: 1.2; color: aliceblue; }
+        html.phone .graph_title b, html.phone .graph_title .gt_what { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        html.phone .graph_title .gt_what { font-size: 11.5px; color: #d6e4fb; }
+        html.phone .graph_title .gt_colon, html.phone .share_long { display: none; }     /* "Share" alone leaves the title more room */
+        html.phone .graph_title b.gt_long { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; font-size: 12.5px; line-height: 1.17; }
+        html.phone .graph_title b.gt_long ~ .gt_what { display: none; }
+        html.phone .graph_title:empty { display: none; }
+        html.phone #div_top:has(.graph_title:not(:empty)) .header_tagline { display: none; }
+        html.phone:not(.phone_ready) body { visibility: hidden; animation: phone_reveal 0s 3s forwards; }
+        @keyframes phone_reveal { to { visibility: visible; } }
+    </style>
 </head>
 
 <body>
+<!-- ssr:data --><!-- /ssr:data -->
 
     <div id="div_top" style="background-color:rgb(77, 131, 231); padding-left: 10px; padding-top: 10px; padding-bottom: 5px;">
         <div style="display: flex; width: 100%; flex-wrap: nowrap; align-items: center;">
             
             <div style="text-align: left; padding: 2px; flex-shrink: 0;">
-                <a href="https://pubscan.org">
-                    <img src="pubscan_logo.jpg" style="height: 22px;">
+                <a href="https://pubscan.org" title="pubScan: start page">
+                    <img src="pubscan_logo_small.jpg" alt="pubScan" width="84" height="22" style="height: 22px; width: auto; display: block;">
                 </a>
             </div>
             
-            <div style="text-align: left; padding: 2px; padding-top: 2px; flex-shrink: 0;">
-                <h1 style="color: aliceblue; font-size: 15px; font-weight: normal; margin: 0; padding-left: 3px;">
+            <div class="header_tagline">
+                <div style="color: aliceblue; font-size: 15px; padding-left: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     Explore co-authorships <div style="display:inline" id="div_update"></div>
-                </h1>
+                </div>
             </div>
             
-            <div id="div_graph_title" style="flex-grow: 1; min-width: 0; padding: 2px 20px 0 20px; text-align: center; font-size: 13px; color: #d6e4fb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            </div>
+            <!-- what is on the page: the author of the network or the topic of the list; as the server sends the page of an author or a topic, this is its <h1> -->
+            <!-- ssr:title --><div id="div_graph_title" class="graph_title"></div><!-- /ssr:title -->
 
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-shrink: 0; overflow: hidden;" id="toptop_right_menu">
-                <div style="color: aliceblue; font-size: 15px; padding-left: 3px; padding-bottom: 2px; white-space: nowrap; height: 28px; box-sizing: border-box; display: flex; align-items: center; justify-content: flex-end;"> <!-- fixed height and vertical centering: the GitHub star button renders later and must not move anything -->
-                    <span style="display:inline-block; transform: scale(1.1); line-height: 1;" id="btn_github_stars">
-                    <a class="github-button" href="https://github.com/grexor/pubscan" data-icon="octicon-star" data-size="medium" data-show-count="true" aria-label="Star pubScan on GitHub">pubScan</a>&nbsp;&nbsp;
-
-                    </span>
-                    <a id=btn_share href='javascript:url_to_clip();' class="links"><i class="fas fa-share-alt"></i>&nbsp;Share Network</a>
+                <!-- the three items stand at equal distances (styles: .header_actions). Fixed height and vertical centering:
+                     the GitHub star button is drawn later by its script and must not move anything -->
+                <div class="header_actions">
+                    <span id="btn_github_stars"><a class="github-button" href="https://github.com/grexor/pubscan" data-icon="octicon-star" data-size="medium" data-show-count="true" aria-label="Star pubScan on GitHub">pubScan</a></span>
+                    <a id="btn_feedback" href="https://github.com/grexor/pubscan/issues/new" onclick="return open_feedback();" class="links" title="An idea, a problem, a correction: tell me"><i class="far fa-comment-dots"></i>Feedback</a>
+                    <a id=btn_share href='javascript:url_to_clip();' class="links" title="Copy the address of this page"><i class="fas fa-share-alt"></i>Share<span class="share_long">&nbsp;Network</span></a>
                 </div>
             </div>
 
@@ -166,13 +207,16 @@
                 <a href='javascript:clear_search_nodes();'><i class="fas fa-times" style="color: #aaaaaa; margin-top: 9px; margin-left: -20px; z-index: 100; position: absolute"></i></a>
             </div>
             &nbsp;&nbsp;
-            <a id="btn_author_topics" class="links2" href="javascript:adjust_author_topics();"><i class="fas fa-tags" style="color: inherit !important;"></i>&nbsp;Topics</a>
-            &nbsp;&nbsp;
-            <a id="btn_pub" class="links2" href="javascript:adjust_pub();"><i class="fas fa-pen-fancy" style="color: inherit !important;"></i>&nbsp;Publications</a>
-            &nbsp;&nbsp;
-            <a class="links2" href="javascript:fit_network();"><i class="fas fa-align-center" style="color: inherit !important;"></i>&nbsp;Center</a>
-            &nbsp;&nbsp;
-            <a id="btn_log" class="links2" href="javascript:adjust_log();"><i class="fas fa-book" style="color: inherit !important;"></i>&nbsp;Log</a>
+<!-- the labels give way to the icons alone when the window is too narrow for the bar (styles: .menu_label) -->
+            <a id="btn_author_topics" class="links2" href="javascript:adjust_author_topics();" title="Topics the author publishes on"><i class="fas fa-tags" style="color: inherit !important;"></i><span class="menu_label">&nbsp;Topics</span></a>
+            <span class="menu_gap">&nbsp;&nbsp;</span>
+            <a id="btn_coauthors" class="links2" href="javascript:adjust_coauthors();" title="Co-authors of the central author, strongest ties first"><i class="fas fa-users" style="color: inherit !important;"></i><span class="menu_label">&nbsp;Co-authors</span></a>
+            <span class="menu_gap">&nbsp;&nbsp;</span>
+            <a id="btn_pub" class="links2" href="javascript:adjust_pub();" title="Publications of the selected author or edge"><i class="fas fa-pen-fancy" style="color: inherit !important;"></i><span class="menu_label">&nbsp;Publications</span></a>
+            <span class="menu_gap">&nbsp;&nbsp;</span>
+            <a class="links2" href="javascript:fit_network();" title="Center: fit the network into the window"><i class="fas fa-align-center" style="color: inherit !important;"></i><span class="menu_label menu_label_last">&nbsp;Center</span></a>
+            <span class="menu_gap">&nbsp;&nbsp;</span>
+            <a id="btn_log" class="links2" href="javascript:adjust_log();" title="Log of the communication with the server"><i class="fas fa-book" style="color: inherit !important;"></i><span class="menu_label menu_label_last">&nbsp;Log</span></a>
         </div>
     </div>
 </div>
@@ -184,7 +228,7 @@
             <div class="bottom_notice" style="text-align: left; padding: 2px;">
                 <!-- the pubScan notice: it must stay visible in every copy and modified version (NOTICE.md) -->
                 <a href='https://pubscan.org' id="link_changelog" title="What's new: the change log" onclick="return open_changelog();">pubScan v3.5</a> &copy; 2025&ndash;2026 <a href='https://grexor.github.io' target=_grexor>Gregor Rot</a>, Open Source (<a href='https://www.gnu.org/licenses/agpl-3.0.html' target='_agpl' title='Free software under the GNU Affero General Public License, version 3, without any warranty'>AGPL-3.0</a>) at <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub</a><br>
-                <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a>, Star the <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub repository</a></div>
+                <div style='font-size: 13px;'>You like this? Support by following me on <a href='https://bsky.app/profile/grexor.bsky.social' target=_bluesky>Bluesky</a>, Star the <a href='https://github.com/grexor/pubscan' target='_pubscan_github'>GitHub repository</a>. Ideas or problems? <a href="https://github.com/grexor/pubscan/issues/new" onclick="return open_feedback();">Give feedback</a></div>
             </div>
             <div style="text-align: right; padding: 2px; padding-right: 15px; flex-grow: 1; font-size: 12px; padding-top: 8px;">
                 <table border="0" class="bottom_disclaimer" style='margin-left: auto; text-align: right; color: #aaaaaa;'>
@@ -222,19 +266,61 @@
             if (!/^[A-Z]{2}$/.test(code || "")) return "";
             try { return (region_names && region_names.of(code)) || code; } catch (e) { return code; }
         }
+        function affiliation_text(node) {      // "Institution, Country"; "Toshiba (Japan)" needs no ", Japan"
+            const country = country_name(node.cc);
+            return node.aff + (country && !node.aff.includes("(" + country + ")") ? ", " + country : "");
+        }
+        // The title in the header: the author or the topic, and what the page shows of it ("Jernej Ule: co-authorship
+        // network"). On a phone the two parts stand on two lines, without the colon; a long name takes both lines
+        // itself (class gt_long, from 21 characters on). (pages.py, heading(), writes the same.)
+        function graph_title_html(name, what) {
+            return "<b" + (String(name).length > 20 ? ' class="gt_long"' : "") + ">" + esc(name) + '</b><span class="gt_colon">: </span><span class="gt_what">' + esc(what) + "</span>";
+        }
+        // address of the page of an author, as the page writes it into the address bar
+        function author_href(label, orcid) {
+            return "/" + encodeURIComponent((label + " " + orcid).replace(/ /g, "_"));
+        }
+        // a click with a modifier key or another button: the browser opens the address of the link itself (new tab)
+        function plain_click(e) {
+            return !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button);
+        }
         function affiliation_html(node) {
             if (!node || !node.aff) return "";
-            const country = country_name(node.cc);
-            const place = country && !node.aff.includes("(" + country + ")") ? ", " + country : "";   // "Toshiba (Japan)" needs no ", Japan"
             const old = node.aff_year && node.aff_year < new Date().getFullYear() - 2;
             return '<div class="pub_affiliation" title="Main affiliation: the institution named on the most recent publications of the author in OpenAlex'
-                + (node.aff_year ? ' (' + esc(node.aff_year) + ')' : '') + '"><i class="fas fa-university"></i>' + esc(node.aff + place)
+                + (node.aff_year ? ' (' + esc(node.aff_year) + ')' : '') + '"><i class="fas fa-university"></i>' + esc(affiliation_text(node))
                 + (old ? ' <span class="pub_affiliation_year">(' + esc(node.aff_year) + ')</span>' : '') + '</div>';
         }
-        // end of the header of an author's publication list: the affiliation line, when there is one, and a blank line
+        // Feedback goes to the issues of the project on GitHub, as a note that is prepared here and that the visitor
+        // completes and sends there: kind "idea", "problem" (page address and browser are filled in) or "data" (a wrong
+        // publication, a missing author ...: the author on screen, or the given node, is filled in)
+        const ISSUES = "https://github.com/grexor/pubscan/issues/new";
+        function feedback_url(kind, node) {
+            const page = window.location.href;
+            let title = "", body = "";
+            if (kind === "idea") {
+                body = "My idea or comment:\n\n\n\n---\nPage: " + page;
+            } else if (kind === "problem") {
+                title = "Problem: ";
+                body = "What happened, and what did you expect?\n\n\n\n---\nPage: " + page + "\nBrowser: " + navigator.userAgent;
+            } else {
+                if (!node && globalThis.my_network && document.getElementById("div_topics").classList.contains("hidden")
+                    && document.getElementById("div_splash").classList.contains("hidden")) {
+                    node = nodes_all.find(n => String(n.id).toUpperCase() === String(current_center).toUpperCase());   // the author of the network on screen
+                }
+                title = "Data: " + (node ? node.label + " (" + node.id + ")" : "");
+                body = (node ? "Author: " + node.label + ", ORCID " + node.id + "\n" : "") + "Page: " + page
+                    + "\n\nWhat is wrong? For example: publications that are not by this author (titles or links), a researcher who is missing, two entries for one person.\n\n";
+            }
+            return ISSUES + "?title=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(body);
+        }
+
+        // end of the header of an author's publication list: the affiliation line, when there is one, a line to report
+        // an error in the list, and a blank line
         function author_header_end(node) {
             const affiliation = affiliation_html(node);
-            return affiliation ? affiliation + "<br>" : "<br><br>";
+            const report = node && node.id ? '<div class="pub_report"><a href="' + esc(feedback_url("data", node)) + '" target="_blank" rel="noopener" title="A publication that is not by this author, or another error: report it (opens a prepared note on GitHub)"><i class="far fa-flag"></i>Report an error</a></div>' : "";
+            return affiliation || report ? affiliation + report + "<br>" : "<br><br>";
         }
 
         // Title, description and canonical address of the page follow what is shown: the network of an author, the
@@ -304,51 +390,26 @@
                 { id: node.id, color: { background: "#00FF00", border: "#000000", highlight: { background: "#00FF00", border: "#000000" } }, borderWidth: 2 })));
         }
 
-        function adjust_log() {
+        // the side panels of the network, one open at a time: button -> panel
+        const SIDE_PANELS = { btn_log: "div_log", btn_author_topics: "div_author_topics", btn_coauthors: "div_coauthors", btn_pub: "div_pub" };
+        function toggle_side_panel(button_id) {
             if (isMobile())
                 return;
-            if (document.getElementById("btn_pub").classList.contains("active")) {
-                adjust_pub();
+            for (const other in SIDE_PANELS) {          // the panel that is open closes
+                if (other !== button_id && document.getElementById(other).classList.contains("active")) {
+                    document.getElementById(other).classList.remove("active");
+                    document.getElementById(SIDE_PANELS[other]).classList.add("hidden");
+                }
             }
-            if (document.getElementById("btn_author_topics").classList.contains("active")) {
-                adjust_author_topics();
-            }
-            const log_btn = document.getElementById("btn_log");
-            log_btn.classList.toggle("active");
-
-            document.getElementById("div_log").scrollTop = document.getElementById("div_log").scrollHeight;
-            document.getElementById("div_log").classList.toggle("hidden");
+            const panel = document.getElementById(SIDE_PANELS[button_id]);
+            document.getElementById(button_id).classList.toggle("active");
+            panel.scrollTop = button_id === "btn_log" ? panel.scrollHeight : 0;
+            panel.classList.toggle("hidden");
         }
-
-        function adjust_author_topics() {
-            if (isMobile())
-                return;
-            if (document.getElementById("btn_log").classList.contains("active")) {
-                adjust_log();
-            }
-            if (document.getElementById("btn_pub").classList.contains("active")) {
-                adjust_pub();
-            }
-            document.getElementById("btn_author_topics").classList.toggle("active");
-            document.getElementById("div_author_topics").scrollTop = 0;
-            document.getElementById("div_author_topics").classList.toggle("hidden");
-        }
-
-        function adjust_pub() {
-            if (isMobile())
-                return;
-            if (document.getElementById("btn_log").classList.contains("active")) {
-                adjust_log();
-            }
-            if (document.getElementById("btn_author_topics").classList.contains("active")) {
-                adjust_author_topics();
-            }
-            const pub_btn = document.getElementById("btn_pub");
-            pub_btn.classList.toggle("active");
-
-            document.getElementById("div_pub").scrollTop = 0;
-            document.getElementById("div_pub").classList.toggle("hidden");
-        }
+        function adjust_log() { toggle_side_panel("btn_log"); }
+        function adjust_author_topics() { toggle_side_panel("btn_author_topics"); }
+        function adjust_coauthors() { toggle_side_panel("btn_coauthors"); }
+        function adjust_pub() { toggle_side_panel("btn_pub"); }
 
         function clear_search() {
             if (!isMobile()) {
@@ -390,10 +451,12 @@
             if (isMobile())
                 return;
             document.getElementById("div_splash").classList.remove("hidden");
+            if (typeof place_search_box === "function") place_search_box();   // at once: what follows measures the page
         }
 
         function hide_splash() {
             document.getElementById("div_splash").classList.add("hidden");
+            if (typeof place_search_box === "function") place_search_box();
         }
 
         function show_graph_info() {
@@ -619,7 +682,7 @@
         const container = document.getElementById("mynetwork");
         let width = container.clientWidth;
         if (!isMobile()) {
-            for (const id of ["div_pub", "div_author_topics", "div_log"]) {
+            for (const id of ["div_pub", "div_author_topics", "div_coauthors", "div_log"]) {
                 const panel = document.getElementById(id);
                 if (panel && !panel.classList.contains("hidden")) {
                     width -= panel.offsetWidth;
@@ -992,6 +1055,7 @@
                                 document.getElementById("div_pub").innerHTML += html_add;
 
                                 const other_panel_open = document.getElementById("btn_author_topics").classList.contains("active")
+                                    || document.getElementById("btn_coauthors").classList.contains("active")
                                     || document.getElementById("btn_log").classList.contains("active");
                                 if ((pub_panel_force || !other_panel_open) && !document.getElementById("btn_pub").classList.contains("active")) {
                                     adjust_pub();
@@ -1092,6 +1156,7 @@
                                     set_year_span(years_span[0], years_span[1]);                              // become the ends of the year slider
                                     current_query = query;
                                     draw();
+                                    render_coauthors(mydata["n_coauthors"]);
                                     document.querySelector("#autoComplete").value = query;
                                     document.querySelector("#ac_search_nodes").value = "";
                                     update_clear_button();
@@ -1109,7 +1174,11 @@
                                         window.history.pushState({"search": query, "from": years.from, "to": years.to}, '', new_url);
                                     }
                                     handling_popstate = false;
-                                    document.getElementById("div_graph_title").innerHTML = "Browsing network for: <b>" + esc(query) + "</b>" + (year_filter_active() ? " (" + year_filter_label() + ")" : "");
+                                    {
+                                        const center_node = nodes_all.find(node => String(node.id).toUpperCase() === String(current_center).toUpperCase());
+                                        document.getElementById("div_graph_title").innerHTML = graph_title_html(center_node ? center_node.label : query,
+                                            "co-authorship network" + (year_filter_active() ? " (" + year_filter_label() + ")" : ""));
+                                    }
                                 }
                                 if (mydata["instruction"]=="progress") {
                                     document.getElementById("div_info").textContent = mydata["description"];
@@ -1598,6 +1667,12 @@
     #div_splash .ab_about details { background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
     #div_splash .ab_about details summary { cursor: pointer; font-weight: 600; color: #4a4a4a; font-size: 16.5px; }
     #div_splash .ab_about details p { margin: 8px 0 2px 0; font-size: 15.5px; }
+    #div_splash .ab_about details ol, #div_splash .ab_about details ul { margin: 8px 0 2px 0; padding-left: 24px; font-size: 15.5px; }
+    #div_splash .ab_about details ol { list-style: decimal; }
+    #div_splash .ab_about details ul { list-style: disc; }
+    #div_splash .ab_about details li { margin: 5px 0; }
+    #div_splash .ab_about .ab_qa_group { margin: 20px 0 8px 2px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8a94a3; }
+    #div_splash .ab_about h2 + .ab_qa_group { margin-top: 6px; }
     #div_splash .ab_about .ab_hint { font-size: 14px; color: #9a9a9a; }
     #div_splash .ab_about .ab_cta { margin: 30px 0 0 0; background: #eef4fd; border: 1px solid #d9e5f6; border-radius: 12px; padding: 22px 24px 16px 24px; }
     #div_splash .ab_about .ab_cta h2 { font-size: 21px; }
@@ -1607,13 +1682,14 @@
     #div_splash .ab_about .ab_hero_search { max-width: 680px; margin: 0 auto; padding: 0 20px 40px 20px; }
     #div_splash .ab_about .ab_hero_search_hint { font-size: 14px; color: #9a9a9a; padding: 10px 0 0 22px; }
     #div_splash .ab_about .ab_hero_search_hint a.splash_topic { margin-left: 4px; color: #2f6096; }
+    #div_splash .ab_about .ab_hero_search_hint a.ab_all_topics { margin-left: 10px; }
     #div_splash .ab_about .ab_hero_search_label { font-size: 17px; color: #4a4a4a; padding: 0 0 10px 22px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     #div_splash .ab_about .ab_hero_search_label i { color: #6f9be8; margin-right: 7px; font-size: 14px; }
     #div_splash .ab_about .ab_hero_search_label .ab_or { color: #a8a8a8; font-size: 14px; }
     /* start page on a desktop: the bar with the controls of a network is hidden, the start page begins under the header */
     body.search_in_hero #div_search_bar, html.start_page #div_search_bar { display: none; }
-    html.start_page #div_splash.splash_div { top: 47px; }
-    html.start_page #div_splash .ab_about .ab_hero_search { display: block; }
+    html.start_page #div_splash.splash_div, html.start_page #div_splash.splash_mobile_div { top: 47px; }
+    html.start_page body #div_splash .ab_about .ab_hero_search { display: block; }   /* (stronger than the rule that hides it until the field has arrived) */
     #hero_search_slot { min-height: 52px; }
     body:not(.search_in_hero) #div_splash .ab_about .ab_hero_search { display: none; }
     body.search_in_hero #btn_clean_c { display: none; }
@@ -1631,7 +1707,22 @@
     #div_splash .ab_about a.ab_button.ab_light { color: #2f6fd0; font-size: 16px; padding: 9px 20px; border-radius: 22px; background: #ffffff; border-color: #c9daee; }
     #div_splash .ab_about a.ab_button.ab_light:hover { color: #1f4f80; background: #eef4fb; }
     #div_splash .ab_about .ab_foot { max-width: 980px; margin: 0 auto; padding: 18px 20px 30px 20px; font-size: 14.5px; color: #9a9a9a; }
-    body.mobile #div_splash .ab_about .ab_hero_inner { padding: 24px 16px 20px 16px; display: block; }
+    body.mobile #div_splash .ab_about .ab_hero_inner { padding: 18px 16px 20px 16px; display: block; }
+    /* phones: the search field is the first thing of the start page, large (a font of 16 px or more also keeps iOS
+       from zooming into the page when the field is touched) */
+    html.phone #div_splash .ab_about .ab_hero { display: flex; flex-direction: column; }
+    html.phone #div_splash .ab_about .ab_hero_search { order: -1; max-width: none; margin: 0; padding: 22px 14px 4px 14px; }
+    html.phone #div_splash .ab_about .ab_hero_search_label { padding: 0 0 10px 8px; font-size: 16.5px; gap: 4px 8px; }
+    html.phone #div_splash .ab_about .ab_hero_search_hint { padding: 10px 0 0 8px; line-height: 2; }
+    html.phone #hero_search_slot .autoComplete_wrapper > input { height: 54px; font-size: 17px; padding-right: 2.6rem; }
+    html.phone #hero_search_slot .autoComplete_wrapper > input { display: block; }     /* no gap of a text line under the field */
+    /* the x that empties the field: in the middle of the field's height, with room around it for a finger (the
+       element carries its place for the bar in its style attribute, hence !important) */
+    html.phone #btnm_clear { top: 50% !important; transform: translateY(-50%); line-height: 1; padding: 10px; right: 13px !important; }
+    html.phone #hero_search_slot #btnm_clear { right: 8px !important; font-size: 18px !important; }
+    html.phone #div_search_input .autoComplete_wrapper { vertical-align: top; }
+    html.phone #hero_search_slot #div_search_input .autoComplete_wrapper > ul { max-height: 240px; }
+    html.phone #autoComplete { font-size: 16px; }
     body.mobile #div_splash .ab_about .ab_hero_art { display: none; }
     body.mobile #div_splash .ab_about .ab_h1 { font-size: 26px; }
     body.mobile #div_splash .ab_about .ab_stats { grid-template-columns: 1fr 1fr; }
@@ -1642,6 +1733,16 @@
     /* (on the page itself, behind the network: the hints at the top left of the network lie under its canvas) */
     body { background: linear-gradient(180deg, #eef4fd 0%, #fafafa 100%) fixed; }
     .topics_view { background: linear-gradient(180deg, #eef4fd 0%, #fafafa 100%); }
+
+    /* co-authors panel */
+    #div_coauthors .coauthors_hint { font-size: 12px; color: #999999; margin: 4px 0 8px 0; }
+    #div_coauthors .coauthor_aff { font-size: 12px; color: #a3a3a3; }
+    #div_coauthors td { vertical-align: top; }
+    #div_coauthors a.coauthors_sort { color: #999999; text-decoration: none; }
+    #div_coauthors a.coauthors_sort:hover { color: #525252; }
+    #div_coauthors a.coauthors_sort.active { color: #525252; font-weight: bold; }
+    #div_coauthors a.coauthors_sort.active::after { content: " \25BE"; }
+    #div_coauthors td.coauthor_weight { color: #b5b5b5; }
 
     /* main affiliation under the header of an author's publication list */
     .pub_affiliation { margin-top: 4px; color: #7c7c7c; }
@@ -1654,7 +1755,25 @@
     .changelog_box { background: #ffffff; border-radius: 10px; padding: 22px 28px 20px 28px; max-width: 680px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;
         box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18); font-family: 'Source Sans Pro', sans-serif; color: #666666; font-size: 14px; line-height: 1.45; text-align: left; }
     .changelog_head { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; font-size: 18px; color: #a63f3b; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0; }
-    .changelog_head i.fa-history { color: #4d7aa8; margin-right: 9px; font-size: 15px; }
+    .changelog_head i.fa-history, .changelog_head i.fa-comment-dots { color: #4d7aa8; margin-right: 9px; font-size: 15px; }
+    /* feedback window, and the links that open it */
+    .feedback_box { max-width: 560px; }
+    .feedback_lead { margin: 0 0 14px 0; }
+    .changelog_box a.feedback_option { display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid #e6e9ee; border-radius: 10px;
+        color: #666666; text-decoration: none; transition: background 0.15s ease, border-color 0.15s ease; }
+    .changelog_box a.feedback_option:hover { background: #f4f8ff; border-color: #c9daee; color: #555555; }
+    a.feedback_option > i { color: #6f9be8; font-size: 20px; width: 26px; text-align: center; margin-top: 4px; flex-shrink: 0; }
+    a.feedback_option b { color: #2f6096; font-weight: 600; font-size: 15.5px; }
+    #feedback_author { display: block; color: #9a9a9a; font-size: 13px; }
+    #feedback_author:empty { display: none; }
+    .feedback_note { color: #9a9a9a; font-size: 13px; margin: 6px 0 0 2px; }
+    html.phone #btn_feedback { display: none; }
+    html.phone .changelog_box { padding: 18px 16px 16px 16px; width: 94%; }
+    /* under the affiliation, in the same two columns (icon, text), smaller and paler */
+    .pub_report { margin-top: 3px; font-size: 12.5px; }
+    .pub_report a { color: #a9a9a9 !important; text-decoration: none; }
+    .pub_report a:hover { color: #525252 !important; }
+    .pub_report i { font-size: 11px; width: 16px; margin-right: 4px; text-align: center; color: inherit !important; }
     .changelog_close { color: #aaaaaa; font-size: 16px; text-decoration: none; padding: 2px 4px; }
     .changelog_close:hover { color: #525252; }
     .changelog_body { overflow-y: auto; padding: 14px 6px 0 0; }
@@ -1672,9 +1791,9 @@
     #link_changelog { cursor: pointer; }
 
     /* topics panel of an author */
-    #div_author_topics table { border-collapse: collapse; width: 100%; }
-    #div_author_topics td { padding: 2px 6px 2px 0; border-bottom: 1px solid #f3f3f3; vertical-align: top; }
-    #div_author_topics td.num { text-align: right; color: #999999; white-space: nowrap; }
+    #div_author_topics table, #div_coauthors table { border-collapse: collapse; width: 100%; }
+    #div_author_topics td, #div_coauthors td { padding: 2px 6px 2px 0; border-bottom: 1px solid #f3f3f3; vertical-align: top; }
+    #div_author_topics td.num, #div_coauthors td.num { text-align: right; color: #999999; white-space: nowrap; }
     #div_author_topics .topics_kind { margin-left: 6px; }
     #div_author_topics .at_filter { font-size: 12px; color: #999999; margin: 4px 0 8px 0; }
     #div_author_topics .at_filter a { margin-right: 8px; color: #4d9aff; text-decoration: none; }
@@ -1775,32 +1894,48 @@
     let mobile_view;
     let div_pub_text;
 
-    // (run as soon as the page is read, not when all pictures have arrived: the start page is complete at once)
-    document.addEventListener("DOMContentLoaded", function () {
-        // Desktop: while the start page is shown, the search field sits in the middle of it, large; with a network or
-        // a topic list on screen it is back in the top bar. It is the same element in both places (moved, not copied),
-        // so suggestions, keys and selection work the same.
-        const search_home = document.getElementById("div_search_input").parentNode;
-        function place_search_box() {
-            if (isMobile()) return;
-            const box = document.getElementById("div_search_input");
-            const on_start = !document.getElementById("div_splash").classList.contains("hidden");
-            const target = on_start ? document.getElementById("hero_search_slot") : search_home;
-            if (box.parentNode === target) return;
-            try { autoCompleteJS.close(); } catch (e) {}
-            target.appendChild(box);
-            document.body.classList.toggle("search_in_hero", on_start);
-            document.documentElement.classList.toggle("start_page", on_start);
-            const splash = document.getElementById("div_splash");      // without the bar the start page begins under the header
-            splash.style.top = on_start ? Math.round(document.getElementById("div_top").getBoundingClientRect().bottom) + "px" : "";
-            document.querySelector("#autoComplete").setAttribute("placeholder", on_start ? "Researcher name, ORCID iD or research topic..." : "Author name or topic...");
-            if (on_start) { try { document.querySelector("#autoComplete").focus({ preventScroll: true }); } catch (e) {} }
+    // While the start page is shown, the search field sits in it, large (in the middle on a desktop, first thing on a
+    // phone); with a network or a topic list on screen it is in the bar under the header. It is the same element in
+    // both places (moved, not copied), so suggestions, keys and selection work the same. Called whenever the start
+    // page is shown or hidden.
+    let search_home = null;      // the place of the search field in the bar
+    function place_search_box() {
+        const box = document.getElementById("div_search_input");
+        const splash = document.getElementById("div_splash");
+        const slot = document.getElementById("hero_search_slot");
+        if (!box || !splash || !slot) return;
+        if (!search_home) search_home = box.parentNode;
+        const on_start = !splash.classList.contains("hidden");
+        const target = on_start ? slot : search_home;
+        if (box.parentNode === target) return;
+        try { autoCompleteJS.close(); } catch (e) {}
+        target.appendChild(box);
+        document.body.classList.toggle("search_in_hero", on_start);
+        document.documentElement.classList.toggle("start_page", on_start);
+        // without the bar the start page begins under the header
+        splash.style.top = on_start ? Math.round(document.getElementById("div_top").getBoundingClientRect().bottom) + "px" : "";
+        document.querySelector("#autoComplete").setAttribute("placeholder", on_start ? "Researcher name, ORCID iD or research topic..." : "Author name or topic...");
+        if (isMobile()) {
+            if (!on_start) phone_tops();        // the bar is back: network and lists begin under it
+        } else if (on_start) {                  // (a phone would open its keyboard)
+            try { document.querySelector("#autoComplete").focus({ preventScroll: true }); } catch (e) {}
         }
+    }
+    // phones: the network and the publication list begin where the search bar ends
+    function phone_tops() {
+        const bottom = Math.round(document.getElementById("div_search_bar").getBoundingClientRect().bottom);
+        if (bottom <= 0) return;                // the bar is not shown (start page)
+        document.getElementById("mynetwork").style.top = bottom + "px";
+        document.getElementById("div_pub").style.top = bottom + "px";
+    }
+    // (as soon as the page is read, not when all pictures have arrived: the start page is complete at once)
+    document.addEventListener("DOMContentLoaded", function () {
         new MutationObserver(place_search_box).observe(document.getElementById("div_splash"), { attributes: true, attributeFilter: ["class"] });
         place_search_box();
     });
 
-    window.onload = function () {
+    // (when the page has been read, not when all its pictures have arrived: the network of an address starts loading at once)
+    document.addEventListener("DOMContentLoaded", function () {
 
     tippy('#btn_share2', {
         theme: 'pubscan',
@@ -1839,7 +1974,6 @@
             //$("#div_search_menu2").css("border", "1px solid red");
             $("#mene_right_2").hide();
             $("#btn_github_stars").hide();
-            $("#div_graph_title").hide();
             $("#div_search_label").css("padding-top", "0px");
             $("#div_search_label").css("text-align", "center");
             $("#div_search_label").css("margin-top", "-5px");
@@ -1866,17 +2000,19 @@
             el.style.willChange = "transform";
 
             $("#mynetwork").css("border", "none");
-            $("#mynetwork").css("top", Math.round(document.getElementById("div_search_bar").getBoundingClientRect().bottom) + "px");
+            phone_tops();     // (on the start page the bar is not shown: place_search_box() does it when the bar comes back)
 
             $("#div_pub").attr("style", $("#mynetwork").attr("style"));
             $("#div_author_topics").hide();
+            $("#div_coauthors").hide();
             const divPub = document.getElementById("div_pub");
             divPub.className = "div_pub_mobile";
             $("#div_pub").hide();
 
             const divSplash = document.getElementById("div_splash");
-            divSplash.className = "splash_mobile_div";
-            
+            divSplash.className = "splash_mobile_div" + (divSplash.classList.contains("hidden") ? " hidden" : "");   // (hidden: the page of an author or a topic)
+
+            document.documentElement.classList.add("phone_ready");   // arranged for the small screen: now it is shown
         }
 
         get_update_date();
@@ -1895,6 +2031,15 @@
             const url_params = new URLSearchParams(window.location.search);
             handling_popstate = true; // the URL is already the right one: replace it instead of pushing a copy
             window.history.replaceState({"topic": name.replace(/_/g, " "), "since": url_params.get("since") || ""}, '', window.location.pathname + window.location.search);
+            let sent = null;      // the list of the topic, put into the page by the server (pubscan/pages.py)
+            try { sent = JSON.parse(document.getElementById("page_data").textContent); } catch (e) {}
+            if (sent && sent.topic && sent.topic_authors && !url_params.get("since")) {
+                document.getElementById("topic_year_from").value = "";
+                document.querySelector("#autoComplete").value = sent.topic.name;
+                update_clear_button();
+                show_topic_authors(sent.topic, sent.topic_authors);
+                return;
+            }
             open_topic_by_name(name.replace(/_/g, " "), url_params.get("since"));
             return;
         }
@@ -1907,7 +2052,7 @@
             }
             get_author_network(center.replace(/_/g, " "));
         }
-    };
+    });
 
 function swap_pub_mobile() {
     if (document.getElementById("div_bottom_mobile_label").innerHTML.indexOf("Open Source at")>0) // still the pubScan notice: no network yet
@@ -1937,33 +2082,39 @@ function swap_pub_mobile() {
     Log of communication of pubScan with the server. Use to follow what's happening.
 </div>
 
-<div id="div_author_topics" class="div_pub hidden">
+<!-- The side panels. As the server sends the page of an author, they hold the author's topics, co-authors and
+     publications already (pubscan/pages.py); the scripts fill them again when a network has been loaded. -->
+<div id="div_author_topics" class="div_pub hidden"><!-- ssr:author_topics -->
     Top topics of the author at the center of the network; click a node to see the topics of that author.
-</div>
+<!-- /ssr:author_topics --></div>
 
-<div id=div_pub class="div_pub hidden">
+<div id="div_coauthors" class="div_pub hidden"><!-- ssr:coauthors -->
+    The co-authors of the author at the center of the network, strongest ties first.
+<!-- /ssr:coauthors --></div>
+
+<div id=div_pub class="div_pub hidden"><!-- ssr:pub -->
     Here information on authors publications is provided when you click on a node (author) or on an edge between authors (joint publications).
-</div>
+<!-- /ssr:pub --></div>
 
-<div id="div_topics" class="topics_view hidden">
+<!-- ssr:topics_open --><div id="div_topics" class="topics_view hidden"><!-- /ssr:topics_open -->
     <div class="topics_inner">
-        <div class="topics_head"><span id="topics_title"></span>
+        <div class="topics_head"><span id="topics_title"><!-- ssr:topics_title --><!-- /ssr:topics_title --></span>
             <a class="topics_close" href="javascript:hide_topics();back_to_start_if_empty();" title="Close"><i class="fas fa-times"></i></a>
         </div>
-        <div class="topics_sub"><span id="topics_summary"></span>
+        <div class="topics_sub"><span id="topics_summary"><!-- ssr:topics_summary --><!-- /ssr:topics_summary --></span>
             <span class="topics_since" title="Only authors whose newest publication on the topic is from this year or later">active since
                 <input id="topic_year_from" placeholder="year" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="active since year"></span>
         </div>
-        <div id="div_topics_results"></div>
+        <div id="div_topics_results"><!-- ssr:topics_results --><!-- /ssr:topics_results --></div>
         <div class="topics_hint">The top authors of the topic: researchers are ranked by their number of publications tagged with this OpenAlex topic or keyword. Click a name to open the co-authorship network.</div>
     </div>
 </div>
 
-<div id="div_splash" class="splash_div">
+<!-- ssr:splash_open --><div id="div_splash" class="splash_div"><!-- /ssr:splash_open -->
 <div class="ab_about">
 <div class="ab_hero"><div class="ab_hero_inner">
     <div class="ab_hero_text">
-        <div class="ab_h1">Scientific co-authorship networks, explored interactively</div>
+        <!-- ssr:h1_start --><h1 class="ab_h1">Scientific co-authorship networks, explored interactively</h1><!-- /ssr:h1_start -->
         <p>pubScan draws the publication network of any researcher: who they publish with, how strongly, and which groups of co-authors work together. It covers 132 million publications of 10.3 million authors.</p>
         
     </div>
@@ -1985,7 +2136,8 @@ function swap_pub_mobile() {
         <div class="ab_hero_search_label"><span><i class="fas fa-user"></i>Find a researcher</span><span class="ab_or">or</span><span><i class="fas fa-tags"></i>collaborators by topic</span></div>
         <div id="hero_search_slot"></div>
         <div class="ab_hero_search_hint">Type and pick a suggestion. Example topic:
-            <a class="splash_topic" href="/topic/RNA_Research_and_Splicing" data-topic="RNA Research and Splicing"><i class="fas fa-tags"></i>RNA Research and Splicing</a></div>
+            <a class="splash_topic" href="/topic/RNA_Research_and_Splicing" data-topic="RNA Research and Splicing"><i class="fas fa-tags"></i>RNA Research and Splicing</a>
+            <a class="ab_all_topics" href="/topics">all topics by field</a></div>
     </div>
 </div>
 <div class="ab_main">
@@ -2001,7 +2153,7 @@ function swap_pub_mobile() {
     <h2>What is a co-authorship network?</h2>
     <p class="ab_lead">A co-authorship network is a map of scientific collaboration. Every <b>node</b> is a researcher, and an <b>edge</b> connects two researchers who have written at least one publication together. Looking at the network of one scientist shows at a glance who their closest collaborators are, which research groups they belong to, and how those groups are connected.</p>
     <figure class="ab_figure">
-        <img src="pubscan_splash.jpg" alt="A co-authorship network in pubScan: the central author in red, co-authors in colored clusters, the publication list on the right" loading="lazy">
+        <img src="pubscan_splash.jpg" width="1856" height="1236" alt="A co-authorship network in pubScan: the central author in red, co-authors in colored clusters, the publication list on the right" loading="lazy">
         <figcaption>A network in pubScan: the searched author in the center, co-authors grouped into colored clusters, and the publications of the selected author on the right.</figcaption>
     </figure>
 </div>
@@ -2022,7 +2174,7 @@ function swap_pub_mobile() {
     <div class="ab_cards ab_three">
         <div class="ab_card"><h3>See your own network</h3><p>Check who you have published with over the years, and share the picture with one link.</p></div>
         <div class="ab_card"><h3>Get to know a researcher</h3><p>Before a talk, a review or a job interview: see the collaborators and communities a scientist works in.</p></div>
-        <div class="ab_card"><h3>Find people in a field</h3><p>Search a research topic to get the authors publishing most on it, and <a href="/find-collaborators">discover possible collaborators</a>.</p></div>
+        <div class="ab_card"><h3>Find people in a field</h3><p>Search a research topic to get the authors publishing most on it, and <a href="/find-collaborators">discover possible collaborators</a>, or browse <a href="/topics">all topics by field</a>.</p></div>
     </div>
 </div>
 <div class="ab_section">
@@ -2032,7 +2184,23 @@ function swap_pub_mobile() {
 </div>
 <div class="ab_section">
     <h2>Questions and answers</h2>
-    <details><summary>Why can&#x27;t I find a researcher?</summary><p>pubScan includes authors who carry an ORCID iD on at least one publication in OpenAlex. The ORCID iD is what tells two people of the same name apart. A researcher without an ORCID iD, or whose ORCID iD OpenAlex has not connected to any publication, does not appear. Adding the publications to the ORCID record usually fixes this with the next data update.</p></details><details><summary>A publication on a list is not by that author. Why?</summary><p>Who wrote what is taken from OpenAlex as it is. OpenAlex attaches publications to authors partly by matching names, so a list can contain a paper of a namesake. Single wrong attributions can be reported on GitHub and are then left out.</p></details><details><summary>Which publications are included?</summary><p>Every work of an author with an ORCID iD that OpenAlex lists as an article, review, preprint, conference paper, book, book chapter, dissertation, editorial, letter or report, and every work with a PubMed id. Data sets, software and peer reviews are left out. When OpenAlex holds a journal article and its preprint as two records, the paper is counted once.</p></details><details><summary>How current is the data?</summary><p>The data comes from the OpenAlex snapshot, which is published every few months; the header of the application shows the date of the snapshot in use.</p></details><details><summary>Is pubScan free?</summary><p>Yes. pubScan is free to use without an account, and it is free software under the AGPL-3.0 licence; the source code is on GitHub.</p></details>
+    <div class="ab_qa_group">The network</div>
+    <details><summary>How is the network of an author built?</summary><ol><li>pubScan takes the newest publications of the author you searched for, up to 200 of them.</li><li>Everyone who is an author of one of these publications and has an ORCID iD is a possible co-author.</li><li>For each of them it counts the publications shared with the central author and adds up their co-authorship weight (see the next question).</li><li>The 99 with the largest weight become the nodes of the network, around the central author.</li><li>Two of these authors are joined by an edge when they share a publication. A network shows at most 1,000 edges: all edges of the central author, the 100 strongest of the others, and a sample of the rest that is the same every time.</li></ol></details>
+    <details><summary>What is the co-authorship weight?</summary><p>Every shared publication counts 1/(<i>n</i>&minus;1), where <i>n</i> is the number of its authors with an ORCID iD. A paper by two authors counts 1, by three authors 0.5, by eleven authors 0.1, and a consortium paper with 300 authors 0.003. The weight of two authors is the sum over the publications they share.</p><p>This puts people who really work together ahead of people whose names merely appear on the same large consortium papers.</p></details>
+    <details><summary>Joint publications and weight: which is used for what?</summary><ul><li><b>The weight</b> decides which co-authors are shown (the 99 with the largest weight) and how thick an edge is drawn.</li><li><b>The number of joint publications</b> decides the size of a node, and is the number on an edge when <i>Edge labels</i> is ticked.</li><li>The <b>Co-authors</b> panel lists both for every co-author in the network. It is sorted by joint publications; click a column to sort by it.</li></ul><p>The two can disagree: four joint papers written in small teams weigh more than five written in large ones.</p></details>
+    <details><summary>What do size, color and line style mean?</summary><ul><li><b>Size:</b> the area of a node is proportional to the number of publications that co-author shares with the central author.</li><li><b>Color:</b> co-authors who also publish with each other form a cluster and share a color. The clusters are found from the links between the co-authors alone, with the Louvain method and the weights above; the central author, who is linked to everybody, is left out of this step. The seven largest clusters have a color, smaller groups and single co-authors are grey, and the central author is red.</li><li><b>Lines:</b> edges of the central author are full lines, edges between two co-authors are dashed; a thicker line means a larger weight.</li><li><b>Positions:</b> a force simulation places the nodes before the network is drawn, so it appears in place and stays still. Drag a node and the others follow.</li></ul></details>
+    <details><summary>Why is a co-author or a joint publication missing?</summary><ul><li><b>No ORCID iD.</b> Only authors who carry an ORCID iD on the publication are in pubScan, so a paper with ten authors may show three of them.</li><li><b>Limits of a network.</b> It shows up to 100 authors and 1,000 edges. The header of the Co-authors panel tells how many co-authors there are in all, for example &ldquo;99 of 1,166&rdquo;.</li><li><b>Newest publications only.</b> pubScan works with the newest 300 publications of every author. A joint paper that is older than that for one of the two authors is not counted, which matters for very prolific authors.</li><li><b>Year slider.</b> With a range of years set, only the publications of those years count.</li></ul></details>
+    <details><summary>What does the year slider do?</summary><p>It restricts the network to the publications of the chosen years: the co-authors, the joint publications, the weights and the publication lists are all taken from those years only. The ends of the slider are the first and the last publication year of the central author.</p></details>
+    <div class="ab_qa_group">Topics, names and affiliations</div>
+    <details><summary>How are the authors of a topic ranked?</summary><p>By the number of their publications that carry the topic. OpenAlex gives every publication up to three topics out of about 4,500, and a number of keywords; pubScan counts them per author. A topic list shows the first 100 authors, and <i>active since</i> keeps only those whose newest publication on the topic is from that year or later.</p><p>The ranking counts publications. It says nothing about their quality or impact, and it includes only authors with an ORCID iD. In the Topics panel of an author, &ldquo;#12&rdquo; next to a topic means the author is twelfth on its list.</p></details>
+    <details><summary>Where do names and affiliations come from?</summary><p><b>Names</b> are those of the ORCID record: given names and family name as the person entered them, without titles and degrees, and with the middle names OpenAlex knows. Where the record shows no name, the name of OpenAlex is used.</p><p><b>The affiliation</b> is the institution named on the author&#x27;s most recent publications in OpenAlex. It is what the papers say, not what the person states, so it can be out of date; the year is shown when it lies more than two years back.</p></details>
+    <div class="ab_qa_group">The data</div>
+    <details><summary>Which publications are included?</summary><p>Every work of an author with an ORCID iD that OpenAlex lists as an article, review, preprint, conference paper, book, book chapter, dissertation, editorial, letter or report, and every work with a PubMed id. Data sets, software and peer reviews are left out. When OpenAlex holds a journal article and its preprint as two records, the paper is counted once.</p></details>
+    <details><summary>Why can&#x27;t I find a researcher?</summary><p>pubScan includes authors who carry an ORCID iD on at least one publication in OpenAlex. The ORCID iD is what tells two people of the same name apart. A researcher without an ORCID iD, or whose ORCID iD OpenAlex has not connected to any publication, does not appear. Adding the publications to the ORCID record usually fixes this with the next data update. If you think someone should be here, <a href="https://github.com/grexor/pubscan/issues/new" onclick="return open_feedback();">tell me</a>.</p></details>
+    <details><summary>A publication on a list is not by that author. Why?</summary><p>Who wrote what is taken from OpenAlex as it is. OpenAlex attaches publications to authors partly by matching names, so a list can contain a paper of a namesake. Single wrong attributions can be <a href="https://github.com/grexor/pubscan/issues/new" onclick="return open_feedback();">reported</a> and are then left out.</p></details>
+    <details><summary>How current is the data?</summary><p>The data comes from the OpenAlex snapshot, which is published every few months; the header of the application shows the date of the snapshot in use.</p></details>
+    <details><summary>Why is it so fast?</summary><p>The publications, their authors, years and titles are kept in the memory of the server as compact arrays, about 33 GB, instead of a database. A network is computed from them in well under a second.</p></details>
+    <details><summary>Is pubScan free?</summary><p>Yes. pubScan is free to use without an account, and it is free software under the AGPL-3.0 licence; the source code is on GitHub.</p></details>
 </div>
 <div class="ab_cta">
     <h2>Try it with your own name</h2>
@@ -2043,6 +2211,7 @@ function swap_pub_mobile() {
 <div class="splash_foot ab_foot">
     Love it? <a id="btn_share2" href='javascript:url_to_clip()'>Share pubScan</a> with fellow scientists, and have a look at the
     source code of <a href='https://github.com/grexor/pubscan' target="_github">pubScan on GitHub</a>.
+    An idea, a problem or a correction? <a href="https://github.com/grexor/pubscan/issues/new" onclick="return open_feedback();">Leave feedback</a>.
 </div>
 </div>
 </div>
@@ -2107,7 +2276,7 @@ function swap_pub_mobile() {
             html += '<table><tr><td class="num">#</td><td style="color: #aaaaaa">term (click: who publishes on it)</td><td class="num">publications</td><td class="num">latest</td></tr>';
             data.topics.forEach((t, i) => {
                 const ranked = t.rank ? ' author_topic_top" title="' + esc(label) + ' is #' + t.rank + ' among the authors of this term' : '';
-                html += '<tr><td class="num">' + (i + 1) + '</td><td><a href="javascript:void(0)" class="author_topic' + ranked + '" data-term="' + t.term + '">' + esc(t.name) + '</a>'
+                html += '<tr><td class="num">' + (i + 1) + '</td><td><a href="' + esc(topic_url(t.name, "")) + '" class="author_topic' + ranked + '" data-term="' + t.term + '">' + esc(t.name) + '</a>'
                     + (t.rank ? '<span class="author_topic_rank">#' + t.rank + '</span>' : '')
                     + '<span class="topics_kind">' + esc(t.kind === "topic" ? (t.subfield || "topic") : t.kind) + '</span></td>'
                     + '<td class="num">' + format_count(t.n) + '</td><td class="num">' + (t.year ? esc(String(t.year)) : "") + '</td></tr>';
@@ -2121,9 +2290,67 @@ function swap_pub_mobile() {
     }
 
     // a term in the panel opens the ranked author list of that term
+    // ---- co-authors panel: the co-authors of the central author as a list, each a link to the page of that author.
+    // The rows are the nodes of the network in the order of the server (strongest tie first); the number is that of
+    // the edge to the central author. (pubscan/pages.py, author_slots(), writes the same list on the server.)
+    const COAUTHORS_HINT = "The co-authors shown in the network: those with the strongest ties by co-authorship weight, where a shared publication with <i>n</i> authors counts 1/(<i>n</i>&minus;1). Click a column to sort by it, a name to open that author's network.";
+    let coauthors_sort = "n";       // "n": most joint publications first; "w": largest co-authorship weight first
+    let coauthors_total = 0;        // all co-authors of the central author (the network shows the strongest of them)
+    function render_coauthors(n_coauthors) {
+        if (n_coauthors !== undefined) coauthors_total = n_coauthors || 0;
+        const panel = document.getElementById("div_coauthors");
+        const center = nodes_all.find(node => String(node.id).toUpperCase() === String(current_center).toUpperCase());
+        if (!center) return;
+        const tie = {};             // the edge between the central author and each co-author
+        for (const edge of edges_all) {
+            if (edge.from === center.id) tie[edge.to] = edge;
+            else if (edge.to === center.id) tie[edge.from] = edge;
+        }
+        // the nodes come from the server by weight (then by joint publications): that is the order of equals
+        const rows = nodes_all.filter(node => node.id !== center.id).map((node, k) => ({ node: node, n: (tie[node.id] || {}).common || 0, w: (tie[node.id] || {}).weight || 0, k: k }));
+        if (coauthors_sort === "n") rows.sort((a, b) => b.n - a.n || a.k - b.k);
+        let html = "Co-authors: <b>" + esc(center.label) + "</b> " + orcid_link(center.id) + " (" + (coauthors_total > rows.length ? rows.length + " of " + format_count(coauthors_total) : rows.length) + ")"
+            + year_filter_note() + '<div class="coauthors_hint">' + COAUTHORS_HINT + '</div>';
+        if (rows.length === 0) {
+            panel.innerHTML = html + "No co-authors found.";
+            return;
+        }
+        const column = (key, label, title) => '<a href="javascript:void(0)" class="coauthors_sort' + (coauthors_sort === key ? ' active' : '') + '" data-sort="' + key + '" title="' + title + '">' + label + '</a>';
+        html += '<table><tr><td class="num">#</td><td style="color: #aaaaaa">co-author (click: open the network)</td><td class="num">'
+            + column("n", "joint publications", "Sort by the number of joint publications") + '</td><td class="num">'
+            + column("w", "weight", "Sort by co-authorship weight: a shared publication with n authors counts 1/(n-1)") + '</td></tr>';
+        rows.forEach((row, i) => {
+            const node = row.node;
+            html += '<tr><td class="num">' + (i + 1) + '</td><td><a href="' + esc(author_href(node.label, node.id)) + '" class="coauthor_link" data-query="' + esc(node.label + " " + node.id) + '">' + esc(node.label) + '</a>'
+                + (node.aff ? '<div class="coauthor_aff">' + esc(affiliation_text(node)) + '</div>' : '')
+                + '</td><td class="num">' + format_count(row.n) + '</td><td class="num coauthor_weight">' + row.w.toFixed(2) + '</td></tr>';
+        });
+        panel.innerHTML = html + '</table>';
+        panel.scrollTop = 0;
+    }
+
+    document.getElementById("div_coauthors").addEventListener("click", function (e) {
+        const sort = e.target.closest("a.coauthors_sort");      // a column header: sort by it
+        if (sort) {
+            e.preventDefault();
+            coauthors_sort = sort.getAttribute("data-sort");
+            render_coauthors();
+            return;
+        }
+        const link = e.target.closest("a.coauthor_link");
+        if (!link || !plain_click(e)) return;
+        e.preventDefault();
+        const query = link.getAttribute("data-query");
+        suppressSuggestions = true;
+        document.querySelector("#autoComplete").value = query;
+        update_clear_button();
+        get_author_network(query);
+        $('#mynetwork').focus();
+    });
+
     document.getElementById("div_author_topics").addEventListener("click", function (e) {
         const link = e.target.closest("a.author_topic");
-        if (!link) return;
+        if (!link || !plain_click(e)) return;
         e.preventDefault();
         fetch("/gw/index.py?action=topic_suggest&topic=" + encodeURIComponent(link.textContent)).then(r => r.json()).then(terms => {
             const term = (Array.isArray(terms) ? terms : []).find(t => String(t.term) === link.getAttribute("data-term")) || (terms && terms[0]);
@@ -2158,6 +2385,7 @@ function swap_pub_mobile() {
         document.getElementById("div_graph_title").innerHTML = "";
         set_page_head(null, null, "/");
         document.getElementById("div_splash").classList.remove("hidden");
+        place_search_box();
     }
 
     // shareable URL of a topic list: /topic/<name with _ for spaces>[?since=<year>]
@@ -2183,7 +2411,9 @@ function swap_pub_mobile() {
         }).catch(() => { handling_popstate = false; });
     }
 
-    function show_topic_authors(term) {
+    // The author list of a term. With "prefetched" (the answer of topic_authors that the server put into the page
+    // of the topic, together with the drawn list) nothing is asked and nothing is cleared: the list is there.
+    function show_topic_authors(term, prefetched) {
         hide_splash();
         hide_center_info();
         ac_tooltip.hide();
@@ -2191,49 +2421,23 @@ function swap_pub_mobile() {
         const view = document.getElementById("div_topics");
         view.style.top = Math.round(document.getElementById("mynetwork").getBoundingClientRect().top) + "px";
         document.getElementById("topics_title").innerHTML = esc(term.name) + '<span class="topics_kind">' + esc(topic_kind_label(term)) + '</span>';
-        document.getElementById("topics_summary").innerHTML = "loading authors...";
-        const results = document.getElementById("div_topics_results");
-        results.innerHTML = "";
+        if (!prefetched) {
+            document.getElementById("topics_summary").innerHTML = "loading authors...";
+            document.getElementById("div_topics_results").innerHTML = "";
+            view.scrollTop = 0;
+        }
         view.classList.remove("hidden");
-        view.scrollTop = 0;
         update_network_controls(); // the list covers the network
         try { if (topic_abort) topic_abort.abort(); } catch (e) {}
+        if (prefetched) {
+            render_topic_authors(term, prefetched);
+            return;
+        }
         topic_abort = new AbortController();
         const url = "/gw/index.py?action=topic_authors&term=" + encodeURIComponent(term.term) + "&year_from=" + topic_year_from();
         fetch(url, { signal: topic_abort.signal }).then(response => response.json()).then(data => {
             if (topic_current !== term) return;      // a newer selection replaced this one
-            if (data.instruction === "error") {
-                document.getElementById("topics_summary").innerHTML = esc(data.description);
-                return;
-            }
-            const t = data.term;
-            const since = topic_year_from();
-            document.getElementById("topics_summary").innerHTML = format_count(t.n_pubs) + ' publications, ' + format_count(t.n_authors) + ' authors with an ORCID iD'
-                + (since ? '; ' + format_count(data.n_total) + ' of them with a publication on the topic since ' + esc(since) : '')
-                + (data.authors.length < data.n_total ? '; showing the top ' + data.authors.length : '');
-            if (data.authors.length === 0) {
-                results.innerHTML = '<div class="topics_hint">No authors found.</div>';
-                return;
-            }
-            let html = '<table><tr><th class="num">#</th><th>Author</th><th class="topics_orcid">ORCID iD</th><th class="num">Publications</th><th class="num">Latest</th></tr>';
-            const most = Math.max(1, ...data.authors.map(a => a.n));          // the bars compare the listed authors
-            const recent = new Date().getFullYear() - 5;                      // an older newest publication is shown paler
-            data.authors.forEach((a, i) => {
-                const query = (a.name || a.orcid) + " " + a.orcid;
-                html += '<tr class="topics_row" data-query="' + esc(query) + '"><td class="topics_rank">' + (i + 1) + '</td>'
-                    + '<td class="topics_author_cell"><a href="javascript:void(0)" class="topics_author">' + esc(a.name || a.orcid) + '</a></td>'
-                    + '<td class="topics_orcid"><a href="https://orcid.org/' + esc(a.orcid) + '" target="_blank" rel="noopener" title="ORCID record">' + esc(a.orcid) + '</a></td>'
-                    + '<td class="num topics_pubs"><span class="topics_bar"><span style="width: ' + Math.max(2, Math.round(100 * a.n / most)) + '%"></span></span><span class="topics_n">' + format_count(a.n) + '</span></td>'
-                    + '<td class="num topics_year' + (a.year && a.year < recent ? ' old' : '') + '">' + (a.year ? esc(String(a.year)) : "") + '</td></tr>';
-            });
-            results.innerHTML = html + '</table>';
-            set_page_head(t.name + ": top authors and researchers | pubScan", "Top researchers in " + t.name + ": the authors publishing most on the topic, ranked by number of publications, out of "
-                + format_count(t.n_authors) + " researchers and " + format_count(t.n_pubs) + " publications. Open their co-authorship networks on pubScan.", topic_url(t.name, ""));
-            document.getElementById("div_graph_title").innerHTML = "Top authors for: <b>" + esc(t.name) + "</b>" + (since ? " (active since " + esc(since) + ")" : "");
-            if (!handling_popstate) {
-                window.history.pushState({"topic": t.name, "since": since}, '', topic_url(t.name, since));
-            }
-            handling_popstate = false;
+            render_topic_authors(term, data);
         }).catch(error => {
             if (error.name !== "AbortError" && topic_current === term) {
                 document.getElementById("topics_summary").innerHTML = 'Could not load the authors (' + esc(String(error)) + ').';
@@ -2241,10 +2445,48 @@ function swap_pub_mobile() {
         });
     }
 
+    // (pubscan/pages.py, topic_slots(), writes the same list on the server)
+    function render_topic_authors(term, data) {
+        const results = document.getElementById("div_topics_results");
+        if (data.instruction === "error") {
+            document.getElementById("topics_summary").innerHTML = esc(data.description);
+            return;
+        }
+        const t = data.term;
+        const since = topic_year_from();
+        document.getElementById("topics_summary").innerHTML = format_count(t.n_pubs) + ' publications, ' + format_count(t.n_authors) + ' authors with an ORCID iD'
+            + (since ? '; ' + format_count(data.n_total) + ' of them with a publication on the topic since ' + esc(since) : '')
+            + (data.authors.length < data.n_total ? '; showing the top ' + data.authors.length : '');
+        if (data.authors.length === 0) {
+            results.innerHTML = '<div class="topics_hint">No authors found.</div>';
+            return;
+        }
+        let html = '<table><tr><th class="num">#</th><th>Author</th><th class="topics_orcid">ORCID iD</th><th class="num">Publications</th><th class="num">Latest</th></tr>';
+        const most = Math.max(1, ...data.authors.map(a => a.n));          // the bars compare the listed authors
+        const recent = new Date().getFullYear() - 5;                      // an older newest publication is shown paler
+        data.authors.forEach((a, i) => {
+            const query = (a.name || a.orcid) + " " + a.orcid;
+            html += '<tr class="topics_row" data-query="' + esc(query) + '"><td class="topics_rank">' + (i + 1) + '</td>'
+                + '<td class="topics_author_cell"><a href="' + esc(author_href(a.name || a.orcid, a.orcid)) + '" class="topics_author">' + esc(a.name || a.orcid) + '</a></td>'
+                + '<td class="topics_orcid"><a href="https://orcid.org/' + esc(a.orcid) + '" target="_blank" rel="noopener" title="ORCID record">' + esc(a.orcid) + '</a></td>'
+                + '<td class="num topics_pubs"><span class="topics_bar"><span style="width: ' + Math.max(2, Math.round(100 * a.n / most)) + '%"></span></span><span class="topics_n">' + format_count(a.n) + '</span></td>'
+                + '<td class="num topics_year' + (a.year && a.year < recent ? ' old' : '') + '">' + (a.year ? esc(String(a.year)) : "") + '</td></tr>';
+        });
+        results.innerHTML = html + '</table>';
+        set_page_head(t.name + ": top authors and researchers | pubScan", "Top researchers in " + t.name + ": the authors publishing most on the topic, ranked by number of publications, out of "
+            + format_count(t.n_authors) + " researchers and " + format_count(t.n_pubs) + " publications. Open their co-authorship networks on pubScan.", topic_url(t.name, ""));
+        document.getElementById("div_graph_title").innerHTML = graph_title_html(t.name, "top authors" + (since ? " (active since " + since + ")" : ""));
+        if (!handling_popstate) {
+            window.history.pushState({"topic": t.name, "since": since}, '', topic_url(t.name, since));
+        }
+        handling_popstate = false;
+    }
+
     document.getElementById("div_topics_results").addEventListener("click", function (e) {
         if (e.target.closest("td.topics_orcid a")) return;   // the ORCID record opens in a new tab
         const row = e.target.closest("tr.topics_row");       // anywhere else on the row opens the network
         if (!row) return;
+        if (!plain_click(e) && e.target.closest("a.topics_author")) return;   // the page of the author in a new tab
         e.preventDefault();
         const query = row.getAttribute("data-query");
         suppressSuggestions = true;
@@ -2354,7 +2596,44 @@ function swap_pub_mobile() {
     </div>
 </div>
 
+<!-- feedback: opened by "Feedback" in the header, the footer, the start page -->
+<div id="feedback_modal" class="changelog_modal hidden" onclick="if (event.target === this) close_feedback();">
+    <div class="changelog_box feedback_box" role="dialog" aria-modal="true" aria-label="Feedback">
+        <div class="changelog_head">
+            <div><i class="far fa-comment-dots"></i>Feedback</div>
+            <a class="changelog_close" href="#" onclick="close_feedback(); return false;" title="Close"><i class="fas fa-times"></i></a>
+        </div>
+        <div class="changelog_body">
+            <p class="feedback_lead">Ideas, problems and corrections make pubScan better, and every note is read. Pick what fits: it opens a prepared note on GitHub that you complete and send there.</p>
+            <a class="feedback_option" data-kind="idea" href="https://github.com/grexor/pubscan/issues/new" target="_blank" rel="noopener"><i class="far fa-lightbulb"></i>
+                <span><b>An idea or a comment</b><br>Something you miss, like or would do differently.</span></a>
+            <a class="feedback_option" data-kind="problem" href="https://github.com/grexor/pubscan/issues/new" target="_blank" rel="noopener"><i class="fas fa-bug"></i>
+                <span><b>Something does not work</b><br>The address of this page and your browser are added to the note, so the problem can be found.</span></a>
+            <a class="feedback_option" data-kind="data" href="https://github.com/grexor/pubscan/issues/new" target="_blank" rel="noopener"><i class="far fa-flag"></i>
+                <span><b>Something is wrong in the data</b><br>A publication that is not by an author, a researcher who is missing, two entries for one person.
+                <span id="feedback_author"></span></span></a>
+            <p class="feedback_note">GitHub asks you to sign in; an account is free. Rather not? Write to me on
+                <a href="https://bsky.app/profile/grexor.bsky.social" target="_bluesky" rel="noopener">Bluesky</a>.</p>
+        </div>
+    </div>
+</div>
+
 <script>
+    function open_feedback() {
+        const modal = document.getElementById("feedback_modal");
+        modal.querySelectorAll("a.feedback_option").forEach(function (a) { a.href = feedback_url(a.getAttribute("data-kind")); });
+        const about = /title=Data%3A%20([^&]+)/.exec(modal.querySelector('a.feedback_option[data-kind="data"]').href);
+        document.getElementById("feedback_author").textContent = about ? "The note will name " + decodeURIComponent(about[1]).replace(/ \(.*$/, "") + ", whose network is on screen." : "";
+        modal.classList.remove("hidden");
+        return false;                                 // the link itself (the issues of the project) is not followed
+    }
+    function close_feedback() {
+        document.getElementById("feedback_modal").classList.add("hidden");
+    }
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && !document.getElementById("feedback_modal").classList.contains("hidden")) close_feedback();
+    });
+
     function open_changelog() {
         if (isMobile()) return true;                  // phones: the link stays a link
         const modal = document.getElementById("changelog_modal");

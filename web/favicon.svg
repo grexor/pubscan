@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<rect x="0.5" y="0.5" width="63" height="63" rx="14" fill="#eef4fd" stroke="#d3e0f3"/>
+<g stroke="#c9d3e0" stroke-width="1.5"><line x1="11.5" y1="33.5" x2="19.5" y2="13.5"/><line x1="46.0" y1="13.0" x2="56.0" y2="31.0"/><line x1="48.5" y1="51.0" x2="27.0" y2="56.0"/></g>
+<g stroke="#b4c0d0" stroke-width="2.3"><line x1="32.0" y1="33.0" x2="11.5" y2="33.5"/><line x1="32.0" y1="33.0" x2="19.5" y2="13.5"/><line x1="32.0" y1="33.0" x2="46.0" y2="13.0"/><line x1="32.0" y1="33.0" x2="56.0" y2="31.0"/><line x1="32.0" y1="33.0" x2="48.5" y2="51.0"/><line x1="32.0" y1="33.0" x2="27.0" y2="56.0"/></g>
+<g stroke-width="1.8"><circle cx="11.5" cy="33.5" r="6.6" fill="#bcd6f7" stroke="#4d8ae0"/><circle cx="19.5" cy="13.5" r="4.6" fill="#bcd6f7" stroke="#4d8ae0"/><circle cx="46.0" cy="13.0" r="6.1" fill="#fbd9a0" stroke="#e39a1c"/><circle cx="56.0" cy="31.0" r="3.6999999999999997" fill="#fbd9a0" stroke="#e39a1c"/><circle cx="48.5" cy="51.0" r="5.699999999999999" fill="#f6bfd3" stroke="#d6588a"/><circle cx="27.0" cy="56.0" r="3.6999999999999997" fill="#f6bfd3" stroke="#d6588a"/><circle cx="32.0" cy="33.0" r="8.6" fill="#ff2a2a" stroke="#b80000"/></g>
+</svg>

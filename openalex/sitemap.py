@@ -2,7 +2,7 @@
 
 usage: python sitemap.py [graph folder [topics folder [output folder]]]      (defaults: graph topics ../web)
 
-Listed are the start page, the text page /find-collaborators, the list of every topic and subfield (/topic/<Name>), and the network of the authors
+Listed are the start page, the pages /find-collaborators and /topics, the list of every topic and subfield (/topic/<Name>), and the network of the authors
 of the TOP authors publishing most on each topic (/<Name>_<ORCID>, the address the page itself
 uses). Hidden authors (hidden_authors.tab) are left out. A sitemap file holds at most 50,000 addresses, so the
 authors are spread over several files; sitemap.xml is the index of all of them and is what robots.txt names.
@@ -42,15 +42,16 @@ if os.path.exists(HIDDEN):
             hidden.add(cells[0].rsplit("/", 1)[-1].upper())
 
 
-def address(path):
-    return SITE + "/" + urllib.parse.quote(path.replace(" ", "_"), safe="!*'()/")
+def address(*parts):
+    """Address of a page: the parts joined by "/", each written as the page itself writes it (a "/" inside a name is %2F)."""
+    return SITE + "/" + "/".join(urllib.parse.quote(part.replace(" ", "_"), safe="!*'()") for part in parts)
 
 
 topic_urls, authors, seen = [], [], set()
 for t, rec in enumerate(terms):
-    if rec["kind"] not in ("topic", "subfield") or rec["n_authors"] <= 0 or "/" in rec["name"]:
+    if rec["kind"] not in ("topic", "subfield") or rec["n_authors"] <= 0:
         continue
-    topic_urls.append(address("topic/" + rec["name"]))
+    topic_urls.append(address("topic", rec["name"]))
     for a in term_authors[int(term_off[t]):int(term_off[t]) + TOP].tolist():   # strongest authors first
         if a not in seen:
             seen.add(a)
@@ -77,7 +78,7 @@ for old in os.listdir(out_dir):                      # files of an earlier, long
     if old.startswith("sitemap_") and old.endswith(".xml"):
         os.remove(os.path.join(out_dir, old))
 files = ["sitemap_topics.xml"]
-write(files[0], [SITE + "/", SITE + "/find-collaborators"] + topic_urls)
+write(files[0], [SITE + "/", SITE + "/find-collaborators", SITE + "/topics"] + topic_urls)
 for k in range(0, len(author_urls), PER_FILE):
     files.append(f"sitemap_authors_{k // PER_FILE + 1}.xml")
     write(files[-1], author_urls[k:k + PER_FILE])

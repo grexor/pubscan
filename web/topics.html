@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Research topics by field: the top authors of 4,700 topics | pubScan</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="All research topics and subfields of pubScan, ordered by field. Every topic opens the list of the authors publishing most on it, and from there their co-authorship networks.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://pubscan.org/topics">
+    <meta property="og:title" content="Research topics by field: the top authors of 4,700 topics | pubScan">
+    <meta property="og:description" content="All research topics and subfields of pubScan, ordered by field. Every topic opens the list of the authors publishing most on it, and from there their co-authorship networks.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/grexor/pubscan/main/web/pubscan_splash.jpg">
+    <meta property="og:url" content="https://pubscan.org/topics">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/statics/fa/css/all.min.css">
+    <link rel="stylesheet" href="/pubscan_pages.css?v=20261127">
+</head>
+<body>
+<div class="top">
+    <a href="/"><img src="/pubscan_logo_small.jpg" alt="pubScan" width="84" height="22"></a>
+    <div class="tagline">Explore co-authorships</div>
+    <nav><a href="/">Explore</a><a href="/find-collaborators">Find collaborators</a><a href="/topics" class="here">Topics</a></nav>
+</div>
+<div class="hero"><div class="hero_inner" style="display: block;">
+    <h1>Research topics by field</h1>
+    <p>Every topic opens the list of the authors who publish most on it. From there, one click shows the co-authorship network of any of them.</p>
+    <form class="search" onsubmit="return false;">
+        <input id="topic_filter" type="search" placeholder="Filter the topics, e.g. splicing" autocomplete="off" aria-label="Filter the topics">
+    </form>
+    <div class="hint" id="topic_filter_count"><!-- ssr:topic_count --><!-- /ssr:topic_count --></div>
+</div></div>
+<main>
+<!-- The list is written by the server from the topic table it serves (pubscan/pages.py, topic_index_slots()):
+     this file is the frame of the page /topics. -->
+<nav class="tix_fields" aria-label="Fields"><!-- ssr:topic_fields --><!-- /ssr:topic_fields --></nav>
+<!-- ssr:topic_index --><p class="lead">The list of topics is not available at the moment. <a href="/find-collaborators">Search a topic</a> instead.</p><!-- /ssr:topic_index -->
+<p class="hint" style="padding-top: 18px;">Topics and subfields are those OpenAlex assigns to publications. Besides them, pubScan knows 65,000 keywords: type one into the <a href="/">search box</a>.</p>
+</main>
+<script>
+// filter: only the topics whose name contains every typed word stay; groups without a match are hidden
+(function () {
+    var input = document.getElementById("topic_filter"), count = document.getElementById("topic_filter_count"), all = count.textContent;
+    var links = Array.prototype.slice.call(document.querySelectorAll(".tix_links a, .tix_sub h3 a"));
+    links.forEach(function (a) { a.__text = a.textContent.toLowerCase(); });
+    input.addEventListener("input", function () {
+        var words = input.value.toLowerCase().split(/\s+/).filter(Boolean), shown = 0;
+        links.forEach(function (a) {
+            var ok = words.every(function (w) { return a.__text.indexOf(w) >= 0; });
+            a.classList.toggle("tix_off", !ok);
+            if (ok && a.parentNode.className === "tix_links") shown++;
+        });
+        document.querySelectorAll(".tix_sub").forEach(function (s) { s.style.display = !words.length || s.querySelector("a:not(.tix_off)") ? "" : "none"; });
+        document.querySelectorAll(".tix_field").forEach(function (f) { f.style.display = !words.length || f.querySelector(".tix_sub:not([style*='none'])") ? "" : "none"; });
+        count.textContent = words.length ? shown + (shown === 1 ? " topic matches" : " topics match") : all;
+    });
+})();
+</script>
+<footer>
+    <div class="inner">
+        <!-- the pubScan notice: it must stay visible in every copy and modified version (NOTICE.md) -->
+        <a href="https://pubscan.org">pubScan</a> v3.5 &copy; 2025&ndash;2026 <a href="https://grexor.github.io">Gregor Rot</a>, Open Source
+        (<a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a>) at <a href="https://github.com/grexor/pubscan">GitHub</a>.
+        This site parses data from <a href="https://openalex.org">OpenAlex</a>; no guarantee is given for the accuracy, completeness or timeliness of the data.
+    </div>
+</footer>
+</body>
+</html>

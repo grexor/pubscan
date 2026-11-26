@@ -11,7 +11,6 @@ Security notes
   search (every token quoted, parameterized query) or the search log (no shell, control chars stripped)
 - network builds are limited per client and server-wide so one visitor cannot occupy every worker thread
 """
-import html
 import json
 import math
 import os
@@ -31,9 +30,11 @@ import numpy as np
 try:
     from pubscan import graph as graph_module
     from pubscan import topics as topics_module
+    from pubscan import pages as pages_module
 except ImportError: # running outside the package (tests): same folder
     import graph as graph_module
     import topics as topics_module
+    import pages as pages_module
 
 # config
 max_nodes = 100
@@ -58,6 +59,7 @@ MAX_SUGGEST_LENGTH = 100         # "author_name" parameter
 MAX_SUGGEST_TOKENS = 8           # name/ORCID tokens used in the FTS prefix query
 MAX_TOPIC_AUTHORS = 100          # authors returned for one topic (topic_authors)
 MAX_AUTHOR_TOPICS = 100          # terms returned for one author (author_topics)
+MAX_PAGE_COAUTHORS = max_nodes - 1   # co-authors listed in the page of an author as the server sends it: as many as the network shows
 SUGGEST_NAMES = 6                # name matches in the search box suggestions (4 when a topic matches as well)
 SUGGEST_TOPIC_AUTHORS = 5        # authors of the best matching topic in the search box suggestions
 MAX_CONCURRENT_NETWORKS = 6      # network builds running at the same time (server-wide)
@@ -466,7 +468,8 @@ class TableClass():
             edges_all = edges_all + edges_C
 
         yield progress("network construction on server complete, sending data over")
-        yield self.return_string(json.dumps({"nodes_all": nodes_all, "edges_all": edges_all, "years": center_years, "instruction": "data"}) + "\n")
+        n_coauthors = sum(1 for aid in authors if aid != center)   # all co-authors on these publications; the network shows the strongest of them
+        yield self.return_string(json.dumps({"nodes_all": nodes_all, "edges_all": edges_all, "years": center_years, "n_coauthors": n_coauthors, "instruction": "data"}) + "\n")
         yield progress(f"{len(nodes_all)} author nodes and {len(edges_all)} co-author edges")
 
     def get_author_publications(self):
@@ -521,14 +524,19 @@ class TableClass():
     # ---- the page itself, for the address of an author or a topic
 
     def page(self):
-        """web/index.html with a head of its own for the address of an author (/<Name>_<ORCID>, /<ORCID>) or a
-        topic (/topic/<Name>): title, description, canonical address and the Open Graph fields name the author or
-        the topic, so that search engines and link previews see different pages instead of one page under millions
-        of addresses. The web server sends these addresses here (path=<the address path>); everything the browser
-        shows still comes from the scripts of the page. An address that names nobody is answered with the plain
-        page, marked noindex."""
+        """web/index.html as it is sent for the start page and for the address of an author (/<Name>_<ORCID>,
+        /<ORCID>) or a topic (/topic/<Name>). The web server sends these addresses here (path=<the address path>).
+        The page of an author or a topic comes with a head of its own (title, description, canonical address, Open
+        Graph fields) and with its content already in it: the list of a topic, the publications, topics and
+        co-authors of an author, with links to the pages of those authors and topics (see pages.py). Search engines,
+        link previews and programs that run no scripts then see different pages, connected by links, instead of one
+        empty page under millions of addresses; in a browser the scripts of the page take over as before. An
+        address that names nobody is answered with the plain page, marked noindex."""
         path = urllib.parse.unquote(self.pars.get("path", ""))[:MAX_AUTHOR_LENGTH + 40].strip("/")
-        head = None
+        if path == "topics":   # the index of all topics: a page of its own (web/topics.html)
+            return [self.return_string(topics_page())]
+        template = page_template()
+        head, slots = None, None
         if path == "":   # the start page
             head = {"url": SITE_URL + "/"}
         elif path.startswith("topic/"):
@@ -536,18 +544,19 @@ class TableClass():
             terms = TOPICS.suggest(name, limit=20, max_tokens=MAX_SUGGEST_TOKENS) if TOPICS is not None and name else []
             term = next((t for t in terms if t.get("exact")), None)
             if term:
-                where = {"topic": "topic in " + (term["subfield"] or term["field"] or "OpenAlex"),
-                         "subfield": "subfield of " + (term["field"] or "OpenAlex")}.get(term["kind"], "keyword")
                 head = {"title": f"{term['name']}: top authors and researchers | pubScan",
-                        "description": f"Top researchers in {term['name']} ({where}): the authors publishing most on the topic, ranked by number of "
+                        "description": f"Top researchers in {term['name']} ({pages_module.topic_kind_label(term)}): the authors publishing most on the topic, ranked by number of "
                                        f"publications, out of {term['n_authors']:,} researchers and {term['n_pubs']:,} publications. Open their co-authorship networks on pubScan.",
-                        "url": SITE_URL + "/topic/" + urllib.parse.quote(term["name"].replace(" ", "_"), safe="!*'()")}
+                        "url": SITE_URL + pages_module.topic_path(term["name"])}
+                if not self.pars.get("since"):   # the list of an "active since" address is fetched by the page
+                    slots = pages_module.topic_slots(term, self.topic_authors_data(term["term"]), datetime.date.today().year)
         elif GRAPH is not None:
             orcid = path.rsplit("_", 1)[-1].upper()
             aid = GRAPH.lookup(orcid) if ORCID_RE.match(orcid) else None
             if aid is not None:
                 GRAPH.refresh_exclusions()
-                n = int(GRAPH.pubs(aid).shape[0])
+                pubs = GRAPH.pubs(aid)
+                n = int(pubs.shape[0])
                 if n > 0 and aid not in GRAPH.hidden:
                     name = GRAPH.name(aid)
                     affiliation = GRAPH.affiliation(aid)
@@ -555,8 +564,46 @@ class TableClass():
                     head = {"title": f"{name}: co-authorship network | pubScan",
                             "description": f"The research network of {name}{place}: {n:,} publication{'s' if n != 1 else ''}, co-authors and collaborators, "
                                            f"with their clusters, topics and joint papers. An interactive co-authorship network from OpenAlex and ORCID data, on pubScan.",
-                            "url": SITE_URL + "/" + urllib.parse.quote(f"{name} {GRAPH.orcid(aid)}".replace(" ", "_"), safe="!*'()")}
-        return [self.return_string(page_html(head))]
+                            "url": SITE_URL + pages_module.author_path(name, GRAPH.orcid(aid))}
+                    shown = pubs[:MAX_PUBS_PER_AUTHOR].tolist()
+                    coauthors, n_coauthors = self.top_coauthors(aid, MAX_PAGE_COAUTHORS)
+                    n_topics, topics = self.author_topic_list(aid) if TOPICS is not None and TOPICS.has_author_layout else (0, [])
+                    slots = pages_module.author_slots({
+                        "orcid": GRAPH.orcid(aid), "name": name, "affiliation": affiliation, "n_shown": len(shown), "publications": GRAPH.records(shown),
+                        "coauthors": [{"orcid": GRAPH.orcid(c), "name": GRAPH.name(c), "n": shared, "weight": weight, "affiliation": GRAPH.affiliation(c)} for c, shared, weight in coauthors],
+                        "n_coauthors": n_coauthors, "topics": topics, "n_topics": n_topics})
+        text = pages_module.with_head(template.render(slots), head, index=head is not None)
+        return [self.return_string(text)]
+
+    def top_coauthors(self, center, limit):
+        """([(author id, shared publications, weight), ...] strongest first, number of co-authors) of an author, as
+        the network of the author has them: the co-authors are those of the newest 200 publications, their shared
+        publications are counted among the newest MAX_PUBS_PER_AUTHOR, and they are ranked by co-authorship weight,
+        then by shared publications, then in the order of appearance. (The network counts within the newest
+        MAX_PUBS_PER_AUTHOR publications of both authors: for a co-author with more publications than that its
+        number can be smaller than the one here.)"""
+        G = GRAPH
+        pubs = G.pubs(center)[:MAX_PUBS_PER_AUTHOR].tolist()
+        ids, weights, listed = [], [], []
+        for index, pub in enumerate(pubs):
+            authors = G.authors(pub)
+            if index < 200:
+                listed.append(authors)                     # in the order of the paper: the order of appearance
+            authors = np.unique(authors)                   # an author can be listed twice on a publication
+            ids.append(authors)
+            weights.append(np.full(authors.shape[0], paper_weight(G.authors_count(pub))))
+        if not ids:
+            return [], 0
+        candidates, first = np.unique(np.concatenate(listed), return_index=True)
+        keep = candidates != center
+        candidates, first = candidates[keep], first[keep]
+        ids, weights = np.concatenate(ids), np.concatenate(weights)
+        authors, inverse, shared = np.unique(ids, return_inverse=True, return_counts=True)
+        weight = np.bincount(inverse, weights=weights, minlength=authors.shape[0])
+        at = np.searchsorted(authors, candidates)           # every candidate is among the authors
+        shared, weight = shared[at], weight[at]
+        order = np.lexsort((first, -shared, -np.round(weight, 9)))[:limit]
+        return [(int(candidates[k]), int(shared[k]), float(weight[k])) for k in order], int(candidates.shape[0])
 
     def author_suggest(self):
         author_name = self.pars.get("author_name", "")[:MAX_SUGGEST_LENGTH]
@@ -646,6 +693,10 @@ class TableClass():
         term = int(value)
         year_from = self.parse_year("year_from")
         self.logme(f"pubscan topic: {TOPICS.terms[term]['name']} ({term}) year_from={year_from}")
+        return [self.return_string(json.dumps(self.topic_authors_data(term, year_from)) + "\n")]
+
+    def topic_authors_data(self, term, year_from=None):
+        """The answer of topic_authors for a term id: {"term", "n_total", "authors": [{"orcid", "name", "n", "year"}, ...]}."""
         GRAPH.refresh_exclusions()
         ids, counts, years = self.without_hidden(*TOPICS.authors(term))
         if year_from is not None:
@@ -655,7 +706,7 @@ class TableClass():
         ids, counts, years = ids[:MAX_TOPIC_AUTHORS].tolist(), counts[:MAX_TOPIC_AUTHORS].tolist(), years[:MAX_TOPIC_AUTHORS].tolist()
         authors = [{"orcid": GRAPH.orcid(a), "name": GRAPH.name(a), "n": int(c), "year": int(y) if y > 0 else None}
                    for a, c, y in zip(ids, counts, years)]
-        return [self.return_string(json.dumps({"term": TOPICS.term_record(term), "n_total": n_total, "authors": authors}) + "\n")]
+        return {"term": TOPICS.term_record(term), "n_total": n_total, "authors": authors}
 
     def author_topics(self):
         """The terms (topics, subfields, keywords) an author publishes on, most publications first:
@@ -672,6 +723,11 @@ class TableClass():
         aid = GRAPH.lookup(orcid)
         if aid is None or aid in GRAPH.hidden:
             return [self.return_string(json.dumps({"author": {"orcid": orcid, "name": ""}, "n_total": 0, "topics": []}) + "\n")]
+        n_total, result = self.author_topic_list(aid, kind, year_from)
+        return [self.return_string(json.dumps({"author": {"orcid": GRAPH.orcid(aid), "name": GRAPH.name(aid)}, "n_total": n_total, "topics": result}) + "\n")]
+
+    def author_topic_list(self, aid, kind="", year_from=None):
+        """(number of terms, the first MAX_AUTHOR_TOPICS of them as the records of author_topics) for an author id."""
         ids, counts, years = TOPICS.author_terms_of(aid)
         if year_from is not None:
             keep = years >= year_from
@@ -689,45 +745,41 @@ class TableClass():
             lo = int(TOPICS.term_off[rec["term"]]); hi = min(lo + MAX_TOPIC_AUTHORS, int(TOPICS.term_off[rec["term"] + 1]))
             hit = np.flatnonzero(TOPICS.term_authors[lo:hi] == aid)
             rec["rank"] = int(hit[0]) + 1 if hit.size else None
-        return [self.return_string(json.dumps({"author": {"orcid": GRAPH.orcid(aid), "name": GRAPH.name(aid)}, "n_total": n_total, "topics": result}) + "\n")]
+        return n_total, result
 
-# ---- web/index.html with another head (action page)
+# ---- web/index.html as the server sends it (action page; the content is put together in pages.py)
 
-SITE_URL = "https://pubscan.org"
+SITE_URL = pages_module.SITE_URL
 PAGE_FILE = os.path.join(os.path.dirname(pubscan_folder), "web", "index.html")
-_page_cache = (None, "")     # (modification time and size of the file, its text)
+_page_cache = (None, None)     # (modification time and size of the file, its text cut at the slots)
 
 
 def page_template():
-    """The text of web/index.html, read again when the file has changed."""
+    """web/index.html, cut at the places the server fills in; read again when the file has changed."""
     global _page_cache
     st = os.stat(PAGE_FILE)
     seen = (st.st_mtime_ns, st.st_size)
     if _page_cache[0] != seen:
         with open(PAGE_FILE, encoding="utf-8") as f:
-            _page_cache = (seen, f.read())
+            _page_cache = (seen, pages_module.Template(f.read()))
     return _page_cache[1]
 
 
-def page_html(head):
-    """The page with title, description, canonical address and Open Graph fields from head ({"title",
-    "description", "url"}); with head None the page as it is, but marked noindex (an address that names nobody).
-    The values are data (names from OpenAlex and ORCID): they are escaped, and only whole tags of the head that
-    the file is known to contain are replaced."""
-    text = page_template()
-    if head is None:
-        return text.replace('<meta name="robots" content="index, follow">', '<meta name="robots" content="noindex, follow">', 1)
-    e = {key: html.escape(value, quote=True) for key, value in head.items()}
-    text = text.replace("<!-- canonical -->", f'<link rel="canonical" href="{e["url"]}">', 1)
-    if "title" not in e:         # the start page: its own title and description
-        return text
-    for pattern, tag in ((r"<title>[^<]*</title>", f"<title>{e['title']}</title>"),
-                         (r'<meta name="description" content="[^"]*">', f'<meta name="description" content="{e["description"]}">'),
-                         (r'<meta property="og:title" content="[^"]*">', f'<meta property="og:title" content="{e["title"]}">'),
-                         (r'<meta property="og:description" content="[^"]*">', f'<meta property="og:description" content="{e["description"]}">'),
-                         (r'<meta property="og:url" content="[^"]*">', f'<meta property="og:url" content="{e["url"]}">')):
-        text = re.sub(pattern, lambda m: tag, text, count=1)
-    return text
+TOPICS_FILE = os.path.join(os.path.dirname(pubscan_folder), "web", "topics.html")
+_topics_page = (None, "")      # (modification time and size of the file, the finished page)
+
+
+def topics_page():
+    """The page /topics: web/topics.html with the list of all topics of the topic table (pages.topic_index_slots).
+    Put together once and again when the file has changed; the topic table changes only with a restart."""
+    global _topics_page
+    st = os.stat(TOPICS_FILE)
+    seen = (st.st_mtime_ns, st.st_size)
+    if _topics_page[0] != seen:
+        with open(TOPICS_FILE, encoding="utf-8") as f:
+            template = pages_module.Template(f.read())
+        _topics_page = (seen, template.render(pages_module.topic_index_slots(TOPICS.terms) if TOPICS is not None else None))
+    return _topics_page[1]
 
 
 def application(environ, start_response):

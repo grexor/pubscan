@@ -62,7 +62,22 @@ a.pill i { font-size: 11px; margin-right: 6px; color: #6f9be8; }
 .cta h2 { font-size: 21px; }
 footer { border-top: 1px dashed #dddddd; background: #fefefe; padding: 12px 20px 16px 20px; font-size: 14px; color: #8a8a8a; }
 footer .inner { max-width: 980px; margin: 0 auto; }
+/* topic index (/topics) */
+.tix_fields { display: flex; flex-wrap: wrap; gap: 6px 8px; padding: 18px 0 2px 0; }
+.tix_fields a { font-size: 14px; padding: 3px 11px; border-radius: 14px; background: #ffffff; border: 1px solid #dfe5ee; color: #4d6a8a; }
+.tix_fields a:hover { background: #eef4fb; color: #1f4f80; }
+.tix_field { padding-top: 26px; }
+.tix_field h2 { border-bottom: 1px solid #e6e9ee; padding-bottom: 6px; }
+.tix_field h2 span, .tix_sub h3 span { font-size: 13px; font-weight: 400; color: #a3a3a3; margin-left: 8px; }
+.tix_sub { padding: 8px 0 6px 0; }
+.tix_sub h3 { font-size: 16px; }
+.tix_sub h3 a { color: #4d7aa8; }
+.tix_links { margin: 0; font-size: 15px; line-height: 1.75; color: #c5ccd6; }
+.tix_links a { display: inline-block; margin-right: 14px; }
+.tix_links a.tix_off, .tix_sub h3 a.tix_off { display: none; }
+.top img { width: auto; }
 @media (max-width: 760px) {
+    .tix_links a { margin-right: 12px; }
     .hero_inner { padding: 28px 16px 22px 16px; display: block; }
     .hero_art { display: none; }
     .hero h1 { font-size: 27px; }

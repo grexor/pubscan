@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Find scientific collaborators and top researchers by topic | pubScan</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Search a research topic to see the authors publishing most on it, then open their collaboration networks to find co-authors, research groups and institutions active in the field.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://pubscan.org/find-collaborators">
+    <meta property="og:title" content="Find scientific collaborators and top researchers by topic | pubScan">
+    <meta property="og:description" content="Search a research topic to see the authors publishing most on it, then open their collaboration networks to find co-authors, research groups and institutions active in the field.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/grexor/pubscan/main/web/pubscan_splash.jpg">
+    <meta property="og:url" content="https://pubscan.org/find-collaborators">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="/pubscan_logo.jpg">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/statics/fa/css/all.min.css">
+    <link rel="stylesheet" href="/pubscan_pages.css?v=20261126">
+</head>
+<body>
+<div class="top">
+    <a href="/"><img src="/pubscan_logo.jpg" alt="pubScan"></a>
+    <div class="tagline">Explore co-authorships</div>
+    <nav><a href="/">Explore</a><a href="/find-collaborators" class="here">Find collaborators</a><a href="/">About</a></nav>
+</div>
+<div class="hero"><div class="hero_inner">
+    <div class="hero_text">
+        <h1>Find scientific collaborators and the leading researchers of a field</h1>
+        <p>Type a research topic and pubScan lists the authors who publish most on it. One click opens the collaboration network of any of them: their co-authors, their groups and their papers.</p>
+        <form class="search" onsubmit="var q = this.q.value.trim(); if (q) window.location.href = '/topic/' + encodeURIComponent(q.replace(/ /g, '_')); return false;">
+            <input name="q" type="search" placeholder="A research topic, e.g. RNA splicing" autocomplete="off" aria-label="Research topic">
+            <button type="submit">Show top authors</button>
+        </form>
+        <div class="hint">Opens the best matching of 4,700 topics and subfields, or of 65,000 keywords.</div>
+    </div>
+    <div class="hero_art"><svg viewBox="0 0 300 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A small co-authorship network: a central author, co-authors in colored clusters">
+<g stroke="#c9d3e0" stroke-width="1.6" fill="none">
+<line x1="150" y1="115" x2="78" y2="62"/><line x1="150" y1="115" x2="52" y2="118"/><line x1="150" y1="115" x2="92" y2="172"/>
+<line x1="150" y1="115" x2="214" y2="52"/><line x1="150" y1="115" x2="252" y2="96"/><line x1="150" y1="115" x2="226" y2="170"/><line x1="150" y1="115" x2="160" y2="196"/>
+<line x1="150" y1="115" x2="150" y2="36"/></g>
+<g stroke="#d9dfe8" stroke-width="1.3" stroke-dasharray="5 4" fill="none">
+<line x1="78" y1="62" x2="52" y2="118"/><line x1="52" y1="118" x2="92" y2="172"/><line x1="78" y1="62" x2="92" y2="172"/>
+<line x1="214" y1="52" x2="252" y2="96"/><line x1="214" y1="52" x2="150" y2="36"/><line x1="226" y1="170" x2="160" y2="196"/><line x1="252" y1="96" x2="226" y2="170"/></g>
+<g stroke-width="1.6">
+<circle cx="78" cy="62" r="13" fill="#bcd6f7" stroke="#4d8ae0"/><circle cx="52" cy="118" r="17" fill="#bcd6f7" stroke="#4d8ae0"/><circle cx="92" cy="172" r="11" fill="#bcd6f7" stroke="#4d8ae0"/>
+<circle cx="214" cy="52" r="15" fill="#fbd9a0" stroke="#e39a1c"/><circle cx="252" cy="96" r="10" fill="#fbd9a0" stroke="#e39a1c"/><circle cx="150" cy="36" r="9" fill="#fbd9a0" stroke="#e39a1c"/>
+<circle cx="226" cy="170" r="14" fill="#f6bfd3" stroke="#d6588a"/><circle cx="160" cy="196" r="9" fill="#f6bfd3" stroke="#d6588a"/>
+<circle cx="150" cy="115" r="19" fill="#ff2a2a" stroke="#b80000"/></g></svg></div>
+</div></div>
+<main>
+<section>
+    <h2>How it works</h2>
+    <div class="cards three">
+        <div class="card step"><div class="number">1</div><h3>Search a topic</h3><p>Use the box above, or the search box of pubScan itself, which suggests topics and keywords while you type.</p></div>
+        <div class="card step"><div class="number">2</div><h3>Read the ranking</h3><p>The 100 authors with the most publications on the topic, with their ORCID iD and the year of their newest paper on it. Set &ldquo;active since&rdquo; to keep only researchers who still publish in the field.</p></div>
+        <div class="card step"><div class="number">3</div><h3>Open a network</h3><p>Click a name to see who that researcher works with. Clusters reveal the groups around them, and the publication list shows their affiliation and papers.</p></div>
+    </div>
+</section>
+<section>
+    <h2>Start from a topic</h2>
+    <p class="lead">A few of the research topics you can open directly. Every list ranks authors by their number of publications tagged with the topic in OpenAlex.</p>
+    <div class="fields">
+        <div class="card"><h3>Life sciences</h3><div class="pills"><a class="pill" href="/topic/RNA_Research_and_Splicing"><i class="fas fa-tags"></i>RNA Research and Splicing</a><a class="pill" href="/topic/CRISPR_and_Genetic_Engineering"><i class="fas fa-tags"></i>CRISPR and Genetic Engineering</a><a class="pill" href="/topic/Single-cell_and_spatial_transcriptomics"><i class="fas fa-tags"></i>Single-cell and spatial transcriptomics</a><a class="pill" href="/topic/Epigenetics_and_DNA_Methylation"><i class="fas fa-tags"></i>Epigenetics and DNA Methylation</a><a class="pill" href="/topic/Protein_Structure_and_Dynamics"><i class="fas fa-tags"></i>Protein Structure and Dynamics</a><a class="pill" href="/topic/Gut_microbiota_and_health"><i class="fas fa-tags"></i>Gut microbiota and health</a></div></div><div class="card"><h3>Medicine and neuroscience</h3><div class="pills"><a class="pill" href="/topic/Cancer_Immunotherapy_and_Biomarkers"><i class="fas fa-tags"></i>Cancer Immunotherapy and Biomarkers</a><a class="pill" href="/topic/Alzheimer's_disease_research_and_treatments"><i class="fas fa-tags"></i>Alzheimer&#x27;s disease research and treatments</a><a class="pill" href="/topic/Neuroinflammation_and_Neurodegeneration_Mechanisms"><i class="fas fa-tags"></i>Neuroinflammation and Neurodegeneration Mechanisms</a><a class="pill" href="/topic/Neural_dynamics_and_brain_function"><i class="fas fa-tags"></i>Neural dynamics and brain function</a><a class="pill" href="/topic/Immune_Cell_Function_and_Interaction"><i class="fas fa-tags"></i>Immune Cell Function and Interaction</a><a class="pill" href="/topic/COVID-19_Clinical_Research_Studies"><i class="fas fa-tags"></i>COVID-19 Clinical Research Studies</a></div></div><div class="card"><h3>Computing and data</h3><div class="pills"><a class="pill" href="/topic/Natural_Language_Processing_Techniques"><i class="fas fa-tags"></i>Natural Language Processing Techniques</a><a class="pill" href="/topic/Quantum_Computing_Algorithms_and_Architecture"><i class="fas fa-tags"></i>Quantum Computing Algorithms and Architecture</a><a class="pill" href="/topic/Reinforcement_Learning_in_Robotics"><i class="fas fa-tags"></i>Reinforcement Learning in Robotics</a><a class="pill" href="/topic/Complex_Network_Analysis_Techniques"><i class="fas fa-tags"></i>Complex Network Analysis Techniques</a><a class="pill" href="/topic/Bioinformatics_and_Genomic_Networks"><i class="fas fa-tags"></i>Bioinformatics and Genomic Networks</a><a class="pill" href="/topic/scientometrics_and_bibliometrics_research"><i class="fas fa-tags"></i>scientometrics and bibliometrics research</a></div></div><div class="card"><h3>Physics, materials and earth</h3><div class="pills"><a class="pill" href="/topic/Particle_physics_theoretical_and_experimental_studies"><i class="fas fa-tags"></i>Particle physics theoretical and experimental studies</a><a class="pill" href="/topic/Astro_and_Planetary_Science"><i class="fas fa-tags"></i>Astro and Planetary Science</a><a class="pill" href="/topic/Graphene_research_and_applications"><i class="fas fa-tags"></i>Graphene research and applications</a><a class="pill" href="/topic/Perovskite_Materials_and_Applications"><i class="fas fa-tags"></i>Perovskite Materials and Applications</a><a class="pill" href="/topic/Advanced_Battery_Materials_and_Technologies"><i class="fas fa-tags"></i>Advanced Battery Materials and Technologies</a><a class="pill" href="/topic/Climate_variability_and_models"><i class="fas fa-tags"></i>Climate variability and models</a></div></div>
+    </div>
+</section>
+<section>
+    <h2>From a ranking to a collaborator</h2>
+    <div class="cards">
+        <div class="card"><h3><i class="fas fa-users"></i>Who works with whom</h3><p>The network of a leading author shows the people around them. Co-authors who publish together form colored clusters: often the lab, a partner institute, or a long-running consortium.</p></div>
+        <div class="card"><h3><i class="fas fa-university"></i>Where they are</h3><p>The publication list of every author names the main affiliation, taken from their most recent publications, so you can see which institutions are active in the field.</p></div>
+        <div class="card"><h3><i class="fas fa-tags"></i>What else they do</h3><p>The Topics panel lists the other topics an author publishes on, and marks those where the author is among the top 100. Useful to find someone who bridges two fields.</p></div>
+        <div class="card"><h3><i class="fas fa-calendar-alt"></i>Who is active now</h3><p>Restrict a network to recent years to see current collaborations, and use &ldquo;active since&rdquo; on a topic list to leave out authors who have moved on.</p></div>
+    </div>
+    <p class="hint" style="padding-top: 12px;">The rankings count publications, not quality or impact, and include only authors with an ORCID iD. Read them as a map of who is active in a field, not as a league table. <a href="/">More about the data</a>.</p>
+</section>
+<div class="cta">
+    <h2>Already know a name?</h2>
+    <p>Search a researcher by name or ORCID iD to open their co-authorship network directly.</p>
+    <a class="button" href="/">Open pubScan</a><a class="button light" href="/">How to read a network</a>
+</div>
+</main>
+<footer>
+    <div class="inner">
+        <!-- the pubScan notice: it must stay visible in every copy and modified version (NOTICE.md) -->
+        <a href="https://pubscan.org">pubScan</a> v3.5 &copy; 2025&ndash;2026 <a href="https://grexor.github.io">Gregor Rot</a>, Open Source
+        (<a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a>) at <a href="https://github.com/grexor/pubscan">GitHub</a>.
+        This site parses data from <a href="https://openalex.org">OpenAlex</a>; no guarantee is given for the accuracy, completeness or timeliness of the data.
+    </div>
+</footer>
+</body>
+</html>

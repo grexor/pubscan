@@ -11,6 +11,7 @@ Security notes
   search (every token quoted, parameterized query) or the search log (no shell, control chars stripped)
 - network builds are limited per client and server-wide so one visitor cannot occupy every worker thread
 """
+import html
 import json
 import math
 import os
@@ -208,6 +209,7 @@ class TableClass():
         "topic_suggest": ("topic_suggest", True),
         "topic_authors": ("topic_authors", True),
         "author_topics": ("author_topics", True),
+        "page": ("page", "html"),
     }
 
     def return_string(self, cont):
@@ -256,8 +258,10 @@ class TableClass():
             yield from self.error("404 Not Found", "requested action not found")
             return
         handler_name, is_json = spec
-        content_type = 'application/json; charset=utf-8' if is_json else 'text/plain; charset=utf-8'
+        content_type = 'text/html; charset=utf-8' if is_json == "html" else 'application/json; charset=utf-8' if is_json else 'text/plain; charset=utf-8'
         headers = [('Content-type', content_type), ('X-Content-Type-Options', 'nosniff')]
+        if is_json == "html":
+            headers.append(('Cache-Control', 'no-cache'))   # as for the static page: browsers ask before reusing a copy
 
         if method == "HEAD": # headers only, no work
             self.start("200 OK", headers)
@@ -514,6 +518,46 @@ class TableClass():
                 pubs = pubs[:200]
         yield self.return_string(json.dumps(GRAPH.records(pubs))+"\n")
 
+    # ---- the page itself, for the address of an author or a topic
+
+    def page(self):
+        """web/index.html with a head of its own for the address of an author (/<Name>_<ORCID>, /<ORCID>) or a
+        topic (/topic/<Name>): title, description, canonical address and the Open Graph fields name the author or
+        the topic, so that search engines and link previews see different pages instead of one page under millions
+        of addresses. The web server sends these addresses here (path=<the address path>); everything the browser
+        shows still comes from the scripts of the page. An address that names nobody is answered with the plain
+        page, marked noindex."""
+        path = urllib.parse.unquote(self.pars.get("path", ""))[:MAX_AUTHOR_LENGTH + 40].strip("/")
+        head = None
+        if path == "":   # the start page
+            head = {"url": SITE_URL + "/"}
+        elif path.startswith("topic/"):
+            name = path[len("topic/"):].replace("_", " ").strip()
+            terms = TOPICS.suggest(name, limit=20, max_tokens=MAX_SUGGEST_TOKENS) if TOPICS is not None and name else []
+            term = next((t for t in terms if t.get("exact")), None)
+            if term:
+                where = {"topic": "topic in " + (term["subfield"] or term["field"] or "OpenAlex"),
+                         "subfield": "subfield of " + (term["field"] or "OpenAlex")}.get(term["kind"], "keyword")
+                head = {"title": f"{term['name']}: top authors and researchers | pubScan",
+                        "description": f"Top researchers in {term['name']} ({where}): the authors publishing most on the topic, ranked by number of "
+                                       f"publications, out of {term['n_authors']:,} researchers and {term['n_pubs']:,} publications. Open their co-authorship networks on pubScan.",
+                        "url": SITE_URL + "/topic/" + urllib.parse.quote(term["name"].replace(" ", "_"), safe="!*'()")}
+        elif GRAPH is not None:
+            orcid = path.rsplit("_", 1)[-1].upper()
+            aid = GRAPH.lookup(orcid) if ORCID_RE.match(orcid) else None
+            if aid is not None:
+                GRAPH.refresh_exclusions()
+                n = int(GRAPH.pubs(aid).shape[0])
+                if n > 0 and aid not in GRAPH.hidden:
+                    name = GRAPH.name(aid)
+                    affiliation = GRAPH.affiliation(aid)
+                    place = f" ({affiliation[0]})" if affiliation else ""
+                    head = {"title": f"{name}: co-authorship network | pubScan",
+                            "description": f"The research network of {name}{place}: {n:,} publication{'s' if n != 1 else ''}, co-authors and collaborators, "
+                                           f"with their clusters, topics and joint papers. An interactive co-authorship network from OpenAlex and ORCID data, on pubScan.",
+                            "url": SITE_URL + "/" + urllib.parse.quote(f"{name} {GRAPH.orcid(aid)}".replace(" ", "_"), safe="!*'()")}
+        return [self.return_string(page_html(head))]
+
     def author_suggest(self):
         author_name = self.pars.get("author_name", "")[:MAX_SUGGEST_LENGTH]
         query, tokens = build_match_query(author_name)
@@ -646,6 +690,45 @@ class TableClass():
             hit = np.flatnonzero(TOPICS.term_authors[lo:hi] == aid)
             rec["rank"] = int(hit[0]) + 1 if hit.size else None
         return [self.return_string(json.dumps({"author": {"orcid": GRAPH.orcid(aid), "name": GRAPH.name(aid)}, "n_total": n_total, "topics": result}) + "\n")]
+
+# ---- web/index.html with another head (action page)
+
+SITE_URL = "https://pubscan.org"
+PAGE_FILE = os.path.join(os.path.dirname(pubscan_folder), "web", "index.html")
+_page_cache = (None, "")     # (modification time and size of the file, its text)
+
+
+def page_template():
+    """The text of web/index.html, read again when the file has changed."""
+    global _page_cache
+    st = os.stat(PAGE_FILE)
+    seen = (st.st_mtime_ns, st.st_size)
+    if _page_cache[0] != seen:
+        with open(PAGE_FILE, encoding="utf-8") as f:
+            _page_cache = (seen, f.read())
+    return _page_cache[1]
+
+
+def page_html(head):
+    """The page with title, description, canonical address and Open Graph fields from head ({"title",
+    "description", "url"}); with head None the page as it is, but marked noindex (an address that names nobody).
+    The values are data (names from OpenAlex and ORCID): they are escaped, and only whole tags of the head that
+    the file is known to contain are replaced."""
+    text = page_template()
+    if head is None:
+        return text.replace('<meta name="robots" content="index, follow">', '<meta name="robots" content="noindex, follow">', 1)
+    e = {key: html.escape(value, quote=True) for key, value in head.items()}
+    text = text.replace("<!-- canonical -->", f'<link rel="canonical" href="{e["url"]}">', 1)
+    if "title" not in e:         # the start page: its own title and description
+        return text
+    for pattern, tag in ((r"<title>[^<]*</title>", f"<title>{e['title']}</title>"),
+                         (r'<meta name="description" content="[^"]*">', f'<meta name="description" content="{e["description"]}">'),
+                         (r'<meta property="og:title" content="[^"]*">', f'<meta property="og:title" content="{e["title"]}">'),
+                         (r'<meta property="og:description" content="[^"]*">', f'<meta property="og:description" content="{e["description"]}">'),
+                         (r'<meta property="og:url" content="[^"]*">', f'<meta property="og:url" content="{e["url"]}">')):
+        text = re.sub(pattern, lambda m: tag, text, count=1)
+    return text
+
 
 def application(environ, start_response):
     return iter(TableClass(environ, start_response))

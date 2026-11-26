@@ -17,3 +17,4 @@ __pycache__/
 .vscode/
 dbase/logs-backup-*/
 openalex/orcid/
+web/sitemap*.xml

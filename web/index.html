@@ -17,8 +17,8 @@
     gtag('config', 'G-76DD8WBGLJ');
     </script>
 
-    <title>pubScan: Explore your scientific co-authorship network</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+    <title>pubScan – Scientific Publication &amp; Co-Authorship Network Explorer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <meta charset="UTF-8">
 
     <link rel="stylesheet" href="pubscan.css?v=202611224">
@@ -37,11 +37,12 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 
-    <meta name="description" content="pubScan lets you explore your scientific co-authorship network. Visualize collaborations across scientific publications — fast, open-source, and mobile-friendly.">
-    <meta name="keywords" content="pubScan, co-authorship network, PubMed, OpenAlex, ORCID, scientific collaboration, research visualization, academic graph, open science, papers network, science network, scientists network">
+    <meta name="description" content="Explore scientific publication networks with pubScan. Visualize researcher collaborations, discover co-authors, analyze publication connections and explore scientific communities using OpenAlex data. Free and open source.">
+    <meta name="keywords" content="pubScan, co-authorship network, co authorship network, coauthorship network, publication network, collaboration network, PubMed, OpenAlex, ORCID, scientific collaboration, research visualization, academic graph, open science, papers network, science network, scientists network">
     <meta name="robots" content="index, follow">
-    <meta property="og:title" content="pubScan: Explore your scientific co-authorship network">
-    <meta property="og:description" content="Visualize your co-authorship network from OpenAlex data — fast, interactive, and open source.">
+    <!-- canonical -->
+    <meta property="og:title" content="pubScan – Scientific Publication &amp; Co-Authorship Network Explorer">
+    <meta property="og:description" content="Explore scientific publication networks with pubScan. Visualize researcher collaborations, discover co-authors, analyze publication connections and explore scientific communities using OpenAlex data. Free and open source.">
     <meta property="og:image" content="https://raw.githubusercontent.com/grexor/pubscan/main/web/pubscan_splash.jpg">
     <meta property="og:url" content="https://pubscan.org">
     <meta name="twitter:card" content="summary_large_image">
@@ -62,6 +63,15 @@
     }
     </script>    
 
+    <!-- start page on a desktop: known before anything is drawn, so that the bar with the network controls does not
+         flash up and the search field has its room in the middle of the page from the first moment -->
+    <script>
+        if (/^\/(index\.html)?$/.test(window.location.pathname) && !/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            document.documentElement.classList.add("start_page");
+        }
+    </script>
+    <!-- known before the body is drawn (the other styles of the page come further down) -->
+    <style>html.start_page #div_search_bar { display: none; }</style>
 </head>
 
 <body>
@@ -76,9 +86,9 @@
             </div>
             
             <div style="text-align: left; padding: 2px; padding-top: 2px; flex-shrink: 0;">
-                <div style="color: aliceblue; font-size: 15px; padding-left: 3px;">
+                <h1 style="color: aliceblue; font-size: 15px; font-weight: normal; margin: 0; padding-left: 3px;">
                     Explore co-authorships <div style="display:inline" id="div_update"></div>
-                </div>
+                </h1>
             </div>
             
             <div id="div_graph_title" style="flex-grow: 1; min-width: 0; padding: 2px 20px 0 20px; text-align: center; font-size: 13px; color: #d6e4fb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -225,6 +235,27 @@
         function author_header_end(node) {
             const affiliation = affiliation_html(node);
             return affiliation ? affiliation + "<br>" : "<br><br>";
+        }
+
+        // Title, description and canonical address of the page follow what is shown: the network of an author, the
+        // author list of a topic, or the start page (title and description null). The server sends the same head
+        // with the address of an author or a topic (action page); this keeps it right while the page is used, and
+        // covers an address that reached the browser as the plain page.
+        const START_HEAD = { title: document.title, description: (document.querySelector('meta[name="description"]') || {}).content || "" };
+        function set_page_head(title, description, path) {
+            const url = "https://pubscan.org" + (path || "/");
+            document.title = title || START_HEAD.title;
+            const set = (selector, value) => { const tag = document.querySelector(selector); if (tag) tag.setAttribute("content", value); };
+            set('meta[name="description"]', description || START_HEAD.description);
+            set('meta[property="og:title"]', title || START_HEAD.title);
+            set('meta[property="og:url"]', url);
+            let canonical = document.querySelector('link[rel="canonical"]');
+            if (!canonical) {
+                canonical = document.createElement("link");
+                canonical.setAttribute("rel", "canonical");
+                document.head.appendChild(canonical);
+            }
+            canonical.setAttribute("href", url);
         }
 
         function orcid_link(orcid) { // link only for well-formed ORCID iDs, plain text otherwise
@@ -1065,6 +1096,14 @@
                                     document.querySelector("#ac_search_nodes").value = "";
                                     update_clear_button();
                                     let encoded_coded_query = encodeURIComponent(query.replace(/ /g, "_"));
+                                    {
+                                        const center_node = nodes_all.find(node => String(node.id).toUpperCase() === String(current_center).toUpperCase());
+                                        if (center_node) {
+                                            set_page_head(center_node.label + ": co-authorship network | pubScan",
+                                                "The research network of " + center_node.label + (center_node.aff ? " (" + center_node.aff + ")" : "") + ": publications, co-authors and collaborators, with their clusters, topics and joint papers. An interactive co-authorship network from OpenAlex and ORCID data, on pubScan.",
+                                                "/" + encodeURIComponent((center_node.label + " " + center_node.id).replace(/ /g, "_")));
+                                        }
+                                    }
                                     if (!handling_popstate) {
                                         const new_url = `/${encoded_coded_query}` + year_filter_query_string();
                                         window.history.pushState({"search": query, "from": years.from, "to": years.to}, '', new_url);
@@ -1517,6 +1556,93 @@
     body.mobile .splash_grid { grid-template-columns: 1fr; }
     body.mobile .splash_div, body.mobile .splash_mobile_div { max-height: none; }
 
+    /* start page: what pubScan is and how to read a network (the same content as the text pages, pubscan_pages.css) */
+    #div_splash.splash_div, #div_splash.splash_mobile_div { display: block; background: #fafafa; text-align: left; border: none; border-radius: 0; }
+    #div_splash.splash_div::before { display: none; }
+    #div_splash .ab_about { font-family: 'Source Sans 3', 'Source Sans Pro', 'Segoe UI', Helvetica, Arial, sans-serif; color: #555555; font-size: 16px; line-height: 1.55; }
+    #div_splash .ab_about a { color: #2f6fd0; }
+    #div_splash .ab_about a:hover { color: #0041a8; }
+    #div_splash .ab_about .ab_main { max-width: 980px; margin: 0 auto; padding: 8px 20px 10px 20px; }
+    #div_splash .ab_about .ab_section { padding: 26px 0 4px 0; }
+    #div_splash .ab_about .ab_hero { background: linear-gradient(180deg, #eef4fd 0%, #fafafa 100%); border-bottom: 1px solid #ececec; }
+    #div_splash .ab_about .ab_hero_inner { max-width: 980px; margin: 0 auto; padding: 44px 20px 36px 20px; display: flex; align-items: center; gap: 36px; }
+    #div_splash .ab_about .ab_hero_text { flex: 1 1 0; min-width: 0; }
+    #div_splash .ab_about .ab_h1 { margin: 0 0 12px 0; font-size: 34px; line-height: 1.18; font-weight: 600; color: #a63f3b; letter-spacing: -0.01em; }
+    #div_splash .ab_about .ab_hero p { margin: 0 0 20px 0; font-size: 18px; color: #6a6a6a; max-width: 620px; }
+    #div_splash .ab_about .ab_hero_art { flex: 0 0 300px; }
+    #div_splash .ab_about .ab_hero_art svg { width: 100%; height: auto; display: block; }
+    #div_splash .ab_about .ab_button { display: inline-block; padding: 9px 20px; border-radius: 22px; background: rgb(77, 131, 231); color: #ffffff; font-size: 16px; margin: 0 8px 8px 0; border: 1px solid rgb(77, 131, 231); }
+    #div_splash .ab_about .ab_button:hover { background: #3a6fd0; border-color: #3a6fd0; color: #ffffff; }
+    #div_splash .ab_about .ab_button.ab_light { background: #ffffff; color: #2f6fd0; border-color: #c9daee; }
+    #div_splash .ab_about .ab_button.ab_light:hover { background: #eef4fb; color: #1f4f80; }
+    #div_splash .ab_about h2 { margin: 0 0 10px 0; font-size: 24px; font-weight: 600; color: #444444; }
+    #div_splash .ab_about h3 { margin: 0 0 4px 0; font-size: 17px; font-weight: 600; color: #4d7aa8; }
+    #div_splash .ab_about p { margin: 0 0 12px 0; }
+    #div_splash .ab_about .ab_lead { font-size: 17px; max-width: 760px; }
+    #div_splash .ab_about .ab_stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 6px 0 4px 0; }
+    #div_splash .ab_about .ab_stat { background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(40, 60, 90, 0.05); }
+    #div_splash .ab_about .ab_stat b { display: block; font-size: 28px; font-weight: 600; color: #2f6096; line-height: 1.1; }
+    #div_splash .ab_about .ab_stat span { font-size: 14px; color: #8a8a8a; }
+    #div_splash .ab_about .ab_cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin-top: 6px; }
+    #div_splash .ab_about .ab_cards.ab_three { grid-template-columns: 1fr 1fr 1fr; }
+    #div_splash .ab_about .ab_card { background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; padding: 16px 18px 8px 18px; box-shadow: 0 1px 4px rgba(40, 60, 90, 0.05); }
+    #div_splash .ab_about .ab_card i.fas { color: #6f9be8; margin-right: 8px; width: 18px; text-align: center; }
+    #div_splash .ab_about .ab_card p { font-size: 15.5px; }
+    #div_splash .ab_about .ab_card.ab_step { position: relative; padding-left: 62px; }
+    #div_splash .ab_about .ab_figure { margin: 14px 0 6px 0; background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; padding: 8px; box-shadow: 0 1px 4px rgba(40, 60, 90, 0.05); }
+    #div_splash .ab_about .ab_figure img { width: 100%; height: auto; display: block; border-radius: 6px; }
+    #div_splash .ab_about .ab_figure figcaption { font-size: 14px; color: #8a8a8a; padding: 8px 6px 2px 6px; }
+    #div_splash .ab_about figure { margin: 0; }
+    #div_splash .ab_about .ab_dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; vertical-align: middle; margin: 0 1px; }
+    #div_splash .ab_about .ab_formula { display: inline-block; background: #f3f6fa; border-radius: 6px; padding: 1px 8px; font-family: 'Roboto Mono', monospace; font-size: 14.5px; color: #444444; }
+    #div_splash .ab_about details { background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+    #div_splash .ab_about details summary { cursor: pointer; font-weight: 600; color: #4a4a4a; font-size: 16.5px; }
+    #div_splash .ab_about details p { margin: 8px 0 2px 0; font-size: 15.5px; }
+    #div_splash .ab_about .ab_hint { font-size: 14px; color: #9a9a9a; }
+    #div_splash .ab_about .ab_cta { margin: 30px 0 0 0; background: #eef4fd; border: 1px solid #d9e5f6; border-radius: 12px; padding: 22px 24px 16px 24px; }
+    #div_splash .ab_about .ab_cta h2 { font-size: 21px; }
+    #div_splash .ab_about .ab_hero_inner { padding-top: 46px; padding-bottom: 24px; }
+    /* the search box of the start page: the search field of the top bar itself, moved here while the start page is
+       shown on a desktop (place_search_box()), so it keeps its suggestions and everything else */
+    #div_splash .ab_about .ab_hero_search { max-width: 680px; margin: 0 auto; padding: 0 20px 40px 20px; }
+    #div_splash .ab_about .ab_hero_search_hint { font-size: 14px; color: #9a9a9a; padding: 10px 0 0 22px; }
+    #div_splash .ab_about .ab_hero_search_hint a.splash_topic { margin-left: 4px; color: #2f6096; }
+    #div_splash .ab_about .ab_hero_search_label { font-size: 17px; color: #4a4a4a; padding: 0 0 10px 22px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    #div_splash .ab_about .ab_hero_search_label i { color: #6f9be8; margin-right: 7px; font-size: 14px; }
+    #div_splash .ab_about .ab_hero_search_label .ab_or { color: #a8a8a8; font-size: 14px; }
+    /* start page on a desktop: the bar with the controls of a network is hidden, the start page begins under the header */
+    body.search_in_hero #div_search_bar, html.start_page #div_search_bar { display: none; }
+    html.start_page #div_splash.splash_div { top: 47px; }
+    html.start_page #div_splash .ab_about .ab_hero_search { display: block; }
+    #hero_search_slot { min-height: 52px; }
+    body:not(.search_in_hero) #div_splash .ab_about .ab_hero_search { display: none; }
+    body.search_in_hero #btn_clean_c { display: none; }
+    #hero_search_slot #div_search_input { padding: 0; }
+    #hero_search_slot .autoComplete_wrapper { display: block; width: 100%; }
+    #hero_search_slot .autoComplete_wrapper > input { width: 100%; height: 52px; font-size: 17px; padding: 0 1.6rem 0 3.4rem; background-size: 1.2rem; background-position: left 1.4rem center;
+        border: 1px solid #c8d2e0; box-shadow: 0 2px 10px rgba(40, 60, 90, 0.10); color: #444444; }
+    #hero_search_slot .autoComplete_wrapper > input:hover { box-shadow: 0 3px 14px rgba(40, 60, 90, 0.16); }
+    #hero_search_slot .autoComplete_wrapper > input:focus { border-color: #6f9be8; box-shadow: 0 0 0 3px rgba(111, 155, 232, 0.22), 0 2px 10px rgba(40, 60, 90, 0.10); }
+    #hero_search_slot .autoComplete_wrapper > input:focus::placeholder { font-size: 16px; padding: 0; }
+    #hero_search_slot #div_search_input .autoComplete_wrapper > ul { width: auto; left: 0; right: 0; max-height: 300px; text-align: left; }
+    #hero_search_slot .autoComplete_wrapper > ul > li { font-size: 1rem; padding: 0.4rem 0.8rem; }
+    #div_splash .ab_about .ab_button i { margin-right: 8px; font-size: 13px; }
+    #div_splash .ab_about a.ab_button, #div_splash .ab_about a.ab_button:hover { color: #ffffff; }
+    #div_splash .ab_about a.ab_button.ab_light { color: #2f6fd0; font-size: 16px; padding: 9px 20px; border-radius: 22px; background: #ffffff; border-color: #c9daee; }
+    #div_splash .ab_about a.ab_button.ab_light:hover { color: #1f4f80; background: #eef4fb; }
+    #div_splash .ab_about .ab_foot { max-width: 980px; margin: 0 auto; padding: 18px 20px 30px 20px; font-size: 14.5px; color: #9a9a9a; }
+    body.mobile #div_splash .ab_about .ab_hero_inner { padding: 24px 16px 20px 16px; display: block; }
+    body.mobile #div_splash .ab_about .ab_hero_art { display: none; }
+    body.mobile #div_splash .ab_about .ab_h1 { font-size: 26px; }
+    body.mobile #div_splash .ab_about .ab_stats { grid-template-columns: 1fr 1fr; }
+    body.mobile #div_splash .ab_about .ab_cards, body.mobile #div_splash .ab_about .ab_cards.ab_three { grid-template-columns: 1fr; }
+    body.mobile #div_splash .ab_about .ab_main { padding: 4px 16px 10px 16px; }
+
+    /* the network and the topic list stand on the same soft gradient as the start page */
+    /* (on the page itself, behind the network: the hints at the top left of the network lie under its canvas) */
+    body { background: linear-gradient(180deg, #eef4fd 0%, #fafafa 100%) fixed; }
+    .topics_view { background: linear-gradient(180deg, #eef4fd 0%, #fafafa 100%); }
+
     /* main affiliation under the header of an author's publication list */
     .pub_affiliation { margin-top: 4px; color: #7c7c7c; }
     .pub_affiliation i { color: #9aa7b8; font-size: 12px; width: 16px; margin-right: 4px; text-align: center; }
@@ -1649,6 +1775,31 @@
     let mobile_view;
     let div_pub_text;
 
+    // (run as soon as the page is read, not when all pictures have arrived: the start page is complete at once)
+    document.addEventListener("DOMContentLoaded", function () {
+        // Desktop: while the start page is shown, the search field sits in the middle of it, large; with a network or
+        // a topic list on screen it is back in the top bar. It is the same element in both places (moved, not copied),
+        // so suggestions, keys and selection work the same.
+        const search_home = document.getElementById("div_search_input").parentNode;
+        function place_search_box() {
+            if (isMobile()) return;
+            const box = document.getElementById("div_search_input");
+            const on_start = !document.getElementById("div_splash").classList.contains("hidden");
+            const target = on_start ? document.getElementById("hero_search_slot") : search_home;
+            if (box.parentNode === target) return;
+            try { autoCompleteJS.close(); } catch (e) {}
+            target.appendChild(box);
+            document.body.classList.toggle("search_in_hero", on_start);
+            document.documentElement.classList.toggle("start_page", on_start);
+            const splash = document.getElementById("div_splash");      // without the bar the start page begins under the header
+            splash.style.top = on_start ? Math.round(document.getElementById("div_top").getBoundingClientRect().bottom) + "px" : "";
+            document.querySelector("#autoComplete").setAttribute("placeholder", on_start ? "Researcher name, ORCID iD or research topic..." : "Author name or topic...");
+            if (on_start) { try { document.querySelector("#autoComplete").focus({ preventScroll: true }); } catch (e) {} }
+        }
+        new MutationObserver(place_search_box).observe(document.getElementById("div_splash"), { attributes: true, attributeFilter: ["class"] });
+        place_search_box();
+    });
+
     window.onload = function () {
 
     tippy('#btn_share2', {
@@ -1662,10 +1813,13 @@
         }        
       });
 
-        if (!isMobile()) {
-            ac_tooltip.show();
-        }
+        // (the hint "Start here ..." under the search field is no longer shown at the start: the start page has the
+        // search field in its middle)
             
+        // the start page scrolls: the hint under the search box would stay on top of its text
+        document.getElementById("div_splash").addEventListener("scroll", function () { ac_tooltip.hide(); }, { passive: true });
+
+
         if (isMobile()) {
 
             mobile_view = "network";
@@ -1801,51 +1955,96 @@ function swap_pub_mobile() {
                 <input id="topic_year_from" placeholder="year" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="active since year"></span>
         </div>
         <div id="div_topics_results"></div>
-        <div class="topics_hint">Authors are ranked by their number of publications tagged with this OpenAlex topic or keyword. Click a name to open the co-authorship network.</div>
+        <div class="topics_hint">The top authors of the topic: researchers are ranked by their number of publications tagged with this OpenAlex topic or keyword. Click a name to open the co-authorship network.</div>
     </div>
 </div>
 
 <div id="div_splash" class="splash_div">
-    <div class="splash_inner">
-        <div class="splash_title">Welcome to pubScan!</div>
-        <div class="splash_lead">An interactive map of scientific publications as a co-authorship network: <b>nodes</b> are authors, <b>edges</b> are the publications they wrote together.</div>
-        <div class="splash_grid">
-            <div class="splash_card">
-                <div class="splash_head"><i class="fas fa-user"></i> Search for an author</div>
-                The author you search for appears at the center of the network, highlighted in
-                <span class="dot" style="background:red"></span>. Click a node for publications and topics, click an edge for joint publications,
-                double-click a node to re-center the network on that author.
-            </div>
-            <div class="splash_card">
-                <div class="splash_head"><i class="fas fa-tags"></i> Search for a topic</div>
-                The same box takes a research topic or keyword, e.g. <i>RNA splicing</i> or <i>CRISPR</i>: pick it from the suggestions
-                to see the authors publishing most on it, ranked by number of publications, and open their networks from there.
-                <div class="splash_examples"><span class="splash_examples_label">Example topic:</span>
-                    <a class="splash_topic" href="/topic/RNA_Research_and_Splicing" data-topic="RNA Research and Splicing"><i class="fas fa-tags"></i>RNA Research and Splicing</a>
-                </div>
-            </div>
-            <div class="splash_card">
-                <div class="splash_head"><i class="fas fa-circle"></i> Node size and color</div>
-                The area of a node is proportional to the number of publications the co-author shares with the central author.
-                Co-authors who also publish with each other form a cluster and share a color:
-                <span class="dot" style="background:#95bceb; box-shadow: inset 0 0 0 1.5px #2a78d6"></span><span class="dot" style="background:#f6d080; box-shadow: inset 0 0 0 1.5px #eda100"></span><span class="dot" style="background:#f4bdd2; box-shadow: inset 0 0 0 1.5px #e87ba4"></span><span class="dot" style="background:#91c499; box-shadow: inset 0 0 0 1.5px #228833"></span><span class="dot" style="background:#9991c4; box-shadow: inset 0 0 0 1.5px #332288"></span><span class="dot" style="background:#b3e6f7; box-shadow: inset 0 0 0 1.5px #66ccee"></span><span class="dot" style="background:#d599bb; box-shadow: inset 0 0 0 1.5px #aa3377"></span>
-                the seven largest clusters,
-                <span class="dot" style="background:#e3e4e7; box-shadow: inset 0 0 0 1.5px #a9adb3"></span> smaller groups and co-authors without a cluster.
-            </div>
-            <div class="splash_card">
-                <div class="splash_head"><i class="fas fa-project-diagram"></i> What is shown</div>
-                To stay readable and fast, a network shows up to 100 co-authors and up to 1,000 edges: all edges of the central author,
-                the 100 strongest links and a random sample of the rest. Co-authors and edges are ranked by co-authorship weight:
-                a shared publication with <i>n</i> authors counts 1/(<i>n</i>&minus;1), so papers written in small teams weigh more than
-                consortium papers with hundreds of authors. Edges of the central author are full lines, edges between two co-authors
-                are dashed; tick <i>Edge labels</i> in the menu to see the number of shared publications on every edge.
-            </div>
-        </div>
-        <div class="splash_foot">
-            Love it? <a id="btn_share2" href='javascript:url_to_clip()'>Share pubScan</a> with fellow scientists, and have a look at the
-            source code of <a href='https://github.com/grexor/pubscan' target="_github">pubScan on GitHub</a>.
-        </div>
+<div class="ab_about">
+<div class="ab_hero"><div class="ab_hero_inner">
+    <div class="ab_hero_text">
+        <div class="ab_h1">Scientific co-authorship networks, explored interactively</div>
+        <p>pubScan draws the publication network of any researcher: who they publish with, how strongly, and which groups of co-authors work together. It covers 132 million publications of 10.3 million authors.</p>
+        
     </div>
+    <div class="ab_hero_art"><svg viewBox="0 0 300 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A small co-authorship network: a central author, co-authors in colored clusters">
+<g stroke="#c9d3e0" stroke-width="1.6" fill="none">
+<line x1="150" y1="115" x2="78" y2="62"/><line x1="150" y1="115" x2="52" y2="118"/><line x1="150" y1="115" x2="92" y2="172"/>
+<line x1="150" y1="115" x2="214" y2="52"/><line x1="150" y1="115" x2="252" y2="96"/><line x1="150" y1="115" x2="226" y2="170"/><line x1="150" y1="115" x2="160" y2="196"/>
+<line x1="150" y1="115" x2="150" y2="36"/></g>
+<g stroke="#d9dfe8" stroke-width="1.3" stroke-dasharray="5 4" fill="none">
+<line x1="78" y1="62" x2="52" y2="118"/><line x1="52" y1="118" x2="92" y2="172"/><line x1="78" y1="62" x2="92" y2="172"/>
+<line x1="214" y1="52" x2="252" y2="96"/><line x1="214" y1="52" x2="150" y2="36"/><line x1="226" y1="170" x2="160" y2="196"/><line x1="252" y1="96" x2="226" y2="170"/></g>
+<g stroke-width="1.6">
+<circle cx="78" cy="62" r="13" fill="#bcd6f7" stroke="#4d8ae0"/><circle cx="52" cy="118" r="17" fill="#bcd6f7" stroke="#4d8ae0"/><circle cx="92" cy="172" r="11" fill="#bcd6f7" stroke="#4d8ae0"/>
+<circle cx="214" cy="52" r="15" fill="#fbd9a0" stroke="#e39a1c"/><circle cx="252" cy="96" r="10" fill="#fbd9a0" stroke="#e39a1c"/><circle cx="150" cy="36" r="9" fill="#fbd9a0" stroke="#e39a1c"/>
+<circle cx="226" cy="170" r="14" fill="#f6bfd3" stroke="#d6588a"/><circle cx="160" cy="196" r="9" fill="#f6bfd3" stroke="#d6588a"/>
+<circle cx="150" cy="115" r="19" fill="#ff2a2a" stroke="#b80000"/></g></svg></div>
+</div>
+    <div class="ab_hero_search">
+        <div class="ab_hero_search_label"><span><i class="fas fa-user"></i>Find a researcher</span><span class="ab_or">or</span><span><i class="fas fa-tags"></i>collaborators by topic</span></div>
+        <div id="hero_search_slot"></div>
+        <div class="ab_hero_search_hint">Type and pick a suggestion. Example topic:
+            <a class="splash_topic" href="/topic/RNA_Research_and_Splicing" data-topic="RNA Research and Splicing"><i class="fas fa-tags"></i>RNA Research and Splicing</a></div>
+    </div>
+</div>
+<div class="ab_main">
+<div class="ab_section">
+    <div class="ab_stats">
+        <div class="ab_stat"><b>132 M</b><span>publications</span></div>
+        <div class="ab_stat"><b>10.3 M</b><span>authors with an ORCID iD</span></div>
+        <div class="ab_stat"><b>4,700</b><span>research topics and subfields</span></div>
+        <div class="ab_stat"><b>&lt; 1 s</b><span>to build a network</span></div>
+    </div>
+</div>
+<div class="ab_section">
+    <h2>What is a co-authorship network?</h2>
+    <p class="ab_lead">A co-authorship network is a map of scientific collaboration. Every <b>node</b> is a researcher, and an <b>edge</b> connects two researchers who have written at least one publication together. Looking at the network of one scientist shows at a glance who their closest collaborators are, which research groups they belong to, and how those groups are connected.</p>
+    <figure class="ab_figure">
+        <img src="pubscan_splash.jpg" alt="A co-authorship network in pubScan: the central author in red, co-authors in colored clusters, the publication list on the right" loading="lazy">
+        <figcaption>A network in pubScan: the searched author in the center, co-authors grouped into colored clusters, and the publications of the selected author on the right.</figcaption>
+    </figure>
+</div>
+<div class="ab_section">
+    <h2>How to read a network</h2>
+    <div class="ab_cards">
+        <div class="ab_card"><h3><i class="fas fa-user"></i>The central author</h3><p>The researcher you searched for sits in the middle, drawn in red <span class="ab_dot" style="background:#ff2a2a"></span>. Double-click any other node to make that person the center.</p></div>
+        <div class="ab_card"><h3><i class="fas fa-circle"></i>Node size</h3><p>The area of a node shows how many publications that co-author shares with the central author: the bigger the node, the closer the collaboration.</p></div>
+        <div class="ab_card"><h3><i class="fas fa-project-diagram"></i>Clusters and colors</h3><p>Co-authors who also publish with each other form a cluster and share a color. Clusters are found from the links alone (the Louvain method), and usually correspond to a lab, an institute or a consortium.</p></div>
+        <div class="ab_card"><h3><i class="fas fa-balance-scale"></i>Small teams count more</h3><p>A shared publication with <i>n</i> authors counts <span class="ab_formula">1/(n&minus;1)</span>. Two people who wrote several papers in a small team are tied more strongly than two names on one consortium paper with hundreds of authors.</p></div>
+        <div class="ab_card"><h3><i class="fas fa-book"></i>Publications and affiliation</h3><p>Click a node to list that author's publications with links to PubMed, the DOI or OpenAlex, together with the main affiliation. Click an edge to see the papers two people wrote together.</p></div>
+        <div class="ab_card"><h3><i class="fas fa-calendar-alt"></i>Years and topics</h3><p>A slider restricts the network to a range of years, which shows how a collaboration circle changed over time. The Topics panel lists what an author publishes on.</p></div>
+    </div>
+    <p class="ab_hint" style="padding-top: 12px;">To stay readable and fast, a network shows up to 100 co-authors and up to 1,000 edges, chosen by co-authorship weight.</p>
+</div>
+<div class="ab_section">
+    <h2>What you can do with it</h2>
+    <div class="ab_cards ab_three">
+        <div class="ab_card"><h3>See your own network</h3><p>Check who you have published with over the years, and share the picture with one link.</p></div>
+        <div class="ab_card"><h3>Get to know a researcher</h3><p>Before a talk, a review or a job interview: see the collaborators and communities a scientist works in.</p></div>
+        <div class="ab_card"><h3>Find people in a field</h3><p>Search a research topic to get the authors publishing most on it, and <a href="/find-collaborators">discover possible collaborators</a>.</p></div>
+    </div>
+</div>
+<div class="ab_section">
+    <h2>Where the data comes from</h2>
+    <p class="ab_lead">Publications, authorship and topics come from <a href="https://openalex.org">OpenAlex</a>, the open catalog of scholarly works. Authors are identified by their <a href="https://orcid.org">ORCID iD</a>, and are shown under the name of their ORCID record. Nothing is collected from users; pubScan needs no account.</p>
+    <p>pubScan is open source (<a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a>): the code that extracts the data and serves the networks is on <a href="https://github.com/grexor/pubscan">GitHub</a>. The whole data set is held in memory as compact arrays, which is why a network appears in well under a second.</p>
+</div>
+<div class="ab_section">
+    <h2>Questions and answers</h2>
+    <details><summary>Why can&#x27;t I find a researcher?</summary><p>pubScan includes authors who carry an ORCID iD on at least one publication in OpenAlex. The ORCID iD is what tells two people of the same name apart. A researcher without an ORCID iD, or whose ORCID iD OpenAlex has not connected to any publication, does not appear. Adding the publications to the ORCID record usually fixes this with the next data update.</p></details><details><summary>A publication on a list is not by that author. Why?</summary><p>Who wrote what is taken from OpenAlex as it is. OpenAlex attaches publications to authors partly by matching names, so a list can contain a paper of a namesake. Single wrong attributions can be reported on GitHub and are then left out.</p></details><details><summary>Which publications are included?</summary><p>Every work of an author with an ORCID iD that OpenAlex lists as an article, review, preprint, conference paper, book, book chapter, dissertation, editorial, letter or report, and every work with a PubMed id. Data sets, software and peer reviews are left out. When OpenAlex holds a journal article and its preprint as two records, the paper is counted once.</p></details><details><summary>How current is the data?</summary><p>The data comes from the OpenAlex snapshot, which is published every few months; the header of the application shows the date of the snapshot in use.</p></details><details><summary>Is pubScan free?</summary><p>Yes. pubScan is free to use without an account, and it is free software under the AGPL-3.0 licence; the source code is on GitHub.</p></details>
+</div>
+<div class="ab_cta">
+    <h2>Try it with your own name</h2>
+    <p>Type a name or an ORCID iD into the search box at the top and the network appears.</p>
+    <a class="ab_button" href="javascript:void(0)" onclick="document.querySelector('#autoComplete').focus(); return false;"><i class="fas fa-search"></i>Search a name or a topic</a><a class="ab_button ab_light splash_topic" href="/topic/RNA_Research_and_Splicing" data-topic="RNA Research and Splicing"><i class="fas fa-tags"></i>Example topic: RNA Research and Splicing</a>
+</div>
+</div>
+<div class="splash_foot ab_foot">
+    Love it? <a id="btn_share2" href='javascript:url_to_clip()'>Share pubScan</a> with fellow scientists, and have a look at the
+    source code of <a href='https://github.com/grexor/pubscan' target="_github">pubScan on GitHub</a>.
+</div>
+</div>
 </div>
 
 <div id="div_center_info" class="center_info_div hidden">
@@ -1957,6 +2156,7 @@ function swap_pub_mobile() {
         document.querySelector("#autoComplete").value = "";
         update_clear_button();
         document.getElementById("div_graph_title").innerHTML = "";
+        set_page_head(null, null, "/");
         document.getElementById("div_splash").classList.remove("hidden");
     }
 
@@ -2027,6 +2227,8 @@ function swap_pub_mobile() {
                     + '<td class="num topics_year' + (a.year && a.year < recent ? ' old' : '') + '">' + (a.year ? esc(String(a.year)) : "") + '</td></tr>';
             });
             results.innerHTML = html + '</table>';
+            set_page_head(t.name + ": top authors and researchers | pubScan", "Top researchers in " + t.name + ": the authors publishing most on the topic, ranked by number of publications, out of "
+                + format_count(t.n_authors) + " researchers and " + format_count(t.n_pubs) + " publications. Open their co-authorship networks on pubScan.", topic_url(t.name, ""));
             document.getElementById("div_graph_title").innerHTML = "Top authors for: <b>" + esc(t.name) + "</b>" + (since ? " (active since " + esc(since) + ")" : "");
             if (!handling_popstate) {
                 window.history.pushState({"topic": t.name, "since": since}, '', topic_url(t.name, since));
@@ -2166,6 +2368,88 @@ function swap_pub_mobile() {
     document.addEventListener("keydown", function (e) {
         if (e.key === "Escape" && !document.getElementById("changelog_modal").classList.contains("hidden")) close_changelog();
     });
+</script>
+
+
+<script>
+// The small network on the start page is alive: its nodes float a little, and each can be dragged; the links pull
+// the others along and everything settles back when the node is let go (d3-force, as for the real networks).
+// Without the library or on a phone (the drawing is not shown there) the drawing stays as it is.
+(function () {
+    const svg = document.querySelector("#div_splash .ab_hero_art svg");
+    if (!svg || typeof d3 === "undefined" || !d3.forceSimulation) return;
+    const BLUE = ["#bcd6f7", "#4d8ae0"], ORANGE = ["#fbd9a0", "#e39a1c"], PINK = ["#f6bfd3", "#d6588a"], RED = ["#ff2a2a", "#b80000"];
+    const nodes = [[150, 115, 19, RED], [78, 62, 13, BLUE], [52, 118, 17, BLUE], [92, 172, 11, BLUE], [214, 52, 15, ORANGE], [252, 96, 10, ORANGE],
+                   [150, 36, 9, ORANGE], [226, 170, 14, PINK], [160, 196, 9, PINK]].map(([x, y, r, color], i) => ({ id: i, x: x, y: y, hx: x, hy: y, r: r, color: color, phase: i * 1.7 }));
+    const pairs = [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [0, 8], [1, 2], [2, 3], [1, 3], [4, 5], [4, 6], [7, 8], [5, 7]];
+    const links = pairs.map(([a, b]) => ({ source: nodes[a], target: nodes[b], spoke: a === 0, length: Math.hypot(nodes[a].x - nodes[b].x, nodes[a].y - nodes[b].y) }));
+    const NS = "http://www.w3.org/2000/svg";
+    const make = (name, attributes) => { const e = document.createElementNS(NS, name); for (const k in attributes) e.setAttribute(k, attributes[k]); return e; };
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const line_of = links.map(l => svg.appendChild(make("line", l.spoke ? { stroke: "#c9d3e0", "stroke-width": 1.6 } : { stroke: "#d9dfe8", "stroke-width": 1.3, "stroke-dasharray": "5 4" })));
+    const circle_of = nodes.slice().reverse().map(n => {      // the central author is drawn last, on top
+        const c = svg.appendChild(make("circle", { r: n.r, fill: n.color[0], stroke: n.color[1], "stroke-width": 1.6 }));
+        c.style.cursor = "grab"; c.style.touchAction = "none";
+        c.__node = n;
+        return c;
+    });
+    svg.style.overflow = "visible";
+    function draw() {
+        links.forEach((l, i) => { const e = line_of[i]; e.setAttribute("x1", l.source.x); e.setAttribute("y1", l.source.y); e.setAttribute("x2", l.target.x); e.setAttribute("y2", l.target.y); });
+        circle_of.forEach(c => { c.setAttribute("cx", c.__node.x); c.setAttribute("cy", c.__node.y); });
+    }
+    const simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).distance(l => l.length).strength(l => l.spoke ? 0.35 : 0.2))
+        .force("charge", d3.forceManyBody().strength(-40))
+        .force("collide", d3.forceCollide().radius(n => n.r + 3))
+        .force("x", d3.forceX(n => n.tx).strength(0.07))
+        .force("y", d3.forceY(n => n.ty).strength(0.07))
+        .velocityDecay(0.35).stop();
+    const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let dragged = null, moving_until = 0;
+    function frame(time) {
+        requestAnimationFrame(frame);
+        if (svg.getBoundingClientRect().width === 0 || document.hidden) return;          // start page not on screen
+        if (calm && !dragged && time > moving_until) return;
+        const t = time / 1000;
+        for (const n of nodes) {                    // every node floats around its place, each at its own pace
+            const drift = calm ? 0 : n.id === 0 ? 3 : 7;
+            n.tx = n.hx + drift * Math.sin(t * 0.9 + n.phase);
+            n.ty = n.hy + drift * Math.cos(t * 0.7 + n.phase * 1.3);
+        }
+        simulation.force("x").initialize(nodes); simulation.force("y").initialize(nodes);
+        simulation.alpha(0.12).tick();
+        draw();
+    }
+    function to_drawing(e) {                         // pointer position in the coordinates of the drawing
+        const m = svg.getScreenCTM();
+        return m ? { x: (e.clientX - m.e) / m.a, y: (e.clientY - m.f) / m.d } : { x: 0, y: 0 };
+    }
+    svg.addEventListener("pointerdown", function (e) {
+        const n = e.target.__node;
+        if (!n) return;
+        dragged = n;
+        e.target.setPointerCapture(e.pointerId);
+        e.target.style.cursor = "grabbing";
+        const p = to_drawing(e); n.fx = p.x; n.fy = p.y;
+        e.preventDefault();
+    });
+    svg.addEventListener("pointermove", function (e) {
+        if (!dragged) return;
+        const p = to_drawing(e);
+        dragged.fx = Math.max(-60, Math.min(360, p.x)); dragged.fy = Math.max(-40, Math.min(270, p.y));
+    });
+    function release(e) {
+        if (!dragged) return;
+        dragged.fx = null; dragged.fy = null;
+        if (e.target && e.target.style) e.target.style.cursor = "grab";
+        dragged = null;
+        moving_until = performance.now() + 4000;     // time to settle back (also without the floating)
+    }
+    svg.addEventListener("pointerup", release);
+    svg.addEventListener("pointercancel", release);
+    requestAnimationFrame(frame);
+})();
 </script>
 
 </body>

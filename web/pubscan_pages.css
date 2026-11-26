@@ -1,0 +1,77 @@
+/* the text pages of pubScan (about, find collaborators): same colors and fonts as the application */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: 'Source Sans 3', 'Source Sans Pro', 'Segoe UI', Helvetica, Arial, sans-serif; color: #555555; font-size: 16px; line-height: 1.55; background: #fafafa; }
+a { color: #2f6fd0; text-decoration: none; }
+a:hover { color: #0041a8; }
+.top { background: rgb(77, 131, 231); padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.top img { height: 22px; display: block; }
+.top .tagline { color: aliceblue; font-size: 15px; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top nav { display: flex; gap: 18px; flex-shrink: 0; }
+.top nav a { color: #e6efff; font-size: 14.5px; }
+.top nav a:hover, .top nav a.here { color: #ffffff; text-decoration: underline; text-underline-offset: 4px; }
+.hero { background: linear-gradient(180deg, #eef4fd 0%, #fafafa 100%); border-bottom: 1px solid #ececec; }
+.hero_inner { max-width: 980px; margin: 0 auto; padding: 44px 20px 36px 20px; display: flex; align-items: center; gap: 36px; }
+.hero_text { flex: 1 1 0; min-width: 0; }
+.hero h1 { margin: 0 0 12px 0; font-size: 34px; line-height: 1.18; font-weight: 600; color: #a63f3b; letter-spacing: -0.01em; }
+.hero p { margin: 0 0 20px 0; font-size: 18px; color: #6a6a6a; max-width: 620px; }
+.hero_art { flex: 0 0 300px; }
+.hero_art svg { width: 100%; height: auto; display: block; }
+.button { display: inline-block; padding: 9px 20px; border-radius: 22px; background: rgb(77, 131, 231); color: #ffffff; font-size: 16px; margin: 0 8px 8px 0; border: 1px solid rgb(77, 131, 231); }
+.button:hover { background: #3a6fd0; border-color: #3a6fd0; color: #ffffff; }
+.button.light { background: #ffffff; color: #2f6fd0; border-color: #c9daee; }
+.button.light:hover { background: #eef4fb; color: #1f4f80; }
+main { max-width: 980px; margin: 0 auto; padding: 8px 20px 40px 20px; }
+section { padding: 26px 0 4px 0; }
+h2 { margin: 0 0 10px 0; font-size: 24px; font-weight: 600; color: #444444; }
+h3 { margin: 0 0 4px 0; font-size: 17px; font-weight: 600; color: #4d7aa8; }
+p { margin: 0 0 12px 0; }
+.lead { font-size: 17px; max-width: 760px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 6px 0 4px 0; }
+.stat { background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(40, 60, 90, 0.05); }
+.stat b { display: block; font-size: 28px; font-weight: 600; color: #2f6096; line-height: 1.1; }
+.stat span { font-size: 14px; color: #8a8a8a; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin-top: 6px; }
+.cards.three { grid-template-columns: 1fr 1fr 1fr; }
+.card { background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; padding: 16px 18px 8px 18px; box-shadow: 0 1px 4px rgba(40, 60, 90, 0.05); }
+.card i.fas { color: #6f9be8; margin-right: 8px; width: 18px; text-align: center; }
+.card p { font-size: 15.5px; }
+.card.step { position: relative; padding-left: 62px; }
+.step .number { position: absolute; left: 16px; top: 13px; width: 32px; height: 32px; border-radius: 50%; background: #e6effa; color: #2f6096; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.figure { margin: 14px 0 6px 0; background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; padding: 8px; box-shadow: 0 1px 4px rgba(40, 60, 90, 0.05); }
+.figure img { width: 100%; height: auto; display: block; border-radius: 6px; }
+.figure figcaption { font-size: 14px; color: #8a8a8a; padding: 8px 6px 2px 6px; }
+figure { margin: 0; }
+.dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; vertical-align: middle; margin: 0 1px; }
+.formula { display: inline-block; background: #f3f6fa; border-radius: 6px; padding: 1px 8px; font-family: 'Roboto Mono', monospace; font-size: 14.5px; color: #444444; }
+details { background: #ffffff; border: 1px solid #e6e9ee; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+details summary { cursor: pointer; font-weight: 600; color: #4a4a4a; font-size: 16.5px; }
+details p { margin: 8px 0 2px 0; font-size: 15.5px; }
+.search { display: flex; gap: 10px; max-width: 620px; margin: 4px 0 6px 0; }
+.search input { flex: 1 1 auto; min-width: 0; height: 44px; border-radius: 22px; border: 1px solid #c8d2e0; padding: 0 18px; font-size: 16px; font-family: inherit; color: #444444; background: #ffffff; outline: none; }
+.search input:focus { border-color: #6f9be8; box-shadow: 0 0 0 3px rgba(111, 155, 232, 0.2); }
+.search button { height: 44px; border-radius: 22px; border: none; background: rgb(77, 131, 231); color: #ffffff; padding: 0 22px; font-size: 16px; font-family: inherit; cursor: pointer; }
+.search button:hover { background: #3a6fd0; }
+.hint { font-size: 14px; color: #9a9a9a; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+.pills { display: flex; flex-wrap: wrap; gap: 7px 8px; padding: 4px 0 10px 0; }
+a.pill { display: inline-block; padding: 4px 13px; border-radius: 15px; background: #eef4fb; border: 1px solid #d3e0f0; color: #2f6096; font-size: 14.5px; }
+a.pill:hover { background: #dce9f8; border-color: #b3cbe8; color: #1f4f80; }
+a.pill i { font-size: 11px; margin-right: 6px; color: #6f9be8; }
+.cta { margin: 30px 0 0 0; background: #eef4fd; border: 1px solid #d9e5f6; border-radius: 12px; padding: 22px 24px 16px 24px; }
+.cta h2 { font-size: 21px; }
+footer { border-top: 1px dashed #dddddd; background: #fefefe; padding: 12px 20px 16px 20px; font-size: 14px; color: #8a8a8a; }
+footer .inner { max-width: 980px; margin: 0 auto; }
+@media (max-width: 760px) {
+    .hero_inner { padding: 28px 16px 22px 16px; display: block; }
+    .hero_art { display: none; }
+    .hero h1 { font-size: 27px; }
+    .hero p { font-size: 16.5px; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .cards, .cards.three, .fields { grid-template-columns: 1fr; }
+    .top .tagline { display: none; }
+    .top nav { margin-left: auto; gap: 14px; }
+    main { padding: 4px 16px 32px 16px; }
+    h2 { font-size: 21px; }
+    .search { flex-direction: column; }
+}

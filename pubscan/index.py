@@ -170,6 +170,21 @@ def client_ip(environ):
     ip = re.sub(r"[^0-9a-fA-F.:]", "", ip.strip())[:45]
     return ip or "unknown"
 
+CRAWLER = re.compile(r"[A-Za-z0-9_.-]*(?:bot|crawl|spider|slurp|archiver|fetch|scrape|preview|monitor|headless)[A-Za-z0-9_.-]*"
+                     r"|GoogleOther|Google-InspectionTool|Google-Extended|facebookexternalhit|ChatGPT-User|Claude-User"
+                     r"|curl|Wget|python-requests|python-urllib|aiohttp|httpx|Go-http-client|okhttp|libwww-perl|Scrapy|Java/",
+                     re.IGNORECASE)
+
+
+def crawler_name(user_agent):
+    """Name of the crawler or script a User-Agent states ("GPTBot", "curl"), "unnamed" for a missing User-Agent,
+    "" for a browser. Only what the client says about itself: a crawler that poses as a browser is not recognised."""
+    if not user_agent or not user_agent.strip():
+        return "unnamed"
+    found = CRAWLER.search(user_agent)
+    return found.group(0).strip(".-/")[:30] if found else ""
+
+
 def clean_for_log(text, limit=300):
     return CONTROL_RE.sub(" ", str(text))[:limit]
 
@@ -221,7 +236,11 @@ class TableClass():
         print(message, file=self.environ['wsgi.errors'])
 
     def logme(self, message):
-        search_log.info(f"{datetime.datetime.now()} [{self.ip}]: {clean_for_log(message)}")
+        # requests of crawlers and scripts are marked, "[1.2.3.4] [crawler GPTBot]: ...", so that the lines of people
+        # can be told apart (grep -v "\\[crawler")
+        crawler = crawler_name(self.environ.get("HTTP_USER_AGENT", ""))
+        mark = f" [crawler {crawler}]" if crawler else ""
+        search_log.info(f"{datetime.datetime.now()} [{self.ip}]{mark}: {clean_for_log(message)}")
 
     def __init__(self, environ, start_response):
         self.environ = environ
